@@ -1,0 +1,14 @@
+interface:
+  display_name: Design Check Fixture
+  short_description: Design rib or printed fixtures with flange gap checks
+  default_prompt: Use $design-check-fixture to design a checking fixture from this
+    STEP file with a 3 mm gap and 2.5/3.5 mm GO/NO-GO gauges.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
