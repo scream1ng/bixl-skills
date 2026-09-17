@@ -1,0 +1,11 @@
+# Concept before package
+
+The main router overrides inherited references that say to deliver immediately. Complete-build instructions apply only after authorization. Initial explicit full-package requests may proceed end-to-end, but still generate/check the concept and validate. “Design a fixture”, invocation, upload, or screenshot revision alone is not authorization.
+
+Survey actual geometry, datums, units, tolerances, loads, parts and joints. Choose an accessible right-handed frame and retain its transform. Identify functional faces/holes/slots from exact trimmed geometry. A cylinder is not automatically a hole or a plane a flange. Keep missing engineering inputs open. Choose master part, staged assembly constraints, practical supports, reaction paths, clamps, removable locators and handling margins. Use real GH-201-B CAD when suitable, with saved-pose warning. Build around measured contacts, not bounding boxes. Checking requires every flange inventoried and restrained gauge/hand access; welding requires weld access/distortion strategy.
+
+Create executable `spec.json`; `project.json` is its compact resumable index. Initialize with `python scripts/workflow.py init spec.json project.json --kind weld` (or `checking`; optional `--construction block|printed_solid`). Run `python scripts/workflow.py concept spec.json project.json WORK/concept`. This evaluates the final builders' tab/slot, clamp and checking-offset geometry but only generates private preview CAD/mesh/images, not a manufacturing package.
+
+Present datum/support/clamp decisions and open items. Invite rotate/pan/zoom and window captures describing changes; no capture button required. Track changes by component ID. Recover dimensions from exact CAD, not pixels. Edit spec, increment revision, `checkpoint`, regenerate `concept`. Repeat until explicitly asked to finalize. Recommend Astra for initial reasoning and Sol for edits/export; never claim automatic model switching.
+
+Before resuming, run `workflow.py resume spec.json project.json`; map relocated source paths and verify bytes. Changed frame/source/geometry invalidates affected evidence and package authorization. Never relabel measurements. Hand off both records, original sources and evidence, not only HTML.
