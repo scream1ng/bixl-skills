@@ -1,0 +1,165 @@
+"""Unified routing, resumability, authorization and exact-geometry preview regression."""
+import json
+import shutil
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+import numpy as np
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'scripts'))
+import workflow as wf
+from preview import generate, compact_mesh, inline_html, INLINE_HTML_TARGET, INLINE_HTML_LIMIT
+from export_step import read_step
+
+class WorkflowTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
+        self.path = Path(self.tmp.name)
+        shutil.copytree(ROOT / 'examples/flat-plate', self.path / 'input')
+        self.spec = self.path / 'input/spec.json'
+
+    def edit(self, **changes):
+        data = json.loads(self.spec.read_text()); data.update(changes)
+        self.spec.write_text(json.dumps(data)); return data
+
+    def test_routing_and_complete_matrix(self):
+        self.assertEqual(wf.route()['question'], 'Weld fixture or Check fixture?')
+        for kind in ('weld', 'checking'):
+            self.assertEqual(wf.route(kind)['construction'], 'laser_rib')
+        for kind, mode in [('weld', 'laser_rib'), ('weld', 'block'), ('checking', 'laser_rib'), ('checking', 'printed_solid')]:
+            self.assertFalse(wf.route(kind, mode)['concept_only'])
+        for kind, mode in [('weld', 'printed_solid'), ('checking', 'block')]:
+            with self.assertRaises(ValueError): wf.route(kind, mode)
+            self.assertTrue(wf.route(kind, mode, 'User explicitly requested concept study')['concept_only'])
+
+    def test_gate_and_initial_complete_request(self):
+        record = wf.initialize(self.spec, 'weld')
+        with self.assertRaises(ValueError): wf.finalization_allowed(self.spec, record)
+        with self.assertRaises(ValueError): wf.authorize(record, 'Finalize')
+        record['stage'] = 'preview'; wf.authorize(record, 'Finalize the package')
+        wf.finalization_allowed(self.spec, record)
+        self.assertFalse(any(record['readiness'].values()))
+        early = wf.initialize(self.spec, 'weld', complete_request='Create a complete review package')
+        with self.assertRaises(ValueError): wf.finalization_allowed(self.spec, early)
+        early['stage'] = 'preview'; wf.finalization_allowed(self.spec, early)
+
+    def test_spec_revision_invalidates_authorization(self):
+        record = wf.initialize(self.spec, 'weld'); record['stage'] = 'preview'; wf.authorize(record, 'Finalize')
+        self.edit(decisions=['Revise clamp platform'])
+        with self.assertRaises(ValueError): wf.resume(self.spec, record)
+        with self.assertRaises(ValueError): wf.checkpoint(self.spec, record)
+        self.edit(revision='R2'); fresh = wf.checkpoint(self.spec, record)
+        self.assertIsNone(fresh['authorization']); self.assertEqual(fresh['stage'], 'concept')
+        self.assertEqual(record['component_ids'], fresh['component_ids'])
+
+    def test_source_hash_units_and_version(self):
+        record = wf.initialize(self.spec, 'weld')
+        original = Path(record['sources'][0]['path']); original.write_bytes(original.read_bytes() + b'\n')
+        self.edit(revision='R2')
+        with self.assertRaises(ValueError): wf.resume(self.spec, record)
+        with self.assertRaises(ValueError): wf.checkpoint(self.spec, record)
+        fresh = wf.checkpoint(self.spec, record, resurveyed=True)
+        self.assertNotEqual(record['sources'][0]['sha256'], fresh['sources'][0]['sha256'])
+        path = self.path / 'project.json'; wf.save(path, fresh); wf.read_record(path)
+        fresh['schema_version'] = 'future-version'; wf.save(path, fresh)
+        with self.assertRaises(ValueError): wf.read_record(path)
+        self.edit(units='inch')
+        with self.assertRaises(ValueError): wf.snapshot(self.spec)
+
+    def test_evidence_not_circular_geometry_digest(self):
+        _, before = wf.snapshot(self.spec)
+        self.edit(checking_evidence=[{'name': 'test', 'status': 'unknown'}]); _, after = wf.snapshot(self.spec)
+        self.assertEqual(before['geometry_digest'], after['geometry_digest'])
+        self.assertNotEqual(before['input_digest'], after['input_digest'])
+
+    def test_resource_lookup(self):
+        from hardware_geometry import asset_path, definition
+        from records import sha256
+        self.assertEqual(sha256(asset_path('GH-201-B')), definition('GH-201-B')['asset']['sha256'])
+        self.assertTrue(wf.resource('assets/preview.html').is_file())
+        with self.assertRaises(ValueError): wf.resource('../escape')
+
+    def test_concept_only_exception_never_finalizes(self):
+        record = wf.initialize(self.spec, 'weld', 'printed_solid', 'User requested concept-only exception')
+        record['stage'] = 'preview'
+        with self.assertRaises(ValueError): wf.authorize(record, 'Finalize')
+
+    def test_no_package_during_preview_and_exact_spec_identity(self):
+        out = self.path / 'preview'
+        with patch('build.build', side_effect=AssertionError('Manufacturing build called')):
+            result = generate(self.spec, out, render=False)
+        self.assertFalse((out / 'DELIVERY').exists()); self.assertFalse(list(out.glob('*.dxf')))
+        scene = json.loads((out / 'scene.json').read_text())
+        evaluated = json.loads((out / 'evaluated-spec.json').read_text())
+        self.assertEqual(scene['evaluated_spec_sha256'], wf.digest(evaluated))
+        self.assertEqual(set(result['component_ids']), set(read_step(out / 'concept.step')))
+        self.assertIn('HW_', ' '.join(result['component_ids']))
+        self.assertTrue(result['inline_eligible'])
+        self.assertTrue(result['soft_target_met'])
+        self.assertLessEqual(result['bytes'], INLINE_HTML_TARGET)
+        self.assertLess(result['bytes'], INLINE_HTML_LIMIT)
+        html = (out / 'preview.html').read_text()
+        self.assertNotIn('__SCENE_GZIP_BASE64__', html)
+        self.assertIn('DecompressionStream', html)
+        self.assertIn('groupOn={workpiece:true,fixture:true,hardware:true}', html)
+        self.assertIn('ResizeObserver', html)
+        self.assertNotIn('innerWidth', html)
+        self.assertNotIn('<!doctype', html.lower())
+        self.assertNotIn('<html', html.lower())
+        self.assertNotIn('<body', html.lower())
+        self.assertNotIn('data-view=', html)
+        self.assertNotIn('Component visibility', html)
+        self.assertNotIn('Selected:', html)
+        self.assertNotIn('assembled.png', html)
+        self.assertEqual(set(result['private_files']), {'scene', 'evaluated_spec', 'concept_step', 'review_pngs'})
+
+    def test_inline_html_is_deterministic_and_strictly_budgeted(self):
+        scene = {'schema_version': 'fixture-preview-1', 'components': [], 'authoritative': False}
+        first, first_size = inline_html(scene)
+        second, second_size = inline_html(scene)
+        self.assertEqual(first, second)
+        self.assertEqual(first_size, second_size)
+        self.assertLess(first_size, INLINE_HTML_LIMIT)
+        self.assertIn('DecompressionStream', first)
+        self.assertIn('groupOn={workpiece:true,fixture:true,hardware:true}', first)
+        self.assertIn('ResizeObserver', first)
+        self.assertNotIn('innerWidth', first)
+        self.assertIn('height:720px', first)
+        self.assertIn('height:650px', first)
+        self.assertNotIn('70vh', first)
+        self.assertNotIn('<!doctype', first.lower())
+        self.assertNotIn('<html', first.lower())
+        self.assertNotIn('<body', first.lower())
+        for removed in ('data-view=', 'Component visibility', 'Selected:', 'assembled.png'):
+            self.assertNotIn(removed, first)
+        oversized = self.path / 'oversized-preview.html'
+        oversized.write_text('__SCENE_GZIP_BASE64__' + 'x' * INLINE_HTML_LIMIT)
+        with patch('preview.resource', return_value=oversized), self.assertRaisesRegex(ValueError, 'strictly below'):
+            inline_html(scene)
+
+    def test_checking_and_block_previews(self):
+        for mode, construction in [('checking-rib', 'laser_rib'), ('checking-printed', 'printed_solid')]:
+            record = wf.initialize(ROOT / 'examples' / mode / 'spec.json', 'checking', construction)
+            self.assertEqual(record['construction'], construction)
+            if mode == 'checking-rib': self.assertIn('CHECK_RIB', record['component_ids'])
+            result = generate(ROOT / 'examples' / mode / 'spec.json', self.path / mode, 'checking', construction, render=False)
+            self.assertFalse(result['authoritative']); self.assertTrue(result['component_ids'])
+        data = json.loads((ROOT / 'examples/checking-printed/spec.json').read_text())
+        data['workpiece']['placed_step'] = str(ROOT / 'examples/checking-printed/workpiece.step')
+        data['block_bodies'] = data.pop('printed_bodies'); data.pop('inspection'); data['clamps'] = []
+        path = self.path / 'block.json'; path.write_text(json.dumps(data))
+        result = generate(path, self.path / 'block', 'weld', 'block', render=False)
+        self.assertIn('BODY_MAIN', result['component_ids'])
+
+    def test_mesh_is_indexed_finite_nonempty(self):
+        from OCP.BRepPrimAPI import BRepPrimAPI_MakeSphere
+        from render_review import triangles
+        mesh = compact_mesh(triangles(BRepPrimAPI_MakeSphere(100).Shape()), target=100)
+        self.assertGreater(mesh['preview_triangles'], 0)
+        self.assertLessEqual(mesh['preview_triangles'], mesh['source_triangles'])
+        self.assertTrue(np.isfinite(mesh['positions']).all())
+        self.assertLess(max(mesh['indices']), len(mesh['positions']) // 3)
+
+if __name__ == '__main__': unittest.main()
