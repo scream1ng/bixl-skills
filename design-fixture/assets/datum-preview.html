@@ -4,16 +4,20 @@
 <style>
 html,body{margin:0;height:100%;font:14px system-ui;background:#e8edf2;color:#152a38}#view{position:absolute;inset:0}aside{position:absolute;top:12px;left:12px;max-height:85%;overflow:auto;width:265px;background:#fffe;padding:14px;border-radius:12px;box-shadow:0 3px 16px #1232}h1{font-size:17px;margin:0 0 8px}p{font-size:12px}button{padding:6px;margin:2px;border:1px solid #c1cdd5;background:white;border-radius:5px;cursor:pointer}label{display:block;margin:5px 0;font-size:12px}#notice{position:absolute;bottom:10px;left:12px;right:12px;background:#fffe;padding:9px;border-radius:7px;font-size:12px}#failure{padding:8px;color:#873700}details{margin-top:12px}canvas{display:block}
 table{border-collapse:collapse;font-size:11px;width:100%}td,th{border-bottom:1px solid #dde4e9;padding:2px 3px;text-align:left}.sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px}.off{color:#873700;font-weight:600}
+#pins{position:absolute;inset:0;pointer-events:none;overflow:hidden}.pin{position:absolute;pointer-events:auto}.pin b{position:absolute;left:-11px;top:-26px;display:flex;width:22px;height:22px;border-radius:50% 50% 50% 3px;background:#c0392b;color:#fff;font:600 12px system-ui;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 7px #0006;transform:rotate(-45deg)}.pin b span{transform:rotate(45deg)}.pin .box{position:absolute;left:16px;bottom:8px;width:196px;background:#fff;border-radius:9px;box-shadow:0 3px 14px #1234;padding:7px}.pin textarea{width:100%;box-sizing:border-box;height:54px;font:12px system-ui;border:1px solid #c1cdd5;border-radius:5px;resize:vertical}.pin.shut .box{display:none}.pin.flip .box{left:auto;right:16px}.pin .del{float:right;padding:3px 6px;font-size:11px}
+body.commenting #view canvas{cursor:crosshair}#comment.on{background:#c0392b;color:#fff;border-color:#c0392b}#shotmsg{font-size:11px;color:#42606f}
 #edits{position:absolute;top:12px;right:12px;width:265px;max-height:85%;overflow:auto;background:#fffe;padding:14px;border-radius:12px;box-shadow:0 3px 16px #1232}pre{font:11px ui-monospace,monospace;white-space:pre-wrap;margin:6px 0 0}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
 </head><body><div id="view"></div><aside><h1 id="title">Datum scheme</h1><p id="counts"></p>
 <div id="cameras"><button data-view="iso">Iso</button><button data-view="front">Front</button><button data-view="right">Right</button><button data-view="top">Top</button></div>
 <p>Drag: rotate · right-drag: pan · wheel: zoom. Click a marker to grab it; drag to move it (0.5 mm snap, 0.1 mm with shift). A contact slides only in its own face plane.</p>
+<button id="comment">Comment mode</button><button id="shot">Copy snapshot</button><button id="png">Save PNG</button><p id="shotmsg">Comment mode: click the part to pin a note. The snapshot burns the numbered pins and their text into the image.</p>
 <label><input type="checkbox" id="showpart" checked> workpiece</label><label><input type="checkbox" id="xray" checked> see-through part</label>
 <p id="selected">Selected: none</p><div id="schedule"></div>
 <div id="failure">Loading 3D modules… If blocked/offline, the datum schedule above is the authoritative list.</div></aside>
-<div id="edits"><h1>Edits (mm)</h1><p>Exact numbers for the next revision. Never read dimensions off the picture. A moved point is only a proposal: apply it to the spec and re-run <code>workflow.py datum</code>, which re-measures every point against the placed CAD.</p><button id="copy">Copy JSON</button><button id="reset">Reset all</button><pre id="patch">[]</pre></div>
+<div id="edits"><h1>Edits (mm)</h1><p>Exact numbers for the next revision. Never read dimensions off the picture. A moved point is only a proposal: apply it to the spec and re-run <code>workflow.py datum</code>, which re-measures every point against the placed CAD.</p><button id="copy">Copy JSON</button><button id="reset">Reset all</button><pre id="patch">[]</pre>
+<h1 style="margin-top:14px">Comments</h1><button id="copynotes">Copy comments</button><pre id="notes">none</pre></div>
 <div id="notice">DATUM SCHEME ONLY · no ribs, blocks or clamp bodies exist yet · approximate mesh, exact measurements/validation remain in OCP CAD. Full 3-2-1 rank is not seating or force-closure approval.</div>
 <script id="scene-data" type="application/json">__SCENE_JSON__</script>
 <script type="module">
@@ -27,6 +31,7 @@ document.querySelector('#counts').textContent=Object.entries(data.counts).filter
 const scene=new THREE.Scene();scene.background=new THREE.Color('#e8edf2');
 const camera=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,.1,100000);camera.up.set(0,0,1);
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);document.querySelector('#view').append(renderer.domElement);
+const pins=document.createElement('div');pins.id='pins';document.querySelector('#view').append(pins);
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;
 scene.add(new THREE.HemisphereLight(0xffffff,0x506070,2.3));const light=new THREE.DirectionalLight(0xffffff,2.4);light.position.set(-1,-2,4);scene.add(light);
 const part=[];
@@ -102,6 +107,70 @@ gizmo.addEventListener('objectChange',()=>{
   o.position.copy(o.userData.home).add(delta.sub(n.clone().multiplyScalar(delta.dot(n))));
   report();
 });
+// Click-to-comment: a note is anchored to a 3D point on the part, so its pin tracks the view.
+let commenting=false,notes=[];
+const commentButton=document.querySelector('#comment');
+commentButton.onclick=()=>{commenting=!commenting;commentButton.classList.toggle('on',commenting);
+  document.body.classList.toggle('commenting',commenting);gizmo.enabled=!commenting;if(commenting)gizmo.detach();};
+function renumber(){notes.forEach((note,i)=>{note.n=i+1;note.el.querySelector('b span').textContent=note.n;});}
+function reportNotes(){document.querySelector('#notes').textContent=notes.length
+  ?notes.map(note=>`${note.n}. ${note.text||'(empty)'}  @ [${note.point.toArray().map(round).join(', ')}]${note.on?' on '+note.on:''}`).join('\n'):'none';}
+function addNote(point,on){
+  const note={point:point.clone(),on,text:'',n:notes.length+1};
+  const el=document.createElement('div');el.className='pin';
+  el.innerHTML=`<b><span>${note.n}</span></b><div class="box"><textarea placeholder="What should change here?"></textarea><button class="del">Delete</button></div>`;
+  el.querySelector('b').onclick=event=>{event.stopPropagation();el.classList.toggle('shut');};
+  el.querySelector('.del').onclick=()=>{notes.splice(notes.indexOf(note),1);el.remove();renumber();reportNotes();};
+  const area=el.querySelector('textarea');area.oninput=()=>{note.text=area.value;reportNotes();};
+  note.el=el;pins.append(el);notes.push(note);reportNotes();area.focus();
+}
+function placePins(){
+  const width=renderer.domElement.clientWidth,height=renderer.domElement.clientHeight,v=new THREE.Vector3();
+  for(const note of notes){v.copy(note.point).project(camera);
+    const behind=v.z>1;note.el.style.display=behind?'none':'block';
+    note.screen=[(v.x*.5+.5)*width,(-v.y*.5+.5)*height];
+    note.el.style.left=note.screen[0]+'px';note.el.style.top=note.screen[1]+'px';
+    note.el.classList.toggle('flip',note.screen[0]>width-230);}
+}
+document.querySelector('#copynotes').onclick=()=>navigator.clipboard&&navigator.clipboard.writeText(document.querySelector('#notes').textContent);
+// Snapshot: the pins are HTML, so they are redrawn onto a copy of the WebGL frame with their text.
+function snapshot(){
+  renderer.render(scene,camera);placePins();
+  const source=renderer.domElement,canvas=document.createElement('canvas');
+  canvas.width=source.width;canvas.height=source.height;
+  const g=canvas.getContext('2d'),s=source.width/source.clientWidth;
+  g.drawImage(source,0,0);
+  g.font=`600 ${13*s}px system-ui`;g.fillStyle='#152a38';
+  g.fillText(`${data.project_id} · ${data.revision} · datum scheme only · not approval`,12*s,20*s);
+  const shown=notes.filter(note=>note.el.style.display!=='none');
+  for(const note of shown){
+    const [x,y]=note.screen.map(value=>value*s);
+    g.beginPath();g.arc(x,y-13*s,11*s,0,7);g.fillStyle='#c0392b';g.fill();
+    g.lineWidth=1.5*s;g.strokeStyle='#fff';g.stroke();
+    g.beginPath();g.moveTo(x,y);g.lineTo(x-4*s,y-8*s);g.lineTo(x+4*s,y-8*s);g.closePath();g.fill();
+    g.fillStyle='#fff';g.font=`600 ${12*s}px system-ui`;g.textAlign='center';g.textBaseline='middle';
+    g.fillText(note.n,x,y-13*s);g.textAlign='left';g.textBaseline='alphabetic';}
+  const lines=[];
+  g.font=`${12*s}px system-ui`;
+  for(const note of notes){
+    const words=(`${note.n}. ${note.text||'(empty)'}`).split(' ');let line='';
+    for(const word of words){const next=line?line+' '+word:word;
+      if(g.measureText(next).width>300*s&&line){lines.push(line);line='   '+word;}else line=next;}
+    if(line)lines.push(line);}
+  if(lines.length){
+    const pad=8*s,height=lines.length*16*s+pad*2,top=canvas.height-height-10*s;
+    g.fillStyle='#ffffffee';g.fillRect(10*s,top,320*s,height);
+    g.fillStyle='#152a38';lines.forEach((line,i)=>g.fillText(line,10*s+pad,top+pad+(i+1)*16*s-4*s));}
+  return canvas;
+}
+function say(message){document.querySelector('#shotmsg').textContent=message;}
+function download(canvas){const a=document.createElement('a');a.download=`${data.project_id}-${data.revision}-datum.png`;a.href=canvas.toDataURL('image/png');a.click();}
+document.querySelector('#shot').onclick=()=>{const canvas=snapshot();
+  if(!navigator.clipboard||!window.ClipboardItem){download(canvas);return say('Clipboard unavailable here — saved a PNG instead.');}
+  canvas.toBlob(blob=>navigator.clipboard.write([new ClipboardItem({'image/png':blob})])
+    .then(()=>say('Snapshot copied — paste it into the chat.'))
+    .catch(()=>{download(canvas);say('Clipboard refused — saved a PNG instead.');}),'image/png');};
+document.querySelector('#png').onclick=()=>{download(snapshot());say('PNG saved.');};
 const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let down;
 renderer.domElement.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
 renderer.domElement.addEventListener('pointerup',e=>{
@@ -112,12 +181,13 @@ renderer.domElement.addEventListener('pointerup',e=>{
   // Markers win over the see-through part, which otherwise always returns the nearest hit.
   const hits=ray.intersectObjects([...handles,...part.filter(m=>m.visible)]);
   const hit=hits.find(h=>h.object.userData.marker)||hits[0];
+  if(commenting){if(hit)addNote(hit.point,hit.object.userData.marker?hit.object.userData.marker.name:hit.object.name);return;}
   if(hit&&hit.object.userData.marker){gizmo.attach(hit.object);document.querySelector('#selected').textContent='Selected: '+hit.object.userData.marker.name;}
   else{gizmo.detach();document.querySelector('#selected').textContent='Selected: '+(hit?hit.object.name:'none');}
 });
 document.querySelector('#copy').onclick=()=>navigator.clipboard&&navigator.clipboard.writeText(document.querySelector('#patch').textContent);
 document.querySelector('#reset').onclick=()=>{for(const o of handles)o.position.copy(o.userData.home);report();};
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
-document.querySelector('#failure').style.display='none';function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}animate();
+document.querySelector('#failure').style.display='none';function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);if(notes.length)placePins();}animate();
 }catch(error){document.querySelector('#failure').prepend(document.createTextNode('Interactive preview unavailable: '+error.message+'. '));}
 </script></body></html>
