@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 GEOMETRY_CHECKS = ('tab_slot_seat_bridge','material_width','nest','solid_integrity','contacts',
-                   'constraint_independence','interference','step_roundtrip','fixture_insertion','clamp_mounts','hardware_geometry','mount_compactness','same_side_secondary','assembly_locating','mounting_height')
+                   'constraint_independence','interference','step_roundtrip','fixture_insertion','clamp_mounts','hardware_geometry','mount_compactness','same_side_secondary','assembly_locating','mounting_height','cap_joints')
 ENGINEERING_CHECKS = ('source_survey','clamp_seating','clamp_motion','workpiece_loading','workpiece_unloading',
                       'weld_access','retention','strength','tolerances','distortion','trial_validation','assembly_tolerances','hardware_pose','hardware_clearance',
                       'rib_construction','fastener_access','pin_mechanisms')

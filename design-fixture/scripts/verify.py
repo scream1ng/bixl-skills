@@ -158,6 +158,8 @@ def verify(spec, step_path, insertion=True, log=print):
     rep['secondary_sides'] = assembly_locating.secondary_sides(spec)
     rep['mating_geometry'] = assembly_locating.mating_geometry(spec,resolved)
     rep['hardware_geometry'] = verify_export(spec,shapes)
+    import cap_joints
+    rep['cap_joints'] = cap_joints.audit(spec)
     from mount_height import audit as height_audit
     rep['mounting_height'] = height_audit(spec,shapes,resolved)
     covered = set()
@@ -205,6 +207,7 @@ def verify(spec, step_path, insertion=True, log=print):
     rep['check_statuses']['assembly_locating'] = aggregate([rep['assembly_locating']['status'],rep['mating_geometry']['status']])
     rep['check_statuses']['hardware_geometry'] = rep['hardware_geometry']['status']
     rep['check_statuses']['mounting_height'] = rep['mounting_height']['status']
+    rep['check_statuses']['cap_joints'] = rep['cap_joints']['status']
     if spec.get('assembly_locating'):
         rep['check_statuses']['constraint_independence'] = aggregate([rep['check_statuses']['assembly_locating'], 'unknown' if rep['unmapped_workpieces'] else 'pass'])
     rep['status'] = aggregate(rep['check_statuses'].values())

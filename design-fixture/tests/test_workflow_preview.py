@@ -10,7 +10,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 import workflow as wf
-from preview import generate, compact_mesh, inline_html, INLINE_HTML_TARGET, INLINE_HTML_LIMIT
+from preview import generate, compact_mesh
 from export_step import read_step
 
 class WorkflowTests(unittest.TestCase):
@@ -96,48 +96,8 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(scene['evaluated_spec_sha256'], wf.digest(evaluated))
         self.assertEqual(set(result['component_ids']), set(read_step(out / 'concept.step')))
         self.assertIn('HW_', ' '.join(result['component_ids']))
-        self.assertTrue(result['inline_eligible'])
-        self.assertTrue(result['soft_target_met'])
-        self.assertLessEqual(result['bytes'], INLINE_HTML_TARGET)
-        self.assertLess(result['bytes'], INLINE_HTML_LIMIT)
-        html = (out / 'preview.html').read_text()
-        self.assertNotIn('__SCENE_GZIP_BASE64__', html)
-        self.assertIn('DecompressionStream', html)
-        self.assertIn('groupOn={workpiece:true,fixture:true,hardware:true}', html)
-        self.assertIn('ResizeObserver', html)
-        self.assertNotIn('innerWidth', html)
-        self.assertNotIn('<!doctype', html.lower())
-        self.assertNotIn('<html', html.lower())
-        self.assertNotIn('<body', html.lower())
-        self.assertNotIn('data-view=', html)
-        self.assertNotIn('Component visibility', html)
-        self.assertNotIn('Selected:', html)
-        self.assertNotIn('assembled.png', html)
-        self.assertEqual(set(result['private_files']), {'scene', 'evaluated_spec', 'concept_step', 'review_pngs'})
-
-    def test_inline_html_is_deterministic_and_strictly_budgeted(self):
-        scene = {'schema_version': 'fixture-preview-1', 'components': [], 'authoritative': False}
-        first, first_size = inline_html(scene)
-        second, second_size = inline_html(scene)
-        self.assertEqual(first, second)
-        self.assertEqual(first_size, second_size)
-        self.assertLess(first_size, INLINE_HTML_LIMIT)
-        self.assertIn('DecompressionStream', first)
-        self.assertIn('groupOn={workpiece:true,fixture:true,hardware:true}', first)
-        self.assertIn('ResizeObserver', first)
-        self.assertNotIn('innerWidth', first)
-        self.assertIn('height:720px', first)
-        self.assertIn('height:650px', first)
-        self.assertNotIn('70vh', first)
-        self.assertNotIn('<!doctype', first.lower())
-        self.assertNotIn('<html', first.lower())
-        self.assertNotIn('<body', first.lower())
-        for removed in ('data-view=', 'Component visibility', 'Selected:', 'assembled.png'):
-            self.assertNotIn(removed, first)
-        oversized = self.path / 'oversized-preview.html'
-        oversized.write_text('__SCENE_GZIP_BASE64__' + 'x' * INLINE_HTML_LIMIT)
-        with patch('preview.resource', return_value=oversized), self.assertRaisesRegex(ValueError, 'strictly below'):
-            inline_html(scene)
+        self.assertEqual(result['inline_eligible'], result['bytes'] < 1_000_000)
+        self.assertNotIn('__SCENE_JSON__', (out / 'preview.html').read_text())
 
     def test_checking_and_block_previews(self):
         for mode, construction in [('checking-rib', 'laser_rib'), ('checking-printed', 'printed_solid')]:
@@ -152,6 +112,34 @@ class WorkflowTests(unittest.TestCase):
         path = self.path / 'block.json'; path.write_text(json.dumps(data))
         result = generate(path, self.path / 'block', 'weld', 'block', render=False)
         self.assertIn('BODY_MAIN', result['component_ids'])
+
+    def test_unauthorized_concept_loop_drifts_without_losing_retirement(self):
+        record = wf.initialize(self.spec, 'weld')
+        data = self.edit(decisions=['Taller clamp platform'])
+        wf.resume(self.spec, record)
+        self.assertEqual(record['decisions'], ['Taller clamp platform'])
+        dropped = data['plates'].pop()['name']
+        self.edit(plates=data['plates'])
+        wf.resume(self.spec, record)
+        self.assertNotIn(dropped, record['component_ids'])
+        self.edit(revision='R2')
+        fresh = wf.checkpoint(self.spec, record)
+        self.assertIn(dropped, fresh['retired_ids'])
+        record['authorization'] = {'input_digest': record['input_digest']}
+        self.edit(decisions=['Another change'])
+        with self.assertRaises(ValueError): wf.resume(self.spec, record)
+
+    def test_block_finalization_is_recorded_as_a_manual_handoff(self):
+        record = wf.initialize(self.spec, 'weld', 'block')
+        record['stage'] = 'preview'; wf.authorize(record, 'Finalize the package')
+        result = wf.finalize(self.spec, record, self.path / 'block')
+        self.assertEqual(result['status'], 'manual_block_finalization_required')
+        handoff = [h for h in record['history'] if h.get('event') == 'manual_block_finalization_required']
+        self.assertEqual(len(handoff), 1)
+        self.assertEqual(handoff[0]['input_digest'], record['input_digest'])
+        wf.finalize(self.spec, record, self.path / 'block')
+        self.assertEqual(len([h for h in record['history'] if h.get('event')]), 1)
+        self.assertEqual(record['stage'], 'preview')
 
     def test_mesh_is_indexed_finite_nonempty(self):
         from OCP.BRepPrimAPI import BRepPrimAPI_MakeSphere

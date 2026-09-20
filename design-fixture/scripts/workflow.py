@@ -21,8 +21,17 @@ def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()).hexdigest()
 
 
+_HASHES = {}
+
+
 def file_hash(path):
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    """Cached on (path, mtime, size); source bytes are re-hashed whenever either moves."""
+    path = Path(path)
+    stat = path.stat()
+    key = (str(path), stat.st_mtime_ns, stat.st_size)
+    if key not in _HASHES:
+        _HASHES[key] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return _HASHES[key]
 
 
 def route(kind=None, construction=None, concept_exception=None):
@@ -44,11 +53,11 @@ def snapshot(spec_path):
     spec = json.loads(spec_path.read_text())
     if spec.get('units') != 'mm' or not spec.get('project_id') or not spec.get('revision'):
         raise ValueError('Spec requires project_id, revision and mm units')
-    from survey_step import rigid_transform
+    from fixture_common import validate_rigid
     frame = spec.get('workpiece', {}).get('source_to_fixture')
     if frame is None:
         raise ValueError('Survey and record the coordinate frame first')
-    rigid_transform(frame)
+    validate_rigid(frame)
     wp = spec['workpiece']
     sources = []
     if not wp.get('source_files') or not wp.get('placed_step'):
@@ -73,6 +82,8 @@ def snapshot(spec_path):
     return spec, {'project_id': spec['project_id'], 'revision': spec['revision'], 'units': 'mm',
         'coordinate_frame': {'name': 'fixture', 'source_to_fixture': frame}, 'sources': sources,
         'geometry_digest': digest({'spec': geometry, 'sources': sources}), 'input_digest': digest(identity),
+        'datum_digest': digest({k: spec.get(k) for k in ('contacts', 'locating_groups', 'clamps')} |
+            {'frame': frame, 'sources': sources}),
         'component_ids': sorted(set(ids)), 'decisions': spec.get('decisions', []),
         'open_items': spec.get('open_items', []),
         'evidence': [{k: row[k] for k in ('name', 'status', 'geometry_fingerprint', 'evidence', 'next_action') if k in row}
@@ -100,7 +111,8 @@ def initialize(spec_path, kind, construction=None, concept_exception=None, compl
     if mode['fixture_kind'] == 'weld' and spec.get('inspection'):
         raise ValueError('Weld spec must not retain a checking plan')
     record = {'schema_version': VERSION, **snap, **mode, 'stage': 'concept', 'retired_ids': [],
-        'authorization': None, 'history': [], 'readiness': {k: False for k in
+        'baseline_ids': snap['component_ids'],
+        'authorization': None, 'datum_review': None, 'history': [], 'readiness': {k: False for k in
             ('cad_verified', 'fabrication_ready', 'fixture_calibrated', 'inspection_validated')}}
     if complete_request:
         authorize(record, complete_request, initial=True)
@@ -108,11 +120,22 @@ def initialize(spec_path, kind, construction=None, concept_exception=None, compl
 
 
 def resume(spec_path, record):
+    """Unauthorized concept iteration may drift; anything authorized still demands a checkpoint."""
     _, current = snapshot(spec_path)
     if record.get('schema_version') != VERSION:
         raise ValueError('Unsupported project version')
-    if current['input_digest'] != record['input_digest']:
+    if current['input_digest'] == record['input_digest']:
+        return current
+    if (record.get('authorization') or current['revision'] != record['revision']
+            or current['project_id'] != record['project_id']):
         raise ValueError('Source/spec changed; re-survey if necessary and checkpoint before reuse')
+    if ([(x['role'], x['sha256']) for x in current['sources']] != [(x['role'], x['sha256']) for x in record['sources']]
+            or current['coordinate_frame'] != record['coordinate_frame']):
+        raise ValueError('Source/frame changed; fresh survey required (checkpoint --resurveyed)')
+    if set(current['component_ids']) & set(record['retired_ids']):
+        raise ValueError('Do not recycle retired component IDs')
+    record.update(current)
+    record['stage'] = 'concept'
     return current
 
 
@@ -131,9 +154,27 @@ def checkpoint(spec_path, record, resurveyed=False):
     if set(snap['component_ids']) & set(record['retired_ids']):
         raise ValueError('Do not recycle retired component IDs')
     fresh = initialize(spec_path, record['fixture_kind'], record['construction'], record.get('exception_reason'))
-    fresh['retired_ids'] = sorted(set(record['retired_ids']) | (set(record['component_ids']) - set(snap['component_ids'])))
+    fresh['retired_ids'] = sorted(set(record['retired_ids']) |
+        (set(record.get('baseline_ids', record['component_ids'])) - set(snap['component_ids'])))
     fresh['history'] = record['history'] + [{'revision': record['revision'], 'input_digest': record['input_digest'], 'stage': record['stage']}]
     return fresh
+
+
+def datum_reviewed(record):
+    """The ack follows the datum scheme itself, not every unrelated spec edit in the concept loop."""
+    review = record.get('datum_review') or {}
+    return bool(record.get('datum_digest')) and review.get('datum_digest') == record['datum_digest']
+
+
+def datum_ok(record, note):
+    if not isinstance(note, str) or not note.strip():
+        raise ValueError('Record the actual datum-scheme review words')
+    shown = (record.get('datum_preview') or {}).get('datum_digest')
+    if not shown or shown != record.get('datum_digest'):
+        raise ValueError('Generate a current datum scheme preview before reviewing it')
+    record['datum_review'] = {'note': note.strip(), 'datum_digest': record['datum_digest'],
+        'input_digest': record['input_digest']}
+    return record['datum_review']
 
 
 def authorize(record, request, initial=False):
@@ -160,7 +201,12 @@ def finalization_allowed(spec_path, record):
 def finalize(spec_path, record, out):
     finalization_allowed(spec_path, record)
     if record['construction'] == 'block':
-        return {'status': 'manual_block_finalization_required', 'reference': 'references/finalization.md'}
+        handoff = {'revision': record['revision'], 'input_digest': record['input_digest'],
+            'stage': record['stage'], 'event': 'manual_block_finalization_required'}
+        if handoff not in record['history']:
+            record['history'].append(handoff)
+        return {'status': 'manual_block_finalization_required', 'reference': 'references/finalization.md',
+            'recorded_in_history': True}
     if record['fixture_kind'] == 'checking':
         from build_check import build
     else:
@@ -171,15 +217,16 @@ def finalize(spec_path, record, out):
         for k in record['readiness']}
     record['stage'] = 'finalized' if result['exit_code'] == 0 else 'finalization_needs_review'
     record['open_items'] = ver.get('open_items', [])
-    return {k: v for k, v in result.items() if k not in ('cad', 'plates')}
+    return {k: v for k, v in result.items() if k not in ('cad', 'plates', 'joints')}
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('action', choices=['route', 'init', 'resume', 'checkpoint', 'concept', 'authorize', 'finalize'])
+    p.add_argument('action', choices=['route', 'init', 'resume', 'checkpoint', 'datum', 'datum-ok', 'concept', 'authorize', 'finalize'])
     p.add_argument('spec', nargs='?'); p.add_argument('record', nargs='?'); p.add_argument('out', nargs='?')
     p.add_argument('--kind', choices=['weld', 'checking', 'check']); p.add_argument('--construction')
     p.add_argument('--concept-exception'); p.add_argument('--complete-package-request'); p.add_argument('--request')
+    p.add_argument('--note')
     p.add_argument('--resurveyed', action='store_true')
     a = p.parse_args()
     if a.action == 'route':
@@ -198,12 +245,20 @@ def main():
             resume(a.spec, record)
             if a.action == 'resume': result = record
             elif a.action == 'authorize': result = authorize(record, a.request)
+            elif a.action == 'datum':
+                from datum_preview import generate
+                result = generate(a.spec, a.out)
+                record['stage'] = 'datum_preview'
+                record['datum_preview'] = {**result, 'datum_digest': record['datum_digest']}
+            elif a.action == 'datum-ok': result = datum_ok(record, a.note)
             elif a.action == 'concept':
+                if not datum_reviewed(record):
+                    raise ValueError('Review the datum scheme first: workflow.py datum, then datum-ok --note')
                 from preview import generate
                 result = generate(a.spec, a.out, record['fixture_kind'], record['construction'])
                 record['stage'] = 'preview'; record['preview'] = result
             else: result = finalize(a.spec, record, a.out)
-        if a.action != 'resume': save(a.record, record)
+        save(a.record, record)
     print(json.dumps(result, indent=2))
 
 

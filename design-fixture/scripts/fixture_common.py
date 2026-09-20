@@ -14,6 +14,19 @@ from shapely import affinity, set_precision
 from shapely.geometry import Polygon
 
 
+def validate_rigid(value=None):
+    """4x4 column-vector transform; translations are millimetres, no scaling/mirror. Pure numpy."""
+    if isinstance(value, dict):
+        value = value["source_to_fixture"]
+    matrix = np.eye(4) if value is None else np.asarray(value, dtype=float)
+    if (matrix.shape != (4, 4) or not np.isfinite(matrix).all()
+            or not np.allclose(matrix[3], [0, 0, 0, 1], atol=1e-9, rtol=0)
+            or not np.allclose(matrix[:3, :3].T @ matrix[:3, :3], np.eye(3), atol=1e-9, rtol=0)
+            or not np.isclose(np.linalg.det(matrix[:3, :3]), 1, atol=1e-9, rtol=0)):
+        raise ValueError("source_to_fixture must be a finite proper rigid 4x4 transform")
+    return matrix
+
+
 def load_spec(path):
     path = Path(path).resolve()
     spec = json.loads(path.read_text())

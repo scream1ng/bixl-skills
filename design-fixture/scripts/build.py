@@ -8,6 +8,7 @@ import copy
 import json
 from pathlib import Path
 import audit_width
+import cap_joints
 import clamp_mount
 import nest_dxf
 import tabs_slots
@@ -45,6 +46,7 @@ def build(spec_file,out,step=True,insertion=True,render=True,log=print):
     dxf=delivery/f'{pid}-fixture-cutting.dxf';step_path=delivery/f'{pid}-fixture-assembly.step'
     for p in (dxf,step_path,delivery/'assembled.png',delivery/'empty-fixture.png'):
         if p.exists():p.unlink()
+    log('cap joints');caps=cap_joints.design(spec,log)
     log('tabs/slots');tabs=tabs_slots.design(spec,log)
     log('clamp mounts');clamps=clamp_mount.mount(spec)
     import mount_compactness
@@ -59,7 +61,7 @@ def build(spec_file,out,step=True,insertion=True,render=True,log=print):
         if render:
             from render_review import render as render_views
             log('review images');render_views(step_path,delivery,rev,mount_heights=cad['mounting_height'])
-    details={'tab_slot_design':tabs,'clamp_mounts':clamps,'width_audit':width,'cutting_audit':nest,'cad_audit':cad,'mount_compactness':compact}
+    details={'cap_joints':caps,'tab_slot_design':tabs,'clamp_mounts':clamps,'width_audit':width,'cutting_audit':nest,'cad_audit':cad,'mount_compactness':compact}
     for name,data in details.items():write_json(work/f'{name}.json',data)
     write_json(work/'plates.json',spec['plates'])
     checks=[check('tab_slot_seat_bridge','pass' if tabs['minimum_seat_cutout_bridge_mm']>=tabs['params']['min_bridge_mm']-1e-6 else 'fail',
@@ -126,14 +128,14 @@ def build(spec_file,out,step=True,insertion=True,render=True,log=print):
     write_json(delivery/'JSON/verification.json',records['verification.json'])
     errors=validate(delivery)
     return {'overall_status':overall,'geometry_status':geometry,'geometry_fingerprint':fingerprint,'delivery_validation':errors,
-            'exit_code':1 if overall=='fail' else 2 if errors else 0,'cad':cad,'plates':spec['plates'],'delivery':str(delivery)}
+            'exit_code':1 if overall=='fail' else 2 if errors else 0,'cad':cad,'plates':spec['plates'],'joints':spec['joints'],'delivery':str(delivery)}
 
 if __name__=='__main__':
     ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('spec');ap.add_argument('out');ap.add_argument('--no-step',action='store_true');ap.add_argument('--no-insertion',action='store_true');ap.add_argument('--no-render',action='store_true')
     a=ap.parse_args()
     try:
         r=build(a.spec,a.out,not a.no_step,not a.no_insertion,not a.no_render)
-        print(json.dumps({k:v for k,v in r.items() if k not in ('cad','plates')},indent=2))
+        print(json.dumps({k:v for k,v in r.items() if k not in ('cad','plates','joints')},indent=2))
         raise SystemExit(r['exit_code'])
     except (ValueError,AssertionError,KeyError) as exc:
         print(f'BUILD FAILED: {exc}');raise SystemExit(1)

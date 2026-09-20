@@ -60,7 +60,7 @@ Manual engineering evidence is supplied through the input spec; see `spec-format
 
 ## Exports and review images
 
-The STEP preserves named fixture solids, workpiece references and any hardware references. The DXF uses millimetres with closed fabrication contours on CUT and joined open single-stroke `LWPOLYLINE` geometry on ETCH; `TEXT` and `MTEXT` are forbidden. Physical-stock, usable-zone, clamp-exclusion and nest-strip boundaries stay off CUT. Hash the exact exported files.
+The STEP preserves named fixture solids, workpiece references and any hardware references. The DXF uses millimetres with closed fabrication contours on CUT, text on ETCH and stock boundaries off CUT. Hash the exact exported files.
 
 `assembled.png` shows the workpiece seated with visible fixture details; `empty-fixture.png` removes the workpiece and identifies fixture components. The bundled renderer uses the exported STEP and identifies hardware as saved-pose references. Empty views hide the workpiece and its source weld/clip references. The assembled image includes CAD side-view insets with mounting-face height, clamping-surface height and signed difference for each clamp; keep these inside the existing PNG rather than adding routine files. Both are review views, not proof of clearance or manufacturability.
 

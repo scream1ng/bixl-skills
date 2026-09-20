@@ -88,7 +88,7 @@ def audit(spec, shapes, resolved):
         part_name, part = resolved.get(clamp.get('part'), (None,None)); row['part'] = part_name
         if mount is None or part is None:
             row.update(status='fail', reason='Missing mount plate or mapped target workpiece.'); continue
-        placement, _ = place(clamp, by[clamp['mount_plate']], spec['thickness_mm'], spec.get('min_width_mm',10))
+        placement, _, _ = place(clamp, by[clamp['mount_plate']], spec['thickness_mm'], spec.get('min_width_mm',10))
         frame = placement['frame']; n = np.array(frame['z']); x = np.array(frame['x']); origin = np.array(frame['origin'])
         row['frame'] = frame; row['target_contact'] = clamp['contact']
         # Probe within the actual clamp base footprint rather than assuming the spec's face elevation.

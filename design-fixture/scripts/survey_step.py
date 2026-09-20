@@ -31,6 +31,7 @@ from OCP.TopLoc import TopLoc_Location
 from OCP.TopoDS import TopoDS
 from OCP.XCAFDoc import XCAFDoc_DocumentTool
 from OCP.gp import gp_Trsf
+from fixture_common import validate_rigid
 
 
 def xyz(p):
@@ -107,15 +108,8 @@ def read_occurrences(path):
 
 
 def rigid_transform(value=None):
-    """4x4 column-vector transform; translations are millimetres, no scaling/mirror."""
-    if isinstance(value, dict):
-        value = value["source_to_fixture"]
-    matrix = np.eye(4) if value is None else np.asarray(value, dtype=float)
-    if (matrix.shape != (4, 4) or not np.isfinite(matrix).all()
-            or not np.allclose(matrix[3], [0, 0, 0, 1], atol=1e-9, rtol=0)
-            or not np.allclose(matrix[:3, :3].T @ matrix[:3, :3], np.eye(3), atol=1e-9, rtol=0)
-            or not np.isclose(np.linalg.det(matrix[:3, :3]), 1, atol=1e-9, rtol=0)):
-        raise ValueError("source_to_fixture must be a finite proper rigid 4x4 transform")
+    """Validated 4x4 plus its OCP placement."""
+    matrix = validate_rigid(value)
     trsf = gp_Trsf()
     trsf.SetValues(*matrix[:3].ravel().tolist())
     return matrix.tolist(), TopLoc_Location(trsf)

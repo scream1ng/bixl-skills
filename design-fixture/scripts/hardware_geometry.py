@@ -32,7 +32,7 @@ def placed_shapes(spec):
         hw=definition(c['hardware']);p=asset_path(c['hardware']);source=read_step(p)
         expected=hw['asset']['components']
         if set(source)!=set(expected):raise ValueError(f"{c['tag']}: clamp component identities differ from the asset record")
-        row,_=place(c,plates[c['mount_plate']],spec['thickness_mm'],spec.get('min_width_mm',10))
+        row,_,_=place(c,plates[c['mount_plate']],spec['thickness_mm'],spec.get('min_width_mm',10))
         f=row['frame'];world=np.eye(4);world[:3,:3]=np.array([f['x'],f['y'],f['z']]).T;world[:3,3]=f['origin']
         transform=world@np.array(hw['asset']['source_to_canonical'])
         names=[]

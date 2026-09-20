@@ -58,10 +58,10 @@ plates = [
     # Tertiary rib: edge at local x = -80 (world x = -80) touches the short edge.
     rib_xz("C1", "FP05", 0.0, rect(-115, 0, -80, 70), ["C1"]),
     # Clamp support: two identical cheeks under a horizontal mount plate.
-    rib_yz("K1", "FP06", -22.0, rect(82, 0, 134, 61), [], "Clamp support cheek"),
-    rib_yz("K2", "FP06", 22.0, rect(82, 0, 134, 61), [], "Clamp support cheek"),
+    rib_yz("K1", "FP06", -26.0, rect(82, 0, 134, 61), [], "Clamp support cheek"),
+    rib_yz("K2", "FP06", 26.0, rect(82, 0, 134, 61), [], "Clamp support cheek"),
     {"name": "P_T1", "part_number": "FP07", "role": "GH-201-B mount plate; M5 x 0.8 tap after laser",
-     "origin": [0.0, 0.0, 63.5], "u": X, "v": Y, "w": Z, "outer": rect(-30, 76, 30, 140), "holes": [], "contacts": []},
+     "origin": [0.0, 0.0, 63.5], "u": X, "v": Y, "w": Z, "outer": rect(-39, 76, 39, 140), "holes": [], "contacts": []},
 ]
 
 
@@ -90,7 +90,7 @@ spec = {
     "insertion": {"offsets_mm": [0.2, 0.5, 1, 2, 4, 8, 15, 30, 60, 100], "default_axis": Z, "along_w": []},
 }
 
-# Compact 60 x 64 mm cap rests on two cheeks. Locate its XY position during dry fit
+# Compact 78 x 64 mm cap rests on two cheeks. Locate its XY position during dry fit
 # against the measured base frame, then retain with proposed underside stitch welds.
 # Base tabs remain mandatory; upper cap tabs are not added when they inflate the mount.
 for c in spec["contacts"]:
@@ -121,7 +121,7 @@ if __name__ == "__main__":
         'fixture_contacts':[c['name'] for c in spec['contacts']], 'mating_contacts':[],
         'seating_directions':{'Plate':{'Primary':[0,0,-1],'Secondary':[0,-1,0],'Tertiary':[-1,0,0]}}}]}
     next(d for d in plates if d['name']=='P_T1')['mount_design']={
-        'layout_reason':'60 x 64 mm cap contains the measured clamp base and M5 pilots with at least 10 mm ligaments; cheeks support it from below.',
+        'layout_reason':'78 x 64 mm cap contains the measured clamp base and M5 pilots with at least 10 mm ligaments; cheeks support it from below.',
         'compact_alternative_considered':'Selected a dry-fit-located welded cap instead of four upper tab slots requiring a broad platform. Cap position, weld retention and distortion remain engineering checks.'}
     spec['assumptions']=[a for a in spec['assumptions'] if 'Red GH' not in a]+['Actual GH-201-B STEP is inserted by the exporter in its supplied pose. Closed operation and spindle adjustment require verification.']
     (HERE/"spec.json").write_text(json.dumps(spec,indent=2))

@@ -13,7 +13,8 @@ def append_insets(step_path,out,report,plan):
     out=Path(out);shapes=read_step(step_path);rows=report.get('stations',[])
     if not rows:return
     stations={s['id']:s for f in plan['flanges'] for s in f.get('checks',[])}
-    font=ImageFont.truetype('DejaVuSans.ttf',17)
+    try:font=ImageFont.truetype('DejaVuSans.ttf',17)
+    except OSError:font=ImageFont.load_default()
     cache={}
     for filename in ('assembled.png','empty-fixture.png'):
         path=out/filename

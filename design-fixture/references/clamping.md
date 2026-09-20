@@ -41,7 +41,7 @@ The nominal 56.9 mm reach and 25.1 mm underarm height remain planning dimensions
 
 1. Start with the actual base footprint and pilot-hole envelope, including required material ligaments.
 2. Add only the extensions required for mounting joints, local support and tool access.
-3. Compare alternative cheek locations, cap joints or bracing before enlarging the platform. Upper cap tabs are not mandatory when another located and retained joint is justified; base-seated uprights still require two tabs.
+3. Compare alternative cheek locations, cap joints or bracing before enlarging the platform. `scripts/cap_joints.py` generates the cap tabs by default and `verify.py` fails a cap without two separated tabs; move a cheek or pin the tabs rather than removing them. Base-seated uprights still require two tabs.
 4. Preserve the 10 mm structural-width requirement. Do not solve an oversized platform by silently weakening its webs or hole/slot ligaments.
 5. Store `mount_design.layout_reason` and `compact_alternative_considered` on the mount plate when substantial extensions are needed. Identify the responsible joints or access needs.
 

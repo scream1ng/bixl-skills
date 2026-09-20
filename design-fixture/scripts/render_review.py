@@ -98,7 +98,8 @@ def height_insets(main, meshes, report):
     if not rows:return main
     columns=min(3,len(rows));tile_w=main.width//columns;tile_h=300
     out=Image.new('RGB',(main.width,main.height+45+tile_h*((len(rows)+columns-1)//columns)),(243,245,247));out.paste(main,(0,0))
-    font=ImageFont.truetype('DejaVuSans.ttf',16)
+    try:font=ImageFont.truetype('DejaVuSans.ttf',16)
+    except OSError:font=ImageFont.load_default()
     draw=ImageDraw.Draw(out);draw.text((25,main.height+12),'Mounting height | actual CAD side projections | saved clamp pose',font=font,fill='#203746')
     for i,row in enumerate(rows):
         tile=Image.new('RGB',(tile_w,tile_h),(243,245,247));td=ImageDraw.Draw(tile)

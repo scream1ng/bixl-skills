@@ -60,7 +60,8 @@ def named_sections(spec, tabs):
         assert s, t
         width, line = min(s)
         rows.append({"feature": "tab_neck", "id": "TAB%02d" % i, "plate": t["plate"], "width_mm": width, "line_local": line})
-    for i, j in enumerate(spec.get("joints", []), 1):
+    # Cross-halving joints only; cap tab joints carry no lap section and are screened as edge pairs.
+    for i, j in enumerate([j for j in spec.get("joints", []) if "xy" in j], 1):
         for side in ("a", "b"):
             d = by[j[side]]
             pl = polys[d["name"]]
@@ -129,7 +130,7 @@ def audit(spec, tabs, edge_plates=None):
         assert abs(cut_section(Polygon([(0, 0), (t, 0), (t, 20), (0, 20)]), [t / 2, 10], [1, 0])[0][0] - t) < 1e-9
     failed = sum(c["failed"] for c in cats.values()) + len(edge_fail)
     return {"limit_mm": limit, "categories": cats, "edge_pair": {"plates": names, "minimum_mm": edge_min, "failures": edge_fail, "per_plate": edge},
-            "status": "fail" if failed else "pass", "scope": "sampled sections + edge-pair screening; not a width certification",
+            "status": "fail" if failed else "pass", "scope": "sampled sections + edge-pair screening; not a width certification. Cross-joint sections cover joints with an xy crossing; cap tab joints are covered by the edge-pair screen only",
             "measurements": rows}
 
 

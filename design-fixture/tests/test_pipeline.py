@@ -25,7 +25,7 @@ class FixtureTests(unittest.TestCase):
         cls.spec_file=ROOT/'examples/flat-plate/spec.json'
         cls.result=build(cls.spec_file,cls.root/'baseline',log=lambda *x:None)
         cls.delivery=Path(cls.result['delivery'])
-        cls.spec=load_spec(cls.spec_file);cls.spec['plates']=cls.result['plates']
+        cls.spec=load_spec(cls.spec_file);cls.spec['plates']=cls.result['plates'];cls.spec['joints']=cls.result['joints']
         cls.step=next(cls.delivery.glob('*.step'))
     @classmethod
     def tearDownClass(cls):cls.temp.cleanup()

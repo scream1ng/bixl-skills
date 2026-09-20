@@ -78,7 +78,7 @@ def place(clamp, plate, T, min_width, segments=32):
     geometric_ok = not conflicts and (clamp.get("apply_hole_pattern") or pattern_present) and inside and ligament >= min_width - 1e-4 and row["base_footprint_supported"] and extension >= 0 and row["mounting_height"]["status"] != "fail"
     row["status"] = "fail" if not geometric_ok else "unknown"  # spindle adjustment range is unknown for GH-201-B
     row["note"] = "motion clearance and spindle adjustment range not verified"
-    return row, holes
+    return row, holes, footprint
 
 
 def mount(spec):
@@ -86,7 +86,7 @@ def mount(spec):
     rows = []
     for clamp in spec.get("clamps", []):
         plate = by[clamp["mount_plate"]]
-        row, holes = place(clamp, plate, spec["thickness_mm"], spec.get("min_width_mm", 10.0))
+        row, holes, _ = place(clamp, plate, spec["thickness_mm"], spec.get("min_width_mm", 10.0))
         if clamp.get("apply_hole_pattern"):
             if row["pattern_conflicts"] or not row["holes_inside_plate"]:
                 raise ValueError(f"{clamp['tag']}: mounting pattern conflicts with existing cutouts or plate boundary")

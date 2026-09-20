@@ -345,7 +345,7 @@
       "part_number": "FP06",
       "role": "Clamp support cheek",
       "origin": [
-        -22.0,
+        -26.0,
         0.0,
         0.0
       ],
@@ -391,7 +391,7 @@
       "part_number": "FP06",
       "role": "Clamp support cheek",
       "origin": [
-        22.0,
+        26.0,
         0.0,
         0.0
       ],
@@ -458,26 +458,26 @@
       ],
       "outer": [
         [
-          -30,
+          -39,
           76
         ],
         [
-          30,
+          39,
           76
         ],
         [
-          30,
+          39,
           140
         ],
         [
-          -30,
+          -39,
           140
         ]
       ],
       "holes": [],
       "contacts": [],
       "mount_design": {
-        "layout_reason": "60 x 64 mm cap contains the measured clamp base and M5 pilots with at least 10 mm ligaments; cheeks support it from below.",
+        "layout_reason": "78 x 64 mm cap contains the measured clamp base and M5 pilots with at least 10 mm ligaments; cheeks support it from below.",
         "compact_alternative_considered": "Selected a dry-fit-located welded cap instead of four upper tab slots requiring a broad platform. Cap position, weld retention and distortion remain engineering checks."
       }
     }

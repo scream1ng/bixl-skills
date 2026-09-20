@@ -7,7 +7,7 @@ from hardware_geometry import definition
 def audit(spec):
     by={p['name']:p for p in spec['plates']};rows=[]
     for c in spec.get('clamps',[]):
-        p=by[c['mount_plate']];r,holes=place(c,p,spec['thickness_mm'],spec.get('min_width_mm',10))
+        p=by[c['mount_plate']];r,holes,_=place(c,p,spec['thickness_mm'],spec.get('min_width_mm',10))
         hw=definition(c['hardware']);gap=spec.get('min_width_mm',10);f=r['frame']
         import numpy as np
         o,U,V=(np.array(p[k],float) for k in ('origin','u','v'))
