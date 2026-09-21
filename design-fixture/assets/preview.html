@@ -12,14 +12,15 @@ body.commenting #view canvas{cursor:crosshair}#comment.on{background:#c0392b;col
 <div id="cameras"><button data-view="iso">Iso</button><button data-view="front">Front</button><button data-view="right">Right</button><button data-view="top">Top</button></div>
 <p>Drag: rotate · right-drag: pan · wheel: zoom. Click a component for its ID.</p>
 <button id="comment">Comment mode</button><p id="shotmsg">Comment mode: click a rib, block or the part to pin a note.</p><div id="groups"></div><p id="selected">Selected: none</p><details><summary>Component visibility</summary><div id="parts"></div></details>
-<div id="failure">Loading 3D modules… If blocked/offline, open <a href="assembled.png">assembled PNG</a> or <a href="empty-fixture.png">empty fixture PNG</a>.</div></aside>
+<div id="failure">Loading 3D modules…</div></aside>
 <div id="feedback"><h1>Comments</h1><p>Review notes only. A comment never edits the spec — revise the responsible spec and re-run <code>workflow.py concept</code>.</p><button id="copynotes">Copy comments</button><pre id="notes">none</pre></div>
 <div id="notice">CONCEPT ONLY · approximate mesh · exact measurements/validation remain in OCP CAD. Hardware shown in supplied pose, not verified closed. Comment pins plus Copy comments are the quickest feedback; a plain window capture still works.</div>
-<script id="scene-data" type="application/json">__SCENE_JSON__</script>
+<script id="scene-data" type="application/octet-stream">__SCENE_GZIP_BASE64__</script>
 <script type="module">
 try {
 const THREE = await import('three'); const {OrbitControls} = await import('three/addons/controls/OrbitControls.js');
-const data=JSON.parse(document.querySelector('#scene-data').textContent);
+const packed=Uint8Array.from(atob(document.querySelector('#scene-data').textContent.trim()),c=>c.charCodeAt(0));
+const data=JSON.parse(await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
 document.querySelector('#title').textContent=`${data.project_id} · ${data.revision}`;
 document.querySelector('#mode').textContent=`${data.fixture_kind} / ${data.construction} · ${data.units}`;
 const scene=new THREE.Scene();scene.background=new THREE.Color('#e8edf2');

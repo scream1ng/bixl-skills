@@ -10,7 +10,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 import workflow as wf
-from preview import generate, compact_mesh
+from preview import generate, compact_mesh, inline_html, INLINE_HTML_TARGET, INLINE_HTML_LIMIT
 from export_step import read_step
 
 class WorkflowTests(unittest.TestCase):
@@ -96,8 +96,26 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(scene['evaluated_spec_sha256'], wf.digest(evaluated))
         self.assertEqual(set(result['component_ids']), set(read_step(out / 'concept.step')))
         self.assertIn('HW_', ' '.join(result['component_ids']))
-        self.assertEqual(result['inline_eligible'], result['bytes'] < 1_000_000)
-        self.assertNotIn('__SCENE_JSON__', (out / 'preview.html').read_text())
+        self.assertTrue(result['inline_eligible'])
+        self.assertTrue(result['soft_target_met'])
+        self.assertLessEqual(result['bytes'], INLINE_HTML_TARGET)
+        html = (out / 'preview.html').read_text()
+        self.assertNotIn('__SCENE_GZIP_BASE64__', html)
+        self.assertIn('DecompressionStream', html)
+        self.assertNotIn('assembled.png', html)
+        self.assertEqual(set(result['private_files']), {'scene', 'evaluated_spec', 'concept_step', 'review_pngs'})
+
+    def test_inline_html_is_deterministic_and_strictly_budgeted(self):
+        scene = {'schema_version': 'fixture-preview-1', 'components': [], 'authoritative': False}
+        first, first_size = inline_html(scene)
+        second, second_size = inline_html(scene)
+        self.assertEqual(first, second)
+        self.assertEqual(first_size, second_size)
+        self.assertLess(first_size, INLINE_HTML_LIMIT)
+        oversized = self.path / 'oversized-preview.html'
+        oversized.write_text('__SCENE_GZIP_BASE64__' + 'x' * INLINE_HTML_LIMIT)
+        with patch('preview.resource', return_value=oversized), self.assertRaisesRegex(ValueError, 'strictly below'):
+            inline_html(scene)
 
     def test_checking_and_block_previews(self):
         for mode, construction in [('checking-rib', 'laser_rib'), ('checking-printed', 'printed_solid')]:

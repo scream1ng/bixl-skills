@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """Non-authoritative compact meshes from evaluated exact specification geometry."""
 import argparse
+import base64
 import copy
+import gzip
 import json
 from pathlib import Path
 import numpy as np
 from workflow import resource, digest
+
+INLINE_HTML_TARGET = 850_000
+INLINE_HTML_LIMIT = 1_000_000
 
 
 def evaluate(spec_path, kind, construction, out):
@@ -84,6 +89,19 @@ def compact_mesh(triangles, target=1800):
             'source_triangles': len(raw), 'preview_triangles': len(faces), 'approximate': True}
 
 
+def inline_html(scene):
+    """Build the deterministic single-file viewer and enforce the inline size limit."""
+    payload = json.dumps(scene, separators=(',', ':'), allow_nan=False).replace('<', '\\u003c').encode()
+    encoded = base64.b64encode(gzip.compress(payload, compresslevel=9, mtime=0)).decode('ascii')
+    html = resource('assets/preview.html').read_text().replace('__SCENE_GZIP_BASE64__', encoded)
+    if '__SCENE_GZIP_BASE64__' in html:
+        raise ValueError('Preview scene placeholder was not replaced')
+    size = len(html.encode())
+    if size >= INLINE_HTML_LIMIT:
+        raise ValueError(f'Inline preview is {size} bytes; must be strictly below {INLINE_HTML_LIMIT} bytes')
+    return html, size
+
+
 def generate(spec_path, out, kind='weld', construction='laser_rib', render=True):
     from render_review import triangles, render as render_png
     spec, shapes, step, evaluated_hash, audit = evaluate(spec_path, kind, construction, out)
@@ -98,16 +116,20 @@ def generate(spec_path, out, kind='weld', construction='laser_rib', render=True)
         'authoritative': False, 'components': components}
     payload = json.dumps(scene, separators=(',', ':'), allow_nan=False).replace('<', '\\u003c')
     (out / 'scene.json').write_text(payload)
-    html = resource('assets/preview.html').read_text().replace('__SCENE_JSON__', payload)
+    html, html_bytes = inline_html(scene)
     (out / 'preview.html').write_text(html)
     if render: render_png(step, out, spec['revision'])
-    return {'html': str((out / 'preview.html').resolve()), 'scene': str((out / 'scene.json').resolve()),
-        'evaluated_spec_sha256': evaluated_hash, 'bytes': len(html.encode()), 'inline_eligible': len(html.encode()) < 1_000_000,
+    return {'html': str((out / 'preview.html').resolve()),
+        'evaluated_spec_sha256': evaluated_hash, 'bytes': html_bytes,
+        'soft_target_bytes': INLINE_HTML_TARGET, 'size_limit_bytes': INLINE_HTML_LIMIT,
+        'soft_target_met': html_bytes <= INLINE_HTML_TARGET, 'inline_eligible': True,
         'component_ids': [c['id'] for c in components], 'authoritative': False,
         'material_width': audit['material_width']['status'] if audit else 'unknown',
         'cap_joints': audit['cap_joints']['status'] if audit else 'unknown',
         'cross_support': audit['cross_support']['status'] if audit else 'unknown',
-        'fallback_pngs': [str((out / n).resolve()) for n in ('assembled.png', 'empty-fixture.png')] if render else []}
+        'private_files': {'scene': str((out / 'scene.json').resolve()),
+            'evaluated_spec': str((out / 'evaluated-spec.json').resolve()), 'concept_step': str(step.resolve()),
+            'review_pngs': [str((out / n).resolve()) for n in ('assembled.png', 'empty-fixture.png')] if render else []}}
 
 
 if __name__ == '__main__':
