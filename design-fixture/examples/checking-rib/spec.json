@@ -625,6 +625,10 @@
       "name": "X1",
       "part_number": "FP08",
       "role": "Cross brace",
+      "brace_merge_exception": {
+        "with": "X2",
+        "reason": "SYNTHETIC EXAMPLE, not a user decision: twin brace pair kept to exercise same-part-number (FP08 x2) tab families; a real fixture merges them"
+      },
       "origin": [
         -12.0,
         0.0,

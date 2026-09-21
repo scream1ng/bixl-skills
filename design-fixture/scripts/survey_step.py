@@ -180,6 +180,13 @@ def describe_body(shape, name, origin):
                        uv_bounds=list(BRepTools.UVBounds_s(face)), boundaries=boundary(face))
             candidates.append({"kind": "hole_or_bend_or_outer_cylinder", "face": face_id,
                                "status": "unverified", "basis": "cylindrical surface only"})
+        else:
+            from flange_features import PLANAR_TOL_MM, planar_face
+            fit = planar_face(face)  # None for cones, spheres, tori and non-flat freeform
+            if fit:
+                row.update(normal=fit[1].tolist(), plane_origin_mm=fit[0].tolist(), planarity_deviation_mm=fit[2])
+                candidates.append({"kind": "flange_or_datum_face", "face": face_id, "status": "unverified",
+                                   "basis": f"{row['type']} plane-fitted within {PLANAR_TOL_MM} mm"})
         body["faces"].append(row)
     body["feature_candidates"] = candidates
     return body

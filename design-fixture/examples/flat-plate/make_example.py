@@ -68,7 +68,8 @@ plates = [
 ]
 BRACE_H, SLOT_W = 40.0, 5.2  # brace height = lap height; slot = 5 mm stock + 0.2 mm clearance
 plates += [
-    rib_yz("X1", "FP08", -12.0, rect(-45, 0, 45, BRACE_H), [], "Cross brace"),
+    {**rib_yz("X1", "FP08", -12.0, rect(-45, 0, 45, BRACE_H), [], "Cross brace"),
+     "brace_merge_exception": {"with": "X2", "reason": "SYNTHETIC EXAMPLE, not a user decision: twin brace pair kept to exercise same-part-number (FP08 x2) tab families; a real fixture merges them"}},
     rib_yz("X2", "FP08", 12.0, rect(-45, 0, 45, BRACE_H), [], "Cross brace"),
     rib_xz("XS", "FP09", -70.0, rect(-55, 0, 55, BRACE_H), [], "Cross brace"),
     rib_yz("XC", "FP10", -100.0, rect(-30, 0, 30, BRACE_H), [], "Cross brace"),

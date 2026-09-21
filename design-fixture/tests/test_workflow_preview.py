@@ -54,6 +54,15 @@ class WorkflowTests(unittest.TestCase):
         self.assertIsNone(fresh['authorization']); self.assertEqual(fresh['stage'], 'concept')
         self.assertEqual(record['component_ids'], fresh['component_ids'])
 
+    def test_checkpoint_keeps_datum_review_only_while_datums_unchanged(self):
+        record = wf.initialize(self.spec, 'weld')
+        record['datum_review'] = {'note': 'ok', 'datum_digest': record['datum_digest']}
+        self.edit(revision='R2', decisions=['Merge braces']); fresh = wf.checkpoint(self.spec, record)
+        self.assertTrue(wf.datum_reviewed(fresh))
+        data = json.loads(self.spec.read_text()); data['contacts'][0]['contact'][0] += 1.0
+        self.edit(revision='R3', contacts=data['contacts'])
+        self.assertFalse(wf.datum_reviewed(wf.checkpoint(self.spec, fresh)))
+
     def test_source_hash_units_and_version(self):
         record = wf.initialize(self.spec, 'weld')
         original = Path(record['sources'][0]['path']); original.write_bytes(original.read_bytes() + b'\n')
@@ -100,7 +109,8 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('HW_T1', ids)  # one coarse clamp mesh; the full mechanism stays in concept.step
         self.assertEqual(result['components'], len(ids))
         self.assertEqual(result['blocking'], [])
-        self.assertEqual(set(result['checks']), {'cap_joints', 'material_width', 'cross_support', 'mount_compactness', 'unload', 'pin_clearance'})
+        self.assertEqual(set(result['checks']), {'cap_joints', 'material_width', 'cross_support', 'mount_compactness', 'unload', 'pin_clearance',
+                                                    'flange_coverage', 'brace_merge'})
         self.assertEqual(result['checks']['unload'], 'unknown')
         self.assertTrue(result['soft_target_met'])
         self.assertLessEqual(result['bytes'], INLINE_HTML_TARGET)

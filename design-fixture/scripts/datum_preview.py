@@ -66,9 +66,27 @@ def generate(spec_path, out):
     points = markers(spec, shapes)
     if not points:
         raise ValueError('Decide and record datum contacts before the datum scheme review')
+    features = []
+    if spec.get('inspection'):  # checking fixtures: every sheet feature shown checked (green) or not (red)
+        from OCP.BRep import BRep_Builder
+        from OCP.TopoDS import TopoDS_Compound
+        from flange_coverage import audit as coverage, checked_parts
+        from flange_features import extract
+        feats = [f for name, s in checked_parts(spec, shapes).items() for f in extract(s, name)]
+        report = coverage(spec, shapes, feats)
+        status = {f['id']: f for f in report['features']}
+        for f in feats:
+            row = status[f['id']]
+            box = TopoDS_Compound(); b = BRep_Builder(); b.MakeCompound(box)
+            for face in f['_outer']: b.Add(box, face)
+            ok = row['status'] == 'pass'
+            components.append({'id': f['id'], 'group': 'feature_ok' if ok else 'feature_missing',
+                               **compact_mesh(triangles(box), 400)})
+            features.append({'id': f['id'], 'status': row['status'], 'point': row['outer_point_mm'],
+                             'covered_by': [c['kind'] + ' ' + c['id'] for c in row['covered_by']]})
     scene = {'schema_version': 'fixture-datum-preview-1', 'project_id': spec['project_id'],
         'revision': spec['revision'], 'units': 'mm', 'authoritative': False, 'components': components,
-        'markers': points, 'locating_groups': spec.get('locating_groups', []),
+        'markers': points, 'features': features, 'locating_groups': spec.get('locating_groups', []),
         'counts': {role: sum(1 for p in points if p['role'] == role) for role in list(ROLES) + ['Clamp']}}
     payload = json.dumps(scene, separators=(',', ':'), allow_nan=False).replace('<', '\\u003c')
     (out / 'datum-scene.json').write_text(payload)
@@ -78,6 +96,7 @@ def generate(spec_path, out):
         'bytes': len(html.encode()), 'inline_eligible': len(html.encode()) < 1_000_000,
         'marker_ids': [p['name'] for p in points], 'counts': scene['counts'],
         'off_surface': [p['name'] for p in points if p['off_surface']],
+        'features_without_check': [f['id'] for f in features if f['status'] != 'pass'],
         'scene_sha256': digest(scene), 'authoritative': False}
 
 

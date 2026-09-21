@@ -12,7 +12,7 @@ Backwell IXL assistant skills. Install a skill by copying its whole folder into 
 
 ![Stage gates](flow.svg)
 
-The 6 checks: cap tabs, rib width, cross ribs, clamp plate size, straight unload, pin clearance. A failed check stops the concept with no preview.
+The checks: cap tabs, rib width, cross ribs, clamp plate size, straight unload, pin clearance, brace merge, flange coverage (checking fixtures). A failed check stops the concept with no preview.
 
 Default construction is 5 mm laser-cut tab-and-slot ribs. Blocks (weld) and printed solid (check) are explicit alternatives. Finalizing generates the package; it is not engineering approval.
 

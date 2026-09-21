@@ -37,6 +37,8 @@ Use the base [gap-plan format](gap-plan-format.md) as top-level `inspection`. Th
 
 `part` resolves through `workpiece.parts`; alternatively supply an exact `part_shape`. `fixture_shape` is the exact exported rib/body solid containing the checking land. `point_mm` lies on the actual nominal part surface; `direction` is the outward unit normal from that surface toward the checking land. Nominal land target is `point_mm + direction * nominal_gap_mm`.
 
+Every `point_mm` must lie on the checked part (<= 0.1 mm) or the concept blocks (`flange_coverage`: a notch or cutout under the station). A flange checked only by an alternative method carries `feature_point_mm` (a point on that feature) on its `inspection.flanges[]` entry. An unchecked feature the user accepts goes in `inspection.flange_waivers`: `[{"point_mm": [x, y, z], "reason": "<user's words>"}]`; an empty reason is rejected.
+
 The station defaults to nominal 3 mm, GO 2.5 mm and NO-GO 3.5 mm, as in the plan checker. A drawing conflict makes the plan unresolved; known geometry failures remain failures. The legacy export naming is `Part_*` (case-sensitive), not `PART_*`.
 
 `patch` axes are mutually orthogonal unit vectors tangent to the part plane. The CAD checker evaluates nine source/land normal rays across the rectangular patch, verifies points lie on actual trimmed planar faces and records exported face IDs/distances. Missing patch coverage remains unknown. The `1e-4 mm` numeric comparison is for ideal CAD, not an achievable manufacturing tolerance. This sampling is not proof of all surface points or full flange coverage. Curved faces and alternate techniques require explicit CAD verification; do not label their unsupported checks passed.

@@ -14,7 +14,7 @@ import math
 
 import numpy as np
 from shapely import area, distance, intersection
-from shapely.geometry import LineString, MultiPolygon, Polygon, box
+from shapely.geometry import LineString, MultiPolygon, Point, Polygon, box
 from shapely.ops import unary_union
 
 from fixture_common import clean, load_spec, local_s, poly, set_profile, world_xy, write_json
@@ -110,6 +110,45 @@ def family_options(fam, base_poly, joints, oldobs, P, T, min_width):
     return vals
 
 
+def lap_foot_check(seated, joints, P):
+    """A bottom slot taller than its cut (lap/2) is refilled by the foot box up to foot_height."""
+    for d in seated:
+        p = poly(d)
+        for j in joints:
+            for side in ("a", "b"):
+                if j[side] != d["name"] or j[f"{side}_slot"] != "bottom" or j["lap_height_mm"] / 2 + .1 >= P["foot_height_mm"]:
+                    continue
+                s, z, e = local_s(d, j["xy"]), P["foot_height_mm"] - .25, j["slot_width_mm"] / 2 + .5
+                if not p.contains(Point(s, z)) and p.contains(Point(s - e, z)) and p.contains(Point(s + e, z)):
+                    raise ValueError(f"{d['name']} x {j['a' if side == 'b' else 'b']}: lap_height_mm {j['lap_height_mm']:g} < "
+                                     f"2 x foot_height_mm {P['foot_height_mm']:g}; feet would fill the slot. "
+                                     f"Use lap_height_mm >= {2 * P['foot_height_mm']:g}")
+
+
+def why_no_options(fam, base_poly, joints, oldobs, P, T, min_width):
+    """Re-walk family_options and count what rejected each tab position and pair."""
+    d = fam[0]
+    ends = [x for x, y in d["outer"] if abs(y) < 1e-6]
+    fl, fh = min(ends), max(ends)
+    cuts, hw, ext = bottom_cuts(d, joints), P["width_mm"] / 2, P["max_tab_beyond_foot_mm"]
+    edge, cut, one, best = 0, 0, [], 0.0
+    for s in np.arange(math.ceil(fl - ext), math.floor(fh + ext) + .01, P["search_step_mm"]):
+        qs = [slot_world(f, s, P, T) for f in fam]
+        if any(not base_poly.covers(q) or q.distance(base_poly.boundary) < P["min_bridge_mm"] for q in qs):
+            edge += 1
+            best = max(best, min(q.distance(base_poly.boundary) if base_poly.covers(q) else 0.0 for q in qs))
+        elif box(s - hw, 0, s + hw, P["foot_height_mm"]).intersection(cuts).area > 1e-4:
+            cut += 1
+        else:
+            one.append(float(s))
+    pairs = sum(1 for a, b in itertools.combinations(one, 2)
+                if not foot_option(d, fam, a, b, base_poly, cuts, oldobs, P, T, min_width))
+    grow = (f" (best {best:.1f} of {P['min_bridge_mm']:g} min_bridge_mm: grow the seat {P['min_bridge_mm'] - best:.1f} mm)"
+            if edge else "")
+    return (f"{len(one)} usable tab positions; {edge} too close to the seat edge{grow}, "
+            f"{cut} on a bottom slot, {pairs} pairs rejected by spacing/bridge/foot overlap")
+
+
 def solve(options, P):
     slotg = {k: np.array([v[3] for v in vs], dtype=object) for k, vs in options.items()}
     footg = {k: np.array([v[4] for v in vs], dtype=object) for k, vs in options.items()}
@@ -161,6 +200,7 @@ def design(spec, log=print):
         families.setdefault(d["part_number"], []).append(d)
     for fam in families.values():
         assert all(f["outer"] == fam[0]["outer"] and f["holes"] == fam[0]["holes"] for f in fam), "family profiles differ"
+    lap_foot_check(seated, joints, P)
     oldfeet = {d["name"]: footprint(d, poly(d), P, T) for d in seated}
     oldobs = {pn: unary_union([q for n, q in oldfeet.items() if by[n]["part_number"] != pn]) for pn in families}
 
@@ -179,7 +219,9 @@ def design(spec, log=print):
         for pn, fam in families.items():
             options[pn] = family_options(fam, base_poly, joints, oldobs[pn], P, T, min_width)
             log(f"  {pn}: {len(options[pn])} tab options")
-            assert options[pn], f"no two-tab options for {pn}"
+            if not options[pn]:
+                raise ValueError(f"no two-tab options for {pn}: "
+                                 + why_no_options(fam, base_poly, joints, oldobs[pn], P, T, min_width))
         chosen, visits = solve(options, P)
         layout = {pn: (options[pn][i][1], options[pn][i][2], options[pn][i][0][0]) for pn, i in chosen.items()}
         mode = "search"

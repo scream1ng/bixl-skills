@@ -131,8 +131,12 @@ def select(cap, avail, obs, keep, P, T, min_width, family_span):
             d, top = next((x for x in avail if x[0]["name"] == name), (None, None))
             if d is None:
                 raise Infeasible(f"pinned cheek {name} does not reach the cap")
-            if not any(abs(r[1] - a) < 1e-6 for r in spans(cap, d, top, b - a, T, P, min_width, obs, keep, placed)):
-                raise Infeasible(f"pinned tab {name} {a}..{b} breaks the {min_width} mm rule")
+            ok = spans(cap, d, top, b - a, T, P, min_width, obs, keep, placed)
+            if not any(abs(r[1] - a) < 1e-6 for r in ok):
+                near = min(ok, key=lambda r: abs(r[1] - a)) if ok else None
+                hint = (f"nearest feasible {name} tab is {near[1]:g}..{near[2]:g}" if near else
+                         f"no {b - a:g} mm span on {name} is feasible: extend the cheek or the cap")
+                raise Infeasible(f"pinned tab {name} {a}..{b} breaks the {min_width} mm rule; {hint}")
             chosen.append((d, top, a, b))
             placed.append(slot_poly(cap, d, top, a, b, T, P["slot_clearance_mm"]))
         return chosen, placed, "pinned"

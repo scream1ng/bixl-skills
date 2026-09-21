@@ -12,7 +12,7 @@ body.commenting #view canvas{cursor:crosshair}#comment.on{background:#c0392b;col
 </head><body><div id="view"></div><aside><h1 id="title">Datum scheme</h1><p id="counts"></p>
 <div id="cameras"><button data-view="iso">Iso</button><button data-view="front">Front</button><button data-view="right">Right</button><button data-view="top">Top</button></div>
 <p>Drag: rotate · right-drag: pan · wheel: zoom. Click a marker to grab it; drag to move it (0.5 mm snap, 0.1 mm with shift). A contact slides only in its own face plane.</p>
-<label><input type="checkbox" id="showpart" checked> workpiece</label><label><input type="checkbox" id="xray" checked> see-through part</label>
+<label><input type="checkbox" id="showpart" checked> workpiece</label><label><input type="checkbox" id="xray" checked> see-through part</label><label><input type="checkbox" id="showfeat" checked> sheet features (green checked · red none)</label>
 <p id="selected">Selected: none</p><div id="schedule"></div>
 <div id="failure">Loading 3D modules… If blocked/offline, the datum schedule above is the authoritative list.</div></aside>
 <div id="edits"><h1>Feedback</h1><button id="comment">Comment mode</button><button id="copy" title="Copies the moved points and the comments as one text">Copy all</button><p id="copymsg">Turn on Comment mode to pin notes.</p>
@@ -36,7 +36,10 @@ const pins=document.createElement('div');pins.id='pins';document.querySelector('
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;
 scene.add(new THREE.HemisphereLight(0xffffff,0x506070,2.3));const light=new THREE.DirectionalLight(0xffffff,2.4);light.position.set(-1,-2,4);scene.add(light);
 const part=[];
-for(const component of data.components){const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(component.positions,3));geometry.setIndex(component.indices);geometry.computeVertexNormals();const pin=component.group==='pin';const mesh=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:pin?0x12a89d:0xddaa55,roughness:pin?.35:.65,metalness:pin?.35:.12,side:THREE.DoubleSide,transparent:!pin,opacity:pin?1:.45}));mesh.name=component.id;scene.add(mesh);if(!pin)part.push(mesh);}
+const features=[];
+for(const component of data.components){const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(component.positions,3));geometry.setIndex(component.indices);geometry.computeVertexNormals();
+if(component.group.startsWith('feature_')){const mesh=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({color:component.group==='feature_ok'?0x2a9d58:0xd62828,transparent:true,opacity:.7,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,depthWrite:false}));mesh.name=component.id;mesh.renderOrder=2;scene.add(mesh);features.push(mesh);continue;}
+const pin=component.group==='pin';const mesh=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:pin?0x12a89d:0xddaa55,roughness:pin?.35:.65,metalness:pin?.35:.12,side:THREE.DoubleSide,transparent:!pin,opacity:pin?1:.45}));mesh.name=component.id;scene.add(mesh);if(!pin)part.push(mesh);}
 const bounds=new THREE.Box3();for(const mesh of part)bounds.expandByObject(mesh);const center=bounds.getCenter(new THREE.Vector3()),size=bounds.getSize(new THREE.Vector3());const radius=Math.max(size.x,size.y,size.z,1)*1.9;
 const unit=Math.max(radius*.012,.4);
 function shape(kind){
@@ -61,10 +64,12 @@ for(const m of data.markers){
 }
 const rows=data.markers.map(m=>`<tr><td><span class="sw" style="background:${m.color}"></span>${m.name}</td><td>${m.role}</td><td>${m.constraint_role||''}</td><td class="${m.off_surface?'off':''}">${m.distance_mm}</td></tr>`).join('');
 document.querySelector('#schedule').innerHTML=`<table><tr><th>Point</th><th>Role</th><th>Constraint</th><th>Δ CAD</th></tr>${rows}</table>`+
+  (data.features&&data.features.length?`<h2>Sheet features</h2><p>${data.features.filter(f=>f.status!=='pass').length} of ${data.features.length} without a check (red)</p><table><tr><th>Feature</th><th>Checked by</th></tr>${data.features.map(f=>`<tr><td class="${f.status==='pass'?'':'off'}">${f.id.split(':').pop()}</td><td>${f.covered_by.join(', ')||'NONE'}</td></tr>`).join('')}</table>`:'')+
   (data.locating_groups.length?`<p>Locating groups: ${data.locating_groups.map(g=>(g.name||'group')+' ['+(g.contacts||[]).join(', ')+']').join(' · ')}</p>`:'');
 controls.target.copy(center);camera.near=Math.max(radius/10000,.001);camera.far=radius*100;camera.updateProjectionMatrix();scene.add(new THREE.AxesHelper(radius*.12));
 function preset(name){const dirs={iso:[1,-1,1],front:[0,-1,0],right:[1,0,0],top:[0,0,1]};camera.up.set(0,name==='top'?1:0,name==='top'?0:1);camera.position.copy(center).add(new THREE.Vector3(...dirs[name]).normalize().multiplyScalar(radius));controls.target.copy(center);controls.update();}preset('iso');
 for(const button of document.querySelectorAll('[data-view]'))button.onclick=()=>preset(button.dataset.view);
+document.querySelector('#showfeat').onchange=e=>{for(const m of features)m.visible=e.target.checked;};
 document.querySelector('#showpart').onchange=e=>{for(const m of part)m.visible=e.target.checked;};
 document.querySelector('#xray').onchange=e=>{for(const m of part){m.material.transparent=e.target.checked;m.material.opacity=e.target.checked?.45:1;m.material.needsUpdate=true;}};
 const gizmo=new TransformControls(camera,renderer.domElement);gizmo.setTranslationSnap(.5);gizmo.setSize(.8);gizmo.setSpace('local');scene.add(gizmo.getHelper());

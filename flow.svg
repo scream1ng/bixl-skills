@@ -35,7 +35,7 @@
   </g>
   <g fill="#8b949e" font-size="12">
     <text x="340" y="35" text-anchor="middle">user OK</text>
-    <text x="545" y="35" text-anchor="middle">6 checks pass</text>
+    <text x="545" y="35" text-anchor="middle">checks pass</text>
     <text x="765" y="35" text-anchor="middle">user: finalize</text>
     <text x="203" y="101" text-anchor="end">not OK</text>
     <text x="413" y="101" text-anchor="end">check fails</text>

@@ -34,6 +34,46 @@ def file_hash(path):
     return _HASHES[key]
 
 
+def geometry_fingerprint(path):
+    """Solid geometry of a STEP source, blind to header/timestamp bytes; None for other formats."""
+    if Path(path).suffix.lower() not in ('.step', '.stp'):
+        return None
+    from OCP.BRepGProp import BRepGProp
+    from OCP.GProp import GProp_GProps
+    from OCP.TopAbs import TopAbs_FACE
+    from OCP.TopExp import TopExp_Explorer
+    from export_step import read_step
+    from verify import bbox
+    rows = []
+    for name, shape in sorted(read_step(path).items()):
+        v, a = GProp_GProps(), GProp_GProps()
+        BRepGProp.VolumeProperties_s(shape, v); BRepGProp.SurfaceProperties_s(shape, a)
+        faces, it = 0, TopExp_Explorer(shape, TopAbs_FACE)
+        while it.More(): faces += 1; it.Next()
+        rows.append([name, round(v.Mass(), 2), round(a.Mass(), 2), [round(x, 3) for x in v.CentreOfMass().Coord()],
+                     [round(x, 3) for x in bbox(shape)], faces])
+    return digest(rows)
+
+
+def rebase_sources(spec, current, record):
+    """Byte-changed sources with identical solid geometry (re-export): carry the record and datum review over."""
+    old = {x['path']: x for x in record['sources']}
+    if [(x['role'], x['path']) for x in current['sources']] != [(x['role'], x['path']) for x in record['sources']]:
+        return False
+    known = record.get('source_geometry') or {}
+    changed = [x['path'] for x in current['sources'] if x['sha256'] != old[x['path']]['sha256']]
+    if not changed or any(not known.get(p) or geometry_fingerprint(p) != known[p] for p in changed):
+        return False
+    kept = {k: spec.get(k) for k in ('contacts', 'locating_groups', 'clamps')} | {
+        'frame': current['coordinate_frame']['source_to_fixture'], 'sources': record['sources']}
+    if digest(kept) == record.get('datum_digest'):
+        for key in ('datum_review', 'datum_preview'):
+            if (record.get(key) or {}).get('datum_digest') == record['datum_digest']:
+                record[key]['datum_digest'] = current['datum_digest']
+    record.setdefault('history', []).append({'rebased_sources': changed, 'reason': 'bytes changed, solid geometry identical'})
+    return True
+
+
 def route(kind=None, construction=None, concept_exception=None):
     if kind is None:
         return {'question': 'Weld fixture or Check fixture?', 'choices': ['weld', 'checking']}
@@ -121,16 +161,19 @@ def initialize(spec_path, kind, construction=None, concept_exception=None, compl
 
 def resume(spec_path, record):
     """Unauthorized concept iteration may drift; anything authorized still demands a checkpoint."""
-    _, current = snapshot(spec_path)
+    spec, current = snapshot(spec_path)
     if record.get('schema_version') != VERSION:
         raise ValueError('Unsupported project version')
     if current['input_digest'] == record['input_digest']:
+        if 'source_geometry' not in record:
+            record['source_geometry'] = {x['path']: geometry_fingerprint(x['path']) for x in current['sources']}
         return current
     if (record.get('authorization') or current['revision'] != record['revision']
             or current['project_id'] != record['project_id']):
         raise ValueError('Source/spec changed; re-survey if necessary and checkpoint before reuse')
     if ([(x['role'], x['sha256']) for x in current['sources']] != [(x['role'], x['sha256']) for x in record['sources']]
-            or current['coordinate_frame'] != record['coordinate_frame']):
+            or current['coordinate_frame'] != record['coordinate_frame']) and not (
+            current['coordinate_frame'] == record['coordinate_frame'] and rebase_sources(spec, current, record)):
         raise ValueError('Source/frame changed; fresh survey required (checkpoint --resurveyed)')
     if set(current['component_ids']) & set(record['retired_ids']):
         raise ValueError('Do not recycle retired component IDs')
@@ -157,6 +200,10 @@ def checkpoint(spec_path, record, resurveyed=False):
     fresh['retired_ids'] = sorted(set(record['retired_ids']) |
         (set(record.get('baseline_ids', record['component_ids'])) - set(snap['component_ids'])))
     fresh['history'] = record['history'] + [{'revision': record['revision'], 'input_digest': record['input_digest'], 'stage': record['stage']}]
+    if not resurveyed and fresh['datum_digest'] == record.get('datum_digest'):
+        for key in ('datum_review', 'datum_preview'):
+            if (record.get(key) or {}).get('datum_digest') == fresh['datum_digest']:
+                fresh[key] = record[key]
     return fresh
 
 

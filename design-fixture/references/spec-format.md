@@ -40,6 +40,7 @@ All values are millimetres in one right-handed fixture frame. Recommended: base 
 - `part_number`: plates sharing it must have identical `outer` and `holes` (they get the same tabs).
 - `contacts`: names from the contact schedule carried by this plate; empty for non-locating plates.
 - `seat` (optional): name of the plate that receives this plate's two tabs. A seated plate must be vertical (`v = +z`) with its bottom edge on local `y = 0`. Only one seat plate is supported, and its frame must be world XY (`origin` x, y = 0, `u = +x`, `v = +y`).
+- `brace_merge_exception` (optional): `{"with": "<other brace>", "reason": "<user's words>"}` keeps two parallel braces under 50 mm apart; the pair reports unknown, never pass. Default is one common brace.
 - Written by the scripts: `area_mm2`, `nest_rotation_degrees`, `nest_offset`; tabs are added to `outer` and slots to the seat's `holes`.
 
 Draw `outer` without tabs: a rectangle plus required contact lands, joint slots and clearances.

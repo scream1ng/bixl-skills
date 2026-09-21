@@ -31,12 +31,13 @@ def evaluate(spec_path, kind, construction, out):
         from tabs_slots import design
         from clamp_mount import mount
         import audit_width
+        import brace_merge
         import cross_support
         import mount_compactness
         caps = cap_design(spec, lambda *args: None)
         tabs = design(spec, lambda *args: None); mount(spec)
         audit = {'cap_joints': caps, 'material_width': audit_width.audit(spec, tabs['tabs']), 'cross_support': cross_support.audit(spec),
-                 'mount_compactness': mount_compactness.audit(spec)}
+                 'mount_compactness': mount_compactness.audit(spec), 'brace_merge': brace_merge.audit(spec)}
         export(spec, target)
     else:
         audit = {}
@@ -65,11 +66,13 @@ def evaluate(spec_path, kind, construction, out):
     if construction == 'laser_rib':
         from pin_clearance import audit as pin_clearance
         audit['pin_clearance'] = pin_clearance(spec, shapes)
+    from flange_coverage import audit as flange_coverage
+    audit['flange_coverage'] = flange_coverage(spec, shapes) if kind == 'checking' else {'status': 'not_applicable'}
     (out / 'audit.json').write_text(json.dumps(audit, indent=2))
     return spec, shapes, target, digest(evaluated), audit
 
 
-CHECKS = ('cap_joints', 'material_width', 'cross_support', 'mount_compactness', 'unload', 'pin_clearance')
+CHECKS = ('cap_joints', 'material_width', 'cross_support', 'mount_compactness', 'unload', 'pin_clearance', 'flange_coverage', 'brace_merge')
 
 
 def failing_items(name, report):
@@ -79,6 +82,8 @@ def failing_items(name, report):
     if name == 'mount_compactness': return [r['mount_plate'] for r in report['mounts'] if r['status'] == 'fail']
     if name == 'unload': return [c['obstacle'] for c in report['collisions']]
     if name == 'pin_clearance': return [f"{v['pin']}~{v['plate']} {v['gap_mm']}mm" for v in report['violations']] + report.get('unseated', [])
+    if name == 'flange_coverage': return report['uncovered'] + [f"{o['station']} off part" for o in report['stations_off_part']]
+    if name == 'brace_merge': return [f"{r['a']}+{r['b']}" for r in report['pairs'] if r['status'] == 'fail']
     if name == 'material_width': return [k for k, c in report['categories'].items() if c['failed']] + [f['plate'] if isinstance(f, dict) and 'plate' in f else str(f) for f in report['edge_pair']['failures']]
     return []
 
