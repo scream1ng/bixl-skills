@@ -2,17 +2,7 @@
 
 [Design Fixture](design-fixture/SKILL.md) designs weld and checking fixtures from a STEP file or dimensioned drawing.
 
-```mermaid
----
-config:
-  layout: elk
----
-flowchart LR
-    A[STEP / drawing] --> B[Datum preview] -->|user OK| C[Concept] -->|5 checks pass| D[Preview] -->|user: finalize| E[Package]
-    B -.->|not OK| F[Revise datum] -.-> B
-    C -.->|check fails| G[Spec patch] -.-> C
-    D -.->|revise| G
-```
+![Stage gates](flow.svg)
 
 The 5 checks: cap tabs, rib width, cross ribs, clamp plate size, straight unload. A failed check stops the concept with no preview.
 

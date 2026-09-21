@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="190" viewBox="0 0 940 190" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" font-size="13">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#8b949e"/></marker>
+  </defs>
+  <g fill="#f6f8fa" stroke="#57606a">
+    <rect x="10" y="20" width="120" height="44" rx="4"/>
+    <rect x="170" y="20" width="130" height="44" rx="4"/>
+    <rect x="380" y="20" width="110" height="44" rx="4"/>
+    <rect x="600" y="20" width="110" height="44" rx="4"/>
+    <rect x="820" y="20" width="110" height="44" rx="4"/>
+    <rect x="170" y="130" width="130" height="44" rx="4"/>
+    <rect x="480" y="130" width="120" height="44" rx="4"/>
+  </g>
+  <g fill="#24292f" text-anchor="middle">
+    <text x="70" y="47">STEP / drawing</text>
+    <text x="235" y="47">Datum preview</text>
+    <text x="435" y="47">Concept</text>
+    <text x="655" y="47">Preview</text>
+    <text x="875" y="47">Package</text>
+    <text x="235" y="157">Revise datum</text>
+    <text x="540" y="157">Spec patch</text>
+  </g>
+  <g stroke="#8b949e" stroke-width="1.5" fill="none" marker-end="url(#a)">
+    <path d="M130,42H170"/>
+    <path d="M300,42H380"/>
+    <path d="M490,42H600"/>
+    <path d="M710,42H820"/>
+  </g>
+  <g stroke="#8b949e" stroke-width="1.5" fill="none" stroke-dasharray="4 3" marker-end="url(#a)">
+    <path d="M210,64V130"/>
+    <path d="M260,130V64"/>
+    <path d="M420,64V152H480"/>
+    <path d="M510,130V100H460V64"/>
+    <path d="M655,64V152H600"/>
+  </g>
+  <g fill="#8b949e" font-size="12">
+    <text x="340" y="35" text-anchor="middle">user OK</text>
+    <text x="545" y="35" text-anchor="middle">5 checks pass</text>
+    <text x="765" y="35" text-anchor="middle">user: finalize</text>
+    <text x="203" y="101" text-anchor="end">not OK</text>
+    <text x="413" y="101" text-anchor="end">check fails</text>
+    <text x="662" y="101">revise</text>
+  </g>
+</svg>
