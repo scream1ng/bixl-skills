@@ -16,12 +16,4 @@ The 6 checks: cap tabs, rib width, cross ribs, clamp plate size, straight unload
 
 Default construction is 5 mm laser-cut tab-and-slot ribs. Blocks (weld) and printed solid (check) are explicit alternatives. Finalizing generates the package; it is not engineering approval.
 
-### Versions
-
-| Tag | Change |
-|---|---|
-| [`v1.2.4`](../../tree/v1.2.4) | Concept stops on basic check failures, including new unload and pin clearance checks; preview about 60% smaller; `spec_patch.py` for small spec edits; standard clamp mount plate, cross-support check, single compressed `preview.html`. |
-| [`v1.2.2`](../../tree/v1.2.2) | Comment pins in datum and concept previews. |
-| [`v1.2`](../../tree/v1.2) | Generated cap tab-and-slot joints. |
-
-Tag only when `python -m unittest discover -s tests` passes in `design-fixture/`.
+Versions and notes: [Releases](../../releases). Release only when `python -m unittest discover -s tests` passes in `design-fixture/`.
