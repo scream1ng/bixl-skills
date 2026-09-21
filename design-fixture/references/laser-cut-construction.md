@@ -7,12 +7,12 @@ Use this mode unless the user explicitly requests block construction or another 
 - All custom fixture plates are flat and laser-cut from nominal 5 mm sheet.
 - Use the bundled actual purchased-clamp STEP and standard fasteners; do not create custom machined blocks or bent fixture parts unless requested.
 - Prefer broad, predominantly rectangular ribs with direct load paths and few unnecessary outline turns.
-- Maintain at least 10 mm nominal in-plane material at structural necks, shoulders, contact fingers, webs, tab necks, and material beside or behind slots. Account for kerf and process capability before claiming a finished minimum. Tap pilots are governed cutouts: keep 10 mm from a pilot to any edge, slot or other hole. `scripts/audit_width.py` measures this and runs in both the concept preview and the delivery build, after the clamp pass so the pilots exist; a pass is screening, not a width certification.
+- Maintain at least 10 mm nominal in-plane material (5 mm on a clamp's standard mount plate, see [clamping](clamping.md)) at structural necks, shoulders, contact fingers, webs, tab necks, and material beside or behind slots. Account for kerf and process capability before claiming a finished minimum. Tap pilots are governed cutouts: keep 10 mm from a pilot to any edge, slot or other hole. `scripts/audit_width.py` measures this and runs in both the concept preview and the delivery build, after the clamp pass so the pilots exist; a pass is screening, not a width certification.
 - Choose crossing ribs or one-sided T-braces to suit structural support and available space. A one-sided T-brace is an option when space or handling clearance limits a crossing member, not the default arrangement. If selected, put tabs into matching slots in the locator rib and keep tab ends/welds flush on the workpiece side. Preserve structural ligaments and datum contacts, and check handling clearance.
-- Cross-support tall locating and clamp-support uprights with modeled interlocking perpendicular members. Two base tabs alone do not establish dry-fit squareness or resistance to sideways bending. Apply [construction and operation checks](construction-operation.md), including every upright and clamp mount.
+- **No lone ribs.** Cross every base-seated upright (locators, braces, clamp cheeks) with a perpendicular member through a cut cross-halving joint; `scripts/cross_support.py` fails any upright without one. A genuine exception needs `cross_support_exception: "<reason>"` on the plate and stays unknown pending review. Two base tabs alone do not establish dry-fit squareness or resistance to sideways bending. Apply [construction and operation checks](construction-operation.md), including every upright and clamp mount.
 - Consolidate compatible coplanar parts and reuse genuinely identical profiles.
 - Give every upright seated on the base two separated integral tabs and matching through-slots. This includes locator ribs, braces, and clamp-support cheeks.
-- Use etched part IDs and station marks for assembly guidance. Etching does not replace physical location or retention.
+- Use single-stroke polyline-etched part IDs and station marks for assembly guidance. Etching does not replace physical location or retention.
 
 ## Profile development
 
@@ -43,9 +43,11 @@ Treat 4.2 mm as the shop nominal. Confirm laser kerf, heat-affected edge, tappin
 ## DXF
 
 - Use millimetres.
-- Keep fabrication contours on `CUT` and identifiers/instructions on `ETCH`.
-- Include all custom plates in the cutting file and nest on the minimum practical number of sheets. One sheet is preferred when feasible, not a fixed requirement.
+- Keep closed fabrication contours on `CUT`. Convert identifiers/instructions to joined, open, single-stroke `LWPOLYLINE` geometry on `ETCH`; do not export `TEXT` or `MTEXT`, closed etch loops, duplicate segments, or visible travel lines between disconnected strokes.
+- Keep every etch stroke inside its final nested plate profile. Join connected character segments into the fewest practical continuous strokes so the laser does not perform unnecessary starts/stops.
+- Default physical stock is 2400 x 1200 mm. Reserve the top 100 mm clamp band and nest inside the 2400 x 1100 mm usable zone unless the project explicitly supplies another measured zone.
+- Pack all custom plates into the narrowest practical strip of the usable zone and report both strip utilization and whole-sheet utilization. Prefer leaving the largest contiguous rectangular remnant over scattering parts across the sheet. One sheet is preferred when feasible, not a fixed requirement.
 - Generate part IDs and quantities from the final verified geometry.
-- Reopen the DXF and compare every closed `CUT` loop with the final plate profiles. Keep stock references and text off `CUT`.
+- Reopen the DXF and compare every closed `CUT` loop with the final plate profiles. Verify that `ETCH` contains only open polylines and zero text entities. Keep stock, usable-zone, clamp-exclusion and nest-strip references off `CUT`.
 
-Design clamp platforms from hardware and joint requirements, not broad default rectangles. Apply the compactness workflow in [clamping.md](clamping.md). Keep auxiliary supports distinct from fixed datum lands; a solid fixed-height laser-cut land cannot be called floating or adjustable without the corresponding mechanism.
+Design clamp platforms from hardware and joint requirements, not broad default rectangles. Use the standard mount plate in [clamping.md](clamping.md). Keep auxiliary supports distinct from fixed datum lands; a solid fixed-height laser-cut land cannot be called floating or adjustable without the corresponding mechanism.

@@ -115,8 +115,10 @@ def audit(spec, tabs, edge_plates=None):
     eps = 1e-4
     rows = named_sections(spec, tabs)
     cats = {}
+    from clamp_mount import min_width_for
     for r in rows:
-        r["status"] = "fail" if r["width_mm"] < limit - eps else "pass"
+        r["limit_mm"] = min_width_for(spec, r["plate"])
+        r["status"] = "fail" if r["width_mm"] < r["limit_mm"] - eps else "pass"
         c = cats.setdefault(r["feature"], {"checked": 0, "failed": 0, "minimum_mm": 1e9})
         c["checked"] += 1
         c["failed"] += r["status"] == "fail"
@@ -125,7 +127,7 @@ def audit(spec, tabs, edge_plates=None):
     by = {d["name"]: d for d in spec["plates"]}
     edge = [m for m in (edge_pair_minimum(by[n]) for n in names) if m]
     edge_min = min((m["width_mm"] for m in edge), default=None)
-    edge_fail = [m for m in edge if m["width_mm"] < limit - eps]
+    edge_fail = [m for m in edge if m["width_mm"] < min_width_for(spec, m["plate"]) - eps]
     for t in (9.99, 10.01):  # threshold self-check of the section method
         assert abs(cut_section(Polygon([(0, 0), (t, 0), (t, 20), (0, 20)]), [t / 2, 10], [1, 0])[0][0] - t) < 1e-9
     failed = sum(c["failed"] for c in cats.values()) + len(edge_fail)

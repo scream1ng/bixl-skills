@@ -26,9 +26,10 @@ def evaluate(spec_path, kind, construction, out):
         from tabs_slots import design
         from clamp_mount import mount
         import audit_width
+        import cross_support
         caps = cap_design(spec, lambda *args: None)
         tabs = design(spec, lambda *args: None); mount(spec)
-        audit = {'cap_joints': caps, 'material_width': audit_width.audit(spec, tabs['tabs'])}
+        audit = {'cap_joints': caps, 'material_width': audit_width.audit(spec, tabs['tabs']), 'cross_support': cross_support.audit(spec)}
         export(spec, target)
     else:
         audit = None
@@ -105,6 +106,7 @@ def generate(spec_path, out, kind='weld', construction='laser_rib', render=True)
         'component_ids': [c['id'] for c in components], 'authoritative': False,
         'material_width': audit['material_width']['status'] if audit else 'unknown',
         'cap_joints': audit['cap_joints']['status'] if audit else 'unknown',
+        'cross_support': audit['cross_support']['status'] if audit else 'unknown',
         'fallback_pngs': [str((out / n).resolve()) for n in ('assembled.png', 'empty-fixture.png')] if render else []}
 
 

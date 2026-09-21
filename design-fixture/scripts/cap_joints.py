@@ -167,7 +167,6 @@ def design(spec, log=print):
     so the designer can see it, and verify's cap_joints check fails on the same cap.
     """
     P, T = params(spec), spec["thickness_mm"]
-    min_width = spec.get("min_width_mm", 10.0)
     plates = spec["plates"]
     by = {d["name"]: d for d in plates}
     names = [c["mount_plate"] for c in spec.get("clamps", [])] + list(P["extra_caps"])
@@ -180,6 +179,8 @@ def design(spec, log=print):
             log(f"  {name}: skipped by spec.cap_joints.skip")
             continue
         cap = by[name]
+        from clamp_mount import min_width_for
+        min_width = min_width_for(spec, name)
         avail = cheeks_of(cap, plates, T)
         obs, keep = obstacles(spec, cap, min_width)
         try:

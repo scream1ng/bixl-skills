@@ -51,6 +51,8 @@ def build(spec_file,out,step=True,insertion=True,render=True,log=print):
     log('clamp mounts');clamps=clamp_mount.mount(spec)
     import mount_compactness
     compact=mount_compactness.audit(spec)
+    import cross_support
+    crossing=cross_support.audit(spec)
     log('width audit');width=audit_width.audit(spec,tabs['tabs'])
     log('nest + DXF');nest=nest_dxf.nest(spec,dxf)
     cad=None
@@ -61,7 +63,7 @@ def build(spec_file,out,step=True,insertion=True,render=True,log=print):
         if render:
             from render_review import render as render_views
             log('review images');render_views(step_path,delivery,rev,mount_heights=cad['mounting_height'])
-    details={'cap_joints':caps,'tab_slot_design':tabs,'clamp_mounts':clamps,'width_audit':width,'cutting_audit':nest,'cad_audit':cad,'mount_compactness':compact}
+    details={'cap_joints':caps,'tab_slot_design':tabs,'clamp_mounts':clamps,'width_audit':width,'cutting_audit':nest,'cad_audit':cad,'mount_compactness':compact,'cross_support':crossing}
     for name,data in details.items():write_json(work/f'{name}.json',data)
     write_json(work/'plates.json',spec['plates'])
     checks=[check('tab_slot_seat_bridge','pass' if tabs['minimum_seat_cutout_bridge_mm']>=tabs['params']['min_bridge_mm']-1e-6 else 'fail',
@@ -70,6 +72,7 @@ def build(spec_file,out,step=True,insertion=True,render=True,log=print):
             check('nest',nest['status'],nest,{'gap_mm':nest['gap_limit_mm']},'mm','heuristic single-sheet packing and DXF roundtrip',['measurements.cutting_audit']),
             check('clamp_mounts',aggregate(c['status'] for c in clamps),clamps,'fit, preserved cutouts, supported footprint, verified adjustment','mm',
                   'mounting geometry; clamp seating/motion/strength remain separate',['measurements.clamp_mounts'])]
+    checks.append(check('cross_support',crossing['status'],crossing,'every seated upright crossed by a perpendicular member',None,crossing['scope'],['measurements.cross_support']))
     checks.append(check('mount_compactness',compact['status'],compact,'justify platform extensions and compare compact alternatives','mm','hardware and joint feature sizing screen',['measurements.mount_compactness']))
     for name in GEOMETRY_CHECKS:
         if name in {c['name'] for c in checks}:continue

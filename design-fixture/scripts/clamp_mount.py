@@ -29,6 +29,17 @@ def unit(x):
     return x / np.linalg.norm(x)
 
 
+def min_width_for(spec, plate_name):
+    """A clamp cap with a standard plate uses that hardware's ligament; every other plate keeps the spec limit."""
+    limit = spec.get("min_width_mm", 10.0)
+    for clamp in spec.get("clamps", []):
+        if clamp["mount_plate"] == plate_name:
+            std = json.loads((HARDWARE / f"{clamp['hardware'].lower()}.json").read_text()).get("standard_mount_plate")
+            if std:
+                limit = min(limit, std["min_ligament_mm"])
+    return limit
+
+
 def place(clamp, plate, T, min_width, segments=32):
     hw = json.loads((HARDWARE / f"{clamp['hardware'].lower()}.json").read_text())
     z = unit(clamp["surface_normal"])
@@ -50,6 +61,12 @@ def place(clamp, plate, T, min_width, segments=32):
     e = hw["base"]["extent_in_canonical_frame"]
     footprint = Polygon([local(O + x * px + y * py) for px, py in
                          ((e["x_min_mm"], e["y_min_mm"]), (e["x_max_mm"], e["y_min_mm"]), (e["x_max_mm"], e["y_max_mm"]), (e["x_min_mm"], e["y_max_mm"]))])
+    std = hw.get("standard_mount_plate")
+    if std:
+        (cx, cy), hx, hy = std["centre_canonical_mm"], std["along_x_mm"] / 2, std["across_y_mm"] / 2
+        standard = [local(O + x * (cx + sx * hx) + y * (cy + sy * hy)) for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    else:
+        standard = None
     outer = Polygon(plate["outer"])
     existing = [Polygon(h) for h in plate["holes"]]
     # A pre-existing identical pilot hole is reusable; all other cutouts remain obstacles.
@@ -67,6 +84,7 @@ def place(clamp, plate, T, min_width, segments=32):
            "hole_centres_local": [list(h.centroid.coords[0]) for h in holes],
            "hole_centres_world": [(O + x * hx + y * hy).tolist() for hx, hy, _ in hw["mounting"]["hole_centres_canonical_mm"]],
            "hole_preparation": hw["mounting"]["fixture_plate_preparation"],
+           "standard_outline_local": standard,
            "holes_inside_plate": inside, "min_ligament_mm": ligament, "ligament_limit_mm": min_width,
            "base_footprint_supported": outer.buffer(1e-6).covers(footprint) and not any(q.intersection(footprint).area > 1e-6 for q in others),
            "pattern_conflicts": conflicts, "pattern_present": pattern_present,
@@ -86,7 +104,7 @@ def mount(spec):
     rows = []
     for clamp in spec.get("clamps", []):
         plate = by[clamp["mount_plate"]]
-        row, holes, _ = place(clamp, plate, spec["thickness_mm"], spec.get("min_width_mm", 10.0))
+        row, holes, _ = place(clamp, plate, spec["thickness_mm"], min_width_for(spec, plate["name"]))
         if clamp.get("apply_hole_pattern"):
             if row["pattern_conflicts"] or not row["holes_inside_plate"]:
                 raise ValueError(f"{clamp['tag']}: mounting pattern conflicts with existing cutouts or plate boundary")

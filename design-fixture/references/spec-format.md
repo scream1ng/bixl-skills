@@ -24,8 +24,7 @@ All values are millimetres in one right-handed fixture frame. Recommended: base 
 | `assembly_layers` | no | `[[plate names], ...]` install order; unlisted plates follow |
 | `insertion` | no | `offsets_mm`, `default_axis`, `along_w` (plates inserted along their own `w`) |
 | `tab_slot` | no | Overrides of `tabs_slots.DEFAULTS`; `pinned: {part_number: [s_a, s_b]}` fixes tab positions |
-| `cap_joints` | no | Overrides of `cap_joints.DEFAULTS`; `extra_caps: [plate]` adds an unclamped cap, `pinned: {cap: [[cheek, s_a, s_b], ...]}` fixes its tabs, `skip: [cap]` leaves a cap unlocated and reports it |
-| `nest` | no | `gap_mm`, `margin_mm`, `sheet_width_mm` / `sheet_height_mm` as `[min, max, step]` |
+| `nest` | no | Shop default: `stock_size_mm: [2400,1200]`, `usable_origin_mm: [0,0]`, `usable_size_mm: [2400,1100]`, plus `gap_mm`, `margin_mm`, `strip_width_step_mm`, `etch_height_mm`, `etch_edge_clearance_mm`. Supplying both legacy `sheet_width_mm` / `sheet_height_mm` `[min,max,step]` keeps the older generic size search. |
 
 ## Plate record
 
@@ -63,7 +62,7 @@ Draw `outer` without tabs: a rectangle plus required contact lands, joint slots 
 {"a": "R1", "b": "X1", "xy": [-50, -30], "lap_height_mm": 45, "slot_width_mm": 5.2, "a_slot": "bottom", "b_slot": "top"}
 ```
 
-`xy` is the crossing point; each plate gets a slot of `slot_width_mm` to half `lap_height_mm`, open at the stated edge. The joint geometry must already be cut into both outlines; the record drives tab avoidance and width audits.
+`xy` is the crossing point; each plate gets a slot of `slot_width_mm` to half `lap_height_mm`, open at the stated edge. Every seated upright needs at least one such joint with a perpendicular upright (`cross_support`); otherwise set `cross_support_exception` on the plate with a reason. The joint geometry must already be cut into both outlines; the record drives tab avoidance and width audits.
 
 ## Clamp
 
@@ -107,7 +106,7 @@ A check is not established by copying its target value into `measured`. Carry ou
 
 ## Automation limits
 
-The single seat must be horizontal XY; seated ribs must have `v=+Z`; one thickness applies to all custom plates. The single-sheet nest is a heuristic over configured stock sizes, not a proof of minimum stock. Unsupported layouts need a separate explicit CAD/CAM implementation with the same records. Discrete fixture insertion samples are recorded as screening only; successful samples leave the continuous-motion check unknown.
+The single seat must be horizontal XY; seated ribs must have `v=+Z`; one thickness applies to all custom plates. The default single-sheet nest searches 0/90-degree rotations for the minimum-width strip within the configured usable zone, preserving a right-side rectangular remnant; it is a heuristic, not proof of a globally optimal nest. The default usable zone reserves the top 100 mm of 2400 x 1200 stock for clamping. Unsupported layouts need a separate explicit CAD/CAM implementation with the same records. Discrete fixture insertion samples are recorded as screening only; successful samples leave the continuous-motion check unknown.
 
 ## Assembly strategy and auxiliary supports
 

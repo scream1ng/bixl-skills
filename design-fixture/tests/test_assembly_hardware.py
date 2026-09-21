@@ -90,12 +90,19 @@ class HardwareTests(unittest.TestCase):
             f=Path(t)/'real.step';write_step(f,self.shapes);self.assertEqual(verify_export(self.spec,read_step(f))['status'],'pass')
     def test_unexplained_large_platform_rejected(self):
         s=copy.deepcopy(self.spec);p=next(p for p in s['plates'] if p['name']=='P_T1');p.pop('mount_design',None);p['outer']=[[-45,55],[45,55],[45,140],[-45,140]]
-        r=mount_audit(s);self.assertEqual(r['status'],'fail');self.assertGreater(r['mounts'][0]['platform_area_ratio'],2)
+        r=mount_audit(s);self.assertEqual(r['status'],'fail');self.assertTrue(r['mounts'][0]['unexplained_large_platform'])
     def test_justification_requires_review_not_automatic_approval(self):
         s=copy.deepcopy(self.spec);p=next(p for p in s['plates'] if p['name']=='P_T1');p['outer']=[[-45,55],[45,55],[45,140],[-45,140]]
+        p['mount_design']={'layout_reason':'test','compact_alternative_considered':'test'}
         self.assertEqual(mount_audit(s)['status'],'unknown')
-    def test_small_platform_passes_size_screen(self):
-        s=copy.deepcopy(self.spec);p=next(p for p in s['plates'] if p['name']=='P_T1');p['outer']=[[-26,78],[26,78],[26,132],[-26,132]];p['holes']=[]
+    def test_standard_plate_passes_size_screen(self):
+        s=copy.deepcopy(self.spec);p=next(p for p in s['plates'] if p['name']=='P_T1');p['outer']=[[-30,80.4],[30,80.4],[30,130.4],[-30,130.4]]
         self.assertEqual(mount_audit(s)['status'],'pass')
+    def test_non_standard_small_plate_needs_reason(self):
+        s=copy.deepcopy(self.spec);p=next(p for p in s['plates'] if p['name']=='P_T1');p.pop('mount_design',None);p['outer']=[[-26,78],[26,78],[26,132],[-26,132]];p['holes']=[]
+        self.assertEqual(mount_audit(s)['status'],'fail')
+    def test_standard_cap_uses_hardware_ligament(self):
+        from clamp_mount import min_width_for
+        self.assertEqual(min_width_for(self.spec,'P_T1'),5.0);self.assertEqual(min_width_for(self.spec,'K1'),self.spec.get('min_width_mm',10.0))
 
 if __name__=='__main__':unittest.main()

@@ -56,7 +56,7 @@ Manual engineering evidence is supplied through the input spec; see `spec-format
 
 ## Exports and review images
 
-The STEP preserves named fixture solids, workpiece references and any hardware references. The DXF uses millimetres with closed fabrication contours on CUT, text on ETCH and stock boundaries off CUT. Hash the exact exported files.
+The STEP preserves named fixture solids, workpiece references and any hardware references. The DXF uses millimetres with closed fabrication contours on CUT and joined open single-stroke `LWPOLYLINE` geometry on ETCH; `TEXT` and `MTEXT` are forbidden. Physical-stock, usable-zone, clamp-exclusion and nest-strip boundaries stay off CUT. Hash the exact exported files.
 
 `assembled.png` shows the workpiece seated with visible fixture details; `empty-fixture.png` removes the workpiece and identifies fixture components. The bundled renderer uses the exported STEP and identifies hardware as saved-pose references. Empty views hide the workpiece and its source weld/clip references. The assembled image includes CAD side-view insets with mounting-face height, clamping-surface height and signed difference for each clamp; keep these inside the existing PNG rather than adding routine files. Both are review views, not proof of clearance or manufacturability.
 
@@ -70,7 +70,7 @@ Run `python scripts/validate_delivery.py DELIVERY`. It checks types, required ch
 
 Retain `assembly_locating` in fixture-design.json and the input spec: master part, datum rationale, loading stages, mating contacts, seating directions, and any secondary-stop exception. Contacts identify `constraint_role`; auxiliary supports identify their mode and activation sequence. Preserve compactness metrics and mount design rationale.
 
-Required automatic checks now include `hardware_geometry`, `mount_compactness`, `same_side_secondary`, `assembly_locating` and `mounting_height`. Required engineering topics also include `assembly_tolerances`, `hardware_pose` and `hardware_clearance`. Old reports missing these checks must be rebuilt; do not relabel them. Asset STEP bytes participate in the geometry fingerprint. Validate that every declared clamp has all its named `HW_<tag>_<component>` solids in the exported STEP.
+Required automatic checks now include `hardware_geometry`, `mount_compactness`, `cross_support`, `same_side_secondary`, `assembly_locating` and `mounting_height`. Required engineering topics also include `assembly_tolerances`, `hardware_pose` and `hardware_clearance`. Old reports missing these checks must be rebuilt; do not relabel them. Asset STEP bytes participate in the geometry fingerprint. Validate that every declared clamp has all its named `HW_<tag>_<component>` solids in the exported STEP.
 
 The required `mounting_height` check retains per-clamp measured values under `measurements.cad_audit.mounting_height`. Rebuild pre-v5 reports lacking this check. A mounting-height pass must never promote `hardware_pose`, `clamp_seating` or `clamp_motion`.
 

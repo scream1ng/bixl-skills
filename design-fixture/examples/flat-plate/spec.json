@@ -77,52 +77,84 @@
       ],
       "outer": [
         [
-          -65,
-          0
+          -65.0,
+          50.0
         ],
         [
-          65,
-          0
+          -60.0,
+          50.0
         ],
         [
-          65,
-          50
+          -60.0,
+          60.0
         ],
         [
-          60,
-          50
+          -40.0,
+          60.0
         ],
         [
-          60,
-          60
+          -40.0,
+          50.0
         ],
         [
-          40,
-          60
+          40.0,
+          50.0
         ],
         [
-          40,
-          50
+          40.0,
+          60.0
         ],
         [
-          -40,
-          50
+          60.0,
+          60.0
         ],
         [
-          -40,
-          60
+          60.0,
+          50.0
         ],
         [
-          -60,
-          60
+          65.0,
+          50.0
         ],
         [
-          -60,
-          50
+          65.0,
+          0.0
         ],
         [
-          -65,
-          50
+          14.6,
+          0.0
+        ],
+        [
+          14.6,
+          20.0
+        ],
+        [
+          9.4,
+          20.0
+        ],
+        [
+          9.4,
+          0.0
+        ],
+        [
+          -9.4,
+          0.0
+        ],
+        [
+          -9.4,
+          20.0
+        ],
+        [
+          -14.6,
+          20.0
+        ],
+        [
+          -14.6,
+          0.0
+        ],
+        [
+          -65.0,
+          0.0
         ]
       ],
       "holes": [],
@@ -158,36 +190,68 @@
       ],
       "outer": [
         [
-          -25,
-          0
+          -25.0,
+          50.0
         ],
         [
-          25,
-          0
+          -10.0,
+          50.0
         ],
         [
-          25,
-          50
+          -10.0,
+          60.0
         ],
         [
-          10,
-          50
+          10.0,
+          60.0
         ],
         [
-          10,
-          60
+          10.0,
+          50.0
         ],
         [
-          -10,
-          60
+          25.0,
+          50.0
         ],
         [
-          -10,
-          50
+          25.0,
+          0.0
         ],
         [
-          -25,
-          50
+          14.6,
+          0.0
+        ],
+        [
+          14.6,
+          20.0
+        ],
+        [
+          9.4,
+          20.0
+        ],
+        [
+          9.4,
+          0.0
+        ],
+        [
+          -9.4,
+          0.0
+        ],
+        [
+          -9.4,
+          20.0
+        ],
+        [
+          -14.6,
+          20.0
+        ],
+        [
+          -14.6,
+          0.0
+        ],
+        [
+          -25.0,
+          0.0
         ]
       ],
       "holes": [],
@@ -222,20 +286,36 @@
       ],
       "outer": [
         [
-          -90,
-          0
+          -90.0,
+          0.0
         ],
         [
-          -50,
-          0
+          -90.0,
+          70.0
         ],
         [
-          -50,
-          70
+          -50.0,
+          70.0
         ],
         [
-          -90,
-          70
+          -50.0,
+          0.0
+        ],
+        [
+          -67.4,
+          0.0
+        ],
+        [
+          -67.4,
+          20.0
+        ],
+        [
+          -72.6,
+          20.0
+        ],
+        [
+          -72.6,
+          0.0
         ]
       ],
       "holes": [],
@@ -270,20 +350,36 @@
       ],
       "outer": [
         [
-          -90,
-          0
+          -90.0,
+          0.0
         ],
         [
-          -50,
-          0
+          -90.0,
+          70.0
         ],
         [
-          -50,
-          70
+          -50.0,
+          70.0
         ],
         [
-          -90,
-          70
+          -50.0,
+          0.0
+        ],
+        [
+          -67.4,
+          0.0
+        ],
+        [
+          -67.4,
+          20.0
+        ],
+        [
+          -72.6,
+          20.0
+        ],
+        [
+          -72.6,
+          0.0
         ]
       ],
       "holes": [],
@@ -318,20 +414,36 @@
       ],
       "outer": [
         [
-          -115,
-          0
+          -115.0,
+          0.0
         ],
         [
-          -80,
-          0
+          -115.0,
+          70.0
         ],
         [
-          -80,
-          70
+          -80.0,
+          70.0
         ],
         [
-          -115,
-          70
+          -80.0,
+          0.0
+        ],
+        [
+          -97.4,
+          0.0
+        ],
+        [
+          -97.4,
+          20.0
+        ],
+        [
+          -102.6,
+          20.0
+        ],
+        [
+          -102.6,
+          0.0
         ]
       ],
       "holes": [],
@@ -345,7 +457,7 @@
       "part_number": "FP06",
       "role": "Clamp support cheek",
       "origin": [
-        -26.0,
+        -22.0,
         0.0,
         0.0
       ],
@@ -366,20 +478,36 @@
       ],
       "outer": [
         [
-          82,
-          0
+          84.0,
+          0.0
         ],
         [
-          134,
-          0
+          84.0,
+          61.0
         ],
         [
-          134,
-          61
+          127.0,
+          61.0
         ],
         [
-          82,
-          61
+          127.0,
+          0.0
+        ],
+        [
+          102.6,
+          0.0
+        ],
+        [
+          102.6,
+          20.0
+        ],
+        [
+          97.4,
+          20.0
+        ],
+        [
+          97.4,
+          0.0
         ]
       ],
       "holes": [],
@@ -391,7 +519,7 @@
       "part_number": "FP06",
       "role": "Clamp support cheek",
       "origin": [
-        26.0,
+        22.0,
         0.0,
         0.0
       ],
@@ -412,20 +540,36 @@
       ],
       "outer": [
         [
-          82,
-          0
+          84.0,
+          0.0
         ],
         [
-          134,
-          0
+          84.0,
+          61.0
         ],
         [
-          134,
-          61
+          127.0,
+          61.0
         ],
         [
-          82,
-          61
+          127.0,
+          0.0
+        ],
+        [
+          102.6,
+          0.0
+        ],
+        [
+          102.6,
+          20.0
+        ],
+        [
+          97.4,
+          20.0
+        ],
+        [
+          97.4,
+          0.0
         ]
       ],
       "holes": [],
@@ -458,32 +602,518 @@
       ],
       "outer": [
         [
-          -39,
-          76
+          -30,
+          80.4
         ],
         [
-          39,
-          76
+          30,
+          80.4
         ],
         [
-          39,
-          140
+          30,
+          130.4
         ],
         [
-          -39,
-          140
+          -30,
+          130.4
+        ]
+      ],
+      "holes": [],
+      "contacts": []
+    },
+    {
+      "name": "X1",
+      "part_number": "FP08",
+      "role": "Cross brace",
+      "origin": [
+        -12.0,
+        0.0,
+        0.0
+      ],
+      "u": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "v": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "w": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "outer": [
+        [
+          45.0,
+          0.0
+        ],
+        [
+          -45.0,
+          0.0
+        ],
+        [
+          -45.0,
+          40.0
+        ],
+        [
+          -32.6,
+          40.0
+        ],
+        [
+          -32.6,
+          20.0
+        ],
+        [
+          -27.4,
+          20.0
+        ],
+        [
+          -27.4,
+          40.0
+        ],
+        [
+          27.4,
+          40.0
+        ],
+        [
+          27.4,
+          20.0
+        ],
+        [
+          32.6,
+          20.0
+        ],
+        [
+          32.6,
+          40.0
+        ],
+        [
+          45.0,
+          40.0
         ]
       ],
       "holes": [],
       "contacts": [],
-      "mount_design": {
-        "layout_reason": "78 x 64 mm cap contains the measured clamp base and M5 pilots with at least 10 mm ligaments; cheeks support it from below.",
-        "compact_alternative_considered": "Selected a dry-fit-located welded cap instead of four upper tab slots requiring a broad platform. Cap position, weld retention and distortion remain engineering checks."
-      }
+      "seat": "BASE"
+    },
+    {
+      "name": "X2",
+      "part_number": "FP08",
+      "role": "Cross brace",
+      "origin": [
+        12.0,
+        0.0,
+        0.0
+      ],
+      "u": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "v": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "w": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "outer": [
+        [
+          45.0,
+          0.0
+        ],
+        [
+          -45.0,
+          0.0
+        ],
+        [
+          -45.0,
+          40.0
+        ],
+        [
+          -32.6,
+          40.0
+        ],
+        [
+          -32.6,
+          20.0
+        ],
+        [
+          -27.4,
+          20.0
+        ],
+        [
+          -27.4,
+          40.0
+        ],
+        [
+          27.4,
+          40.0
+        ],
+        [
+          27.4,
+          20.0
+        ],
+        [
+          32.6,
+          20.0
+        ],
+        [
+          32.6,
+          40.0
+        ],
+        [
+          45.0,
+          40.0
+        ]
+      ],
+      "holes": [],
+      "contacts": [],
+      "seat": "BASE"
+    },
+    {
+      "name": "XS",
+      "part_number": "FP09",
+      "role": "Cross brace",
+      "origin": [
+        0.0,
+        -70.0,
+        0.0
+      ],
+      "u": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "v": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "w": [
+        0.0,
+        -1.0,
+        0.0
+      ],
+      "outer": [
+        [
+          55.0,
+          0.0
+        ],
+        [
+          -55.0,
+          0.0
+        ],
+        [
+          -55.0,
+          40.0
+        ],
+        [
+          -42.6,
+          40.0
+        ],
+        [
+          -42.6,
+          20.0
+        ],
+        [
+          -37.4,
+          20.0
+        ],
+        [
+          -37.4,
+          40.0
+        ],
+        [
+          37.4,
+          40.0
+        ],
+        [
+          37.4,
+          20.0
+        ],
+        [
+          42.6,
+          20.0
+        ],
+        [
+          42.6,
+          40.0
+        ],
+        [
+          55.0,
+          40.0
+        ]
+      ],
+      "holes": [],
+      "contacts": [],
+      "seat": "BASE"
+    },
+    {
+      "name": "XC",
+      "part_number": "FP10",
+      "role": "Cross brace",
+      "origin": [
+        -100.0,
+        0.0,
+        0.0
+      ],
+      "u": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "v": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "w": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "outer": [
+        [
+          30.0,
+          40.0
+        ],
+        [
+          30.0,
+          0.0
+        ],
+        [
+          -30.0,
+          0.0
+        ],
+        [
+          -30.0,
+          40.0
+        ],
+        [
+          -2.6,
+          40.0
+        ],
+        [
+          -2.6,
+          20.0
+        ],
+        [
+          2.6,
+          20.0
+        ],
+        [
+          2.6,
+          40.0
+        ]
+      ],
+      "holes": [],
+      "contacts": [],
+      "seat": "BASE"
+    },
+    {
+      "name": "XK",
+      "part_number": "FP11",
+      "role": "Cross brace",
+      "origin": [
+        0.0,
+        100.0,
+        0.0
+      ],
+      "u": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "v": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "w": [
+        0.0,
+        -1.0,
+        0.0
+      ],
+      "outer": [
+        [
+          35.0,
+          0.0
+        ],
+        [
+          -35.0,
+          0.0
+        ],
+        [
+          -35.0,
+          40.0
+        ],
+        [
+          -24.6,
+          40.0
+        ],
+        [
+          -24.6,
+          20.0
+        ],
+        [
+          -19.4,
+          20.0
+        ],
+        [
+          -19.4,
+          40.0
+        ],
+        [
+          19.4,
+          40.0
+        ],
+        [
+          19.4,
+          20.0
+        ],
+        [
+          24.6,
+          20.0
+        ],
+        [
+          24.6,
+          40.0
+        ],
+        [
+          35.0,
+          40.0
+        ]
+      ],
+      "holes": [],
+      "contacts": [],
+      "seat": "BASE"
     }
   ],
-  "joints": [],
+  "joints": [
+    {
+      "a": "R1",
+      "b": "X1",
+      "xy": [
+        -12.0,
+        -30.0
+      ],
+      "lap_height_mm": 40.0,
+      "slot_width_mm": 5.2,
+      "a_slot": "bottom",
+      "b_slot": "top"
+    },
+    {
+      "a": "R1",
+      "b": "X2",
+      "xy": [
+        12.0,
+        -30.0
+      ],
+      "lap_height_mm": 40.0,
+      "slot_width_mm": 5.2,
+      "a_slot": "bottom",
+      "b_slot": "top"
+    },
+    {
+      "a": "R2",
+      "b": "X1",
+      "xy": [
+        -12.0,
+        30.0
+      ],
+      "lap_height_mm": 40.0,
+      "slot_width_mm": 5.2,
+      "a_slot": "bottom",
+      "b_slot": "top"
+    },
+    {
+      "a": "R2",
+      "b": "X2",
+      "xy": [
+        12.0,
+        30.0
+      ],
+      "lap_height_mm": 40.0,
+      "slot_width_mm": 5.2,
+      "a_slot": "bottom",
+      "b_slot": "top"
+    },
+    {
+      "a": "S1",
+      "b": "XS",
+      "xy": [
+        -40.0,
+        -70.0
+      ],
+      "lap_height_mm": 40.0,
+      "slot_width_mm": 5.2,
+      "a_slot": "bottom",
+      "b_slot": "top"
+    },
+    {
+      "a": "S2",
+      "b": "XS",
+      "xy": [
+        40.0,
+        -70.0
+      ],
+      "lap_height_mm": 40.0,
+      "slot_width_mm": 5.2,
+      "a_slot": "bottom",
+      "b_slot": "top"
+    },
+    {
+      "a": "C1",
+      "b": "XC",
+      "xy": [
+        -100.0,
+        0.0
+      ],
+      "lap_height_mm": 40.0,
+      "slot_width_mm": 5.2,
+      "a_slot": "bottom",
+      "b_slot": "top"
+    },
+    {
+      "a": "K1",
+      "b": "XK",
+      "xy": [
+        -22.0,
+        100.0
+      ],
+      "lap_height_mm": 40.0,
+      "slot_width_mm": 5.2,
+      "a_slot": "bottom",
+      "b_slot": "top"
+    },
+    {
+      "a": "K2",
+      "b": "XK",
+      "xy": [
+        22.0,
+        100.0
+      ],
+      "lap_height_mm": 40.0,
+      "slot_width_mm": 5.2,
+      "a_slot": "bottom",
+      "b_slot": "top"
+    }
+  ],
   "assembly_layers": [
+    [
+      "X1",
+      "X2",
+      "XS",
+      "XC",
+      "XK"
+    ],
     [
       "R1",
       "R2",
@@ -886,6 +1516,61 @@
     {
       "members": [
         "K2",
+        "BASE"
+      ],
+      "method": "weld",
+      "proposed_fillet_leg_mm": 3,
+      "proposed_runs": "two 20 mm runs on accessible base edges, symmetric about the rib centre",
+      "status": "unknown",
+      "reason": "example design proposal; weld strength and distortion not validated"
+    },
+    {
+      "members": [
+        "X1",
+        "BASE"
+      ],
+      "method": "weld",
+      "proposed_fillet_leg_mm": 3,
+      "proposed_runs": "two 20 mm runs on accessible base edges, symmetric about the rib centre",
+      "status": "unknown",
+      "reason": "example design proposal; weld strength and distortion not validated"
+    },
+    {
+      "members": [
+        "X2",
+        "BASE"
+      ],
+      "method": "weld",
+      "proposed_fillet_leg_mm": 3,
+      "proposed_runs": "two 20 mm runs on accessible base edges, symmetric about the rib centre",
+      "status": "unknown",
+      "reason": "example design proposal; weld strength and distortion not validated"
+    },
+    {
+      "members": [
+        "XS",
+        "BASE"
+      ],
+      "method": "weld",
+      "proposed_fillet_leg_mm": 3,
+      "proposed_runs": "two 20 mm runs on accessible base edges, symmetric about the rib centre",
+      "status": "unknown",
+      "reason": "example design proposal; weld strength and distortion not validated"
+    },
+    {
+      "members": [
+        "XC",
+        "BASE"
+      ],
+      "method": "weld",
+      "proposed_fillet_leg_mm": 3,
+      "proposed_runs": "two 20 mm runs on accessible base edges, symmetric about the rib centre",
+      "status": "unknown",
+      "reason": "example design proposal; weld strength and distortion not validated"
+    },
+    {
+      "members": [
+        "XK",
         "BASE"
       ],
       "method": "weld",

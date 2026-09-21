@@ -15,7 +15,10 @@ Design reasoning (fixture frame: base top at z = 0, part bottom face at z = 60):
   base sits behind the part on plate P_T1 (face z = 66), carried by two identical cheeks K1/K2.
   Face height 66 matches the clamping surface; underarm 25.1 mm needs 25.1 mm spindle
   extension (reported, adjustment range unknown).
-Rib outlines are rectangles plus only the contact lands; tabs are added by tabs_slots.py.
+- No lone ribs: every upright is crossed by a perpendicular 40 mm brace through cross-halving
+  slots (brace slotted from the top, upright from the bottom): X1/X2 cross R1/R2, XS crosses
+  S1/S2, XC crosses C1 and XK ties the clamp cheeks K1/K2.
+Rib outlines are rectangles plus only the contact lands and cross slots; tabs are added by tabs_slots.py.
 """
 import json
 import sys
@@ -58,11 +61,39 @@ plates = [
     # Tertiary rib: edge at local x = -80 (world x = -80) touches the short edge.
     rib_xz("C1", "FP05", 0.0, rect(-115, 0, -80, 70), ["C1"]),
     # Clamp support: two identical cheeks under a horizontal mount plate.
-    rib_yz("K1", "FP06", -26.0, rect(82, 0, 134, 61), [], "Clamp support cheek"),
-    rib_yz("K2", "FP06", 26.0, rect(82, 0, 134, 61), [], "Clamp support cheek"),
+    rib_yz("K1", "FP06", -22.0, rect(84, 0, 127, 61), [], "Clamp support cheek"),
+    rib_yz("K2", "FP06", 22.0, rect(84, 0, 127, 61), [], "Clamp support cheek"),
     {"name": "P_T1", "part_number": "FP07", "role": "GH-201-B mount plate; M5 x 0.8 tap after laser",
-     "origin": [0.0, 0.0, 63.5], "u": X, "v": Y, "w": Z, "outer": rect(-39, 76, 39, 140), "holes": [], "contacts": []},
+     "origin": [0.0, 0.0, 63.5], "u": X, "v": Y, "w": Z, "outer": rect(-30, 80.4, 30, 130.4), "holes": [], "contacts": []},
 ]
+BRACE_H, SLOT_W = 40.0, 5.2  # brace height = lap height; slot = 5 mm stock + 0.2 mm clearance
+plates += [
+    rib_yz("X1", "FP08", -12.0, rect(-45, 0, 45, BRACE_H), [], "Cross brace"),
+    rib_yz("X2", "FP08", 12.0, rect(-45, 0, 45, BRACE_H), [], "Cross brace"),
+    rib_xz("XS", "FP09", -70.0, rect(-55, 0, 55, BRACE_H), [], "Cross brace"),
+    rib_yz("XC", "FP10", -100.0, rect(-30, 0, 30, BRACE_H), [], "Cross brace"),
+    rib_xz("XK", "FP11", 100.0, rect(-35, 0, 35, BRACE_H), [], "Cross brace"),
+]
+joints = []
+
+
+def cross(upright, brace, xy):
+    """Cross-halving joint: upright slotted from the bottom, brace from the top, both to half lap height."""
+    from shapely.geometry import Polygon, box
+    by = {d["name"]: d for d in plates}
+    for name, lo, hi in ((upright, -1.0, BRACE_H / 2), (brace, BRACE_H / 2, BRACE_H + 1.0)):
+        d = by[name]
+        s = xy[0] - d["origin"][0] if d["u"] == X else xy[1] - d["origin"][1]
+        cut = Polygon(d["outer"]).difference(box(s - SLOT_W / 2, lo, s + SLOT_W / 2, hi))
+        d["outer"] = [list(map(float, p)) for p in cut.exterior.coords[:-1]]
+    joints.append({"a": upright, "b": brace, "xy": xy, "lap_height_mm": BRACE_H, "slot_width_mm": SLOT_W,
+                   "a_slot": "bottom", "b_slot": "top"})
+
+
+for upright, brace, xy in [("R1", "X1", [-12.0, -30.0]), ("R1", "X2", [12.0, -30.0]), ("R2", "X1", [-12.0, 30.0]),
+                           ("R2", "X2", [12.0, 30.0]), ("S1", "XS", [-40.0, -70.0]), ("S2", "XS", [40.0, -70.0]),
+                           ("C1", "XC", [-100.0, 0.0]), ("K1", "XK", [-22.0, 100.0]), ("K2", "XK", [22.0, 100.0])]:
+    cross(upright, brace, xy)
 
 
 def contact(name, p, n, rib, role):
@@ -73,8 +104,8 @@ spec = {
     "schema_version": "1.2", "project_id": "EXAMPLE-FLAT-PLATE", "revision": "R1", "units": "mm",
     "thickness_mm": 5.0, "min_width_mm": 10.0,
     "plates": plates,
-    "joints": [],
-    "assembly_layers": [["R1", "R2", "S1", "S2", "C1", "K1", "K2"], ["P_T1"]],
+    "joints": joints,
+    "assembly_layers": [["X1", "X2", "XS", "XC", "XK"], ["R1", "R2", "S1", "S2", "C1", "K1", "K2"], ["P_T1"]],
     "contacts": [
         contact("A1", [-50.0, -30.0, 60.0], Z, "R1", "Primary"),
         contact("A2", [50.0, -30.0, 60.0], Z, "R1", "Primary"),
@@ -90,7 +121,7 @@ spec = {
     "insertion": {"offsets_mm": [0.2, 0.5, 1, 2, 4, 8, 15, 30, 60, 100], "default_axis": Z, "along_w": []},
 }
 
-# Compact 78 x 64 mm cap rests on two cheeks. Locate its XY position during dry fit
+# Standard GH-201-B 60 x 50 mm cap rests on two cheeks. Locate its XY position during dry fit
 # against the measured base frame, then retain with proposed underside stitch welds.
 # Base tabs remain mandatory; upper cap tabs are not added when they inflate the mount.
 for c in spec["contacts"]:
@@ -120,9 +151,6 @@ if __name__ == "__main__":
         'mating_contacts':[], 'loading_stages':[{'id':'load-plate','parts':['Plate'],
         'fixture_contacts':[c['name'] for c in spec['contacts']], 'mating_contacts':[],
         'seating_directions':{'Plate':{'Primary':[0,0,-1],'Secondary':[0,-1,0],'Tertiary':[-1,0,0]}}}]}
-    next(d for d in plates if d['name']=='P_T1')['mount_design']={
-        'layout_reason':'78 x 64 mm cap contains the measured clamp base and M5 pilots with at least 10 mm ligaments; cheeks support it from below.',
-        'compact_alternative_considered':'Selected a dry-fit-located welded cap instead of four upper tab slots requiring a broad platform. Cap position, weld retention and distortion remain engineering checks.'}
     spec['assumptions']=[a for a in spec['assumptions'] if 'Red GH' not in a]+['Actual GH-201-B STEP is inserted by the exporter in its supplied pose. Closed operation and spindle adjustment require verification.']
     (HERE/"spec.json").write_text(json.dumps(spec,indent=2))
     print("Wrote example spec and workpiece; exporter inserts actual purchased hardware.")

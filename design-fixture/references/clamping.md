@@ -37,15 +37,13 @@ The measured slot centres are at canonical X=-5.15/-31.85 and Y=+/-11.020101 mm;
 
 The nominal 56.9 mm reach and 25.1 mm underarm height remain planning dimensions. The imported saved pad position is reported separately and must not be asserted to equal the intended clamp contact. Complete a measured closed-pose CAD adjustment, including connected linkage parts and spindle/nuts, through the explicit CAD workflow if closed geometry is required. Preserve component identity and validate mounting, pivots, contact, intersections and intermediate motion. Do not infer a closed linkage from opening angles alone.
 
-## Compact mounting platforms
+## Standard mount plate
 
-1. Start with the actual base footprint and pilot-hole envelope, including required material ligaments.
-2. Add only the extensions required for mounting joints, local support and tool access.
-3. Compare alternative cheek locations, cap joints or bracing before enlarging the platform. `scripts/cap_joints.py` generates the cap tabs by default and `verify.py` fails a cap without two separated tabs; move a cheek or pin the tabs rather than removing them. Base-seated uprights still require two tabs.
-4. Preserve the 10 mm structural-width requirement. Do not solve an oversized platform by silently weakening its webs or hole/slot ligaments.
-5. Store `mount_design.layout_reason` and `compact_alternative_considered` on the mount plate when substantial extensions are needed. Identify the responsible joints or access needs.
+GH-201-B uses one shop-standard cap: **50 mm along the arm × 60 mm across, centred on the hole pattern** (`standard_mount_plate` in the hardware record). `clamp_mount.py` reports it in plate coordinates as `standard_outline_local`; set the mount plate `outer` to exactly that rectangle. Do not size the cap from the job.
 
-`mount_compactness.py` reports the hardware-derived envelope and area ratio. A ratio above 2 is a review trigger, not an absolute maximum or an instruction to design exactly to that ratio. An unexplained large platform fails; an explained one remains unknown pending review. Do not reuse example mount dimensions as defaults.
+1. The 10 mm structural-width rule is relaxed to **5 mm (1 × plate thickness) on this cap only**, for pilots, tab slots and edges. Every other plate keeps `min_width_mm`.
+2. Place the two support cheeks about ±22 mm across from the hole-pattern centre, running along the arm, so their cap tab slots sit beside the base footprint and 5 mm clear of pilots and edges. `scripts/cap_joints.py` generates the cap tabs by default and `verify.py` fails a cap without two separated tabs; move a cheek or pin the tabs rather than removing them. Base-seated uprights still require two tabs.
+3. A different outline is a job exception: store `mount_design.layout_reason` and `compact_alternative_considered` on the mount plate. `mount_compactness.py` passes the standard outline, fails an unexplained different one and leaves an explained one unknown pending review. Hardware without a standard plate keeps the older area-ratio screen (above 2 × the hardware envelope triggers review).
 
 ## Mounting-height rule and verification
 

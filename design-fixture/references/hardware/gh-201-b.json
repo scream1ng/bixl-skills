@@ -99,6 +99,16 @@
     "cad_transverse_pitch_mm": 22.040202025355,
     "drawing_dimensions_note": "Existing longitudinal_pitch_mm=26.2, transverse_pitch_mm=22 and front_row_offset_from_base_front_mm=6.3 describe the drawing, not the bundled CAD pattern. Use hole_centres_canonical_mm for this asset."
   },
+  "standard_mount_plate": {
+    "along_x_mm": 50.0,
+    "across_y_mm": 60.0,
+    "centre_canonical_mm": [
+      -18.5,
+      0.0
+    ],
+    "min_ligament_mm": 5.0,
+    "note": "Shop standard clamp cap for this clamp: 50 mm along the arm x 60 mm across, centred on the hole pattern. 5 mm ligament (1 x plate thickness) applies to this cap only; 60 mm across leaves room for cheek tab slots beside the base."
+  },
   "closed_geometry": {
     "underarm_height_mm": 25.1,
     "reach_base_front_to_spindle_axis_mm": 56.9,

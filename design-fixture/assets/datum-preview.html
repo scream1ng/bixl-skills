@@ -12,7 +12,7 @@ body.commenting #view canvas{cursor:crosshair}#comment.on{background:#c0392b;col
 </head><body><div id="view"></div><aside><h1 id="title">Datum scheme</h1><p id="counts"></p>
 <div id="cameras"><button data-view="iso">Iso</button><button data-view="front">Front</button><button data-view="right">Right</button><button data-view="top">Top</button></div>
 <p>Drag: rotate · right-drag: pan · wheel: zoom. Click a marker to grab it; drag to move it (0.5 mm snap, 0.1 mm with shift). A contact slides only in its own face plane.</p>
-<button id="comment">Comment mode</button><button id="shot">Copy snapshot</button><button id="png">Save PNG</button><p id="shotmsg">Comment mode: click the part to pin a note. The snapshot burns the numbered pins and their text into the image.</p>
+<button id="comment">Comment mode</button><p id="shotmsg">Comment mode: click the part to pin a note.</p>
 <label><input type="checkbox" id="showpart" checked> workpiece</label><label><input type="checkbox" id="xray" checked> see-through part</label>
 <p id="selected">Selected: none</p><div id="schedule"></div>
 <div id="failure">Loading 3D modules… If blocked/offline, the datum schedule above is the authoritative list.</div></aside>
@@ -132,45 +132,11 @@ function placePins(){
     note.el.style.left=note.screen[0]+'px';note.el.style.top=note.screen[1]+'px';
     note.el.classList.toggle('flip',note.screen[0]>width-230);}
 }
-document.querySelector('#copynotes').onclick=()=>navigator.clipboard&&navigator.clipboard.writeText(document.querySelector('#notes').textContent);
-// Snapshot: the pins are HTML, so they are redrawn onto a copy of the WebGL frame with their text.
-function snapshot(){
-  renderer.render(scene,camera);placePins();
-  const source=renderer.domElement,canvas=document.createElement('canvas');
-  canvas.width=source.width;canvas.height=source.height;
-  const g=canvas.getContext('2d'),s=source.width/source.clientWidth;
-  g.drawImage(source,0,0);
-  g.font=`600 ${13*s}px system-ui`;g.fillStyle='#152a38';
-  g.fillText(`${data.project_id} · ${data.revision} · datum scheme only · not approval`,12*s,20*s);
-  const shown=notes.filter(note=>note.el.style.display!=='none');
-  for(const note of shown){
-    const [x,y]=note.screen.map(value=>value*s);
-    g.beginPath();g.arc(x,y-13*s,11*s,0,7);g.fillStyle='#c0392b';g.fill();
-    g.lineWidth=1.5*s;g.strokeStyle='#fff';g.stroke();
-    g.beginPath();g.moveTo(x,y);g.lineTo(x-4*s,y-8*s);g.lineTo(x+4*s,y-8*s);g.closePath();g.fill();
-    g.fillStyle='#fff';g.font=`600 ${12*s}px system-ui`;g.textAlign='center';g.textBaseline='middle';
-    g.fillText(note.n,x,y-13*s);g.textAlign='left';g.textBaseline='alphabetic';}
-  const lines=[];
-  g.font=`${12*s}px system-ui`;
-  for(const note of notes){
-    const words=(`${note.n}. ${note.text||'(empty)'}`).split(' ');let line='';
-    for(const word of words){const next=line?line+' '+word:word;
-      if(g.measureText(next).width>300*s&&line){lines.push(line);line='   '+word;}else line=next;}
-    if(line)lines.push(line);}
-  if(lines.length){
-    const pad=8*s,height=lines.length*16*s+pad*2,top=canvas.height-height-10*s;
-    g.fillStyle='#ffffffee';g.fillRect(10*s,top,320*s,height);
-    g.fillStyle='#152a38';lines.forEach((line,i)=>g.fillText(line,10*s+pad,top+pad+(i+1)*16*s-4*s));}
-  return canvas;
-}
+// Sandboxed previews may block the clipboard: fall back to selecting the text for Ctrl+C.
+function copyText(id){const el=document.querySelector(id),select=()=>{const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r);say('Clipboard blocked here — text selected, press Ctrl+C.');};
+  if(!navigator.clipboard)return select();navigator.clipboard.writeText(el.textContent).then(()=>say('Copied.'),select);}
 function say(message){document.querySelector('#shotmsg').textContent=message;}
-function download(canvas){const a=document.createElement('a');a.download=`${data.project_id}-${data.revision}-datum.png`;a.href=canvas.toDataURL('image/png');a.click();}
-document.querySelector('#shot').onclick=()=>{const canvas=snapshot();
-  if(!navigator.clipboard||!window.ClipboardItem){download(canvas);return say('Clipboard unavailable here — saved a PNG instead.');}
-  canvas.toBlob(blob=>navigator.clipboard.write([new ClipboardItem({'image/png':blob})])
-    .then(()=>say('Snapshot copied — paste it into the chat.'))
-    .catch(()=>{download(canvas);say('Clipboard refused — saved a PNG instead.');}),'image/png');};
-document.querySelector('#png').onclick=()=>{download(snapshot());say('PNG saved.');};
+document.querySelector('#copynotes').onclick=()=>copyText('#notes');
 const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let down;
 renderer.domElement.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
 renderer.domElement.addEventListener('pointerup',e=>{
@@ -185,7 +151,7 @@ renderer.domElement.addEventListener('pointerup',e=>{
   if(hit&&hit.object.userData.marker){gizmo.attach(hit.object);document.querySelector('#selected').textContent='Selected: '+hit.object.userData.marker.name;}
   else{gizmo.detach();document.querySelector('#selected').textContent='Selected: '+(hit?hit.object.name:'none');}
 });
-document.querySelector('#copy').onclick=()=>navigator.clipboard&&navigator.clipboard.writeText(document.querySelector('#patch').textContent);
+document.querySelector('#copy').onclick=()=>copyText('#patch');
 document.querySelector('#reset').onclick=()=>{for(const o of handles)o.position.copy(o.userData.home);report();};
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
 document.querySelector('#failure').style.display='none';function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);if(notes.length)placePins();}animate();

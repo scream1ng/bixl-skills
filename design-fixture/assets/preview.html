@@ -11,10 +11,10 @@ body.commenting #view canvas{cursor:crosshair}#comment.on{background:#c0392b;col
 </head><body><div id="view"></div><aside><h1 id="title">Fixture concept</h1><p id="mode"></p>
 <div id="cameras"><button data-view="iso">Iso</button><button data-view="front">Front</button><button data-view="right">Right</button><button data-view="top">Top</button></div>
 <p>Drag: rotate · right-drag: pan · wheel: zoom. Click a component for its ID.</p>
-<button id="comment">Comment mode</button><button id="shot">Copy snapshot</button><button id="png">Save PNG</button><p id="shotmsg">Comment mode: click a rib, block or the part to pin a note. The snapshot burns the numbered pins and their text into the image.</p><div id="groups"></div><p id="selected">Selected: none</p><details><summary>Component visibility</summary><div id="parts"></div></details>
+<button id="comment">Comment mode</button><p id="shotmsg">Comment mode: click a rib, block or the part to pin a note.</p><div id="groups"></div><p id="selected">Selected: none</p><details><summary>Component visibility</summary><div id="parts"></div></details>
 <div id="failure">Loading 3D modules… If blocked/offline, open <a href="assembled.png">assembled PNG</a> or <a href="empty-fixture.png">empty fixture PNG</a>.</div></aside>
 <div id="feedback"><h1>Comments</h1><p>Review notes only. A comment never edits the spec — revise the responsible spec and re-run <code>workflow.py concept</code>.</p><button id="copynotes">Copy comments</button><pre id="notes">none</pre></div>
-<div id="notice">CONCEPT ONLY · approximate mesh · exact measurements/validation remain in OCP CAD. Hardware shown in supplied pose, not verified closed. Comment pins and the snapshot button are the quickest feedback; a plain window capture still works.</div>
+<div id="notice">CONCEPT ONLY · approximate mesh · exact measurements/validation remain in OCP CAD. Hardware shown in supplied pose, not verified closed. Comment pins plus Copy comments are the quickest feedback; a plain window capture still works.</div>
 <script id="scene-data" type="application/json">__SCENE_JSON__</script>
 <script type="module">
 try {
@@ -60,43 +60,11 @@ function placePins(){
     note.el.style.left=note.screen[0]+'px';note.el.style.top=note.screen[1]+'px';
     note.el.classList.toggle('flip',note.screen[0]>width-230);}
 }
-document.querySelector('#copynotes').onclick=()=>navigator.clipboard&&navigator.clipboard.writeText(document.querySelector('#notes').textContent);
-// Snapshot: the pins are HTML, so they are redrawn onto a copy of the WebGL frame with their text.
-function snapshot(){
-  renderer.render(scene,camera);placePins();
-  const source=renderer.domElement,canvas=document.createElement('canvas');
-  canvas.width=source.width;canvas.height=source.height;
-  const g=canvas.getContext('2d'),s=source.width/source.clientWidth;
-  g.drawImage(source,0,0);
-  g.font=`600 ${13*s}px system-ui`;g.fillStyle='#152a38';
-  g.fillText(`${data.project_id} · ${data.revision} · ${data.fixture_kind}/${data.construction} · concept only · not approval`,12*s,20*s);
-  for(const note of notes.filter(note=>note.el.style.display!=='none')){
-    const [x,y]=note.screen.map(value=>value*s);
-    g.beginPath();g.arc(x,y-13*s,11*s,0,7);g.fillStyle='#c0392b';g.fill();
-    g.lineWidth=1.5*s;g.strokeStyle='#fff';g.stroke();
-    g.beginPath();g.moveTo(x,y);g.lineTo(x-4*s,y-8*s);g.lineTo(x+4*s,y-8*s);g.closePath();g.fill();
-    g.fillStyle='#fff';g.font=`600 ${12*s}px system-ui`;g.textAlign='center';g.textBaseline='middle';
-    g.fillText(note.n,x,y-13*s);g.textAlign='left';g.textBaseline='alphabetic';}
-  const lines=[];g.font=`${12*s}px system-ui`;
-  for(const note of notes){
-    const words=(`${note.n}. ${note.text||'(empty)'}${note.on?' ['+note.on+']':''}`).split(' ');let line='';
-    for(const word of words){const next=line?line+' '+word:word;
-      if(g.measureText(next).width>300*s&&line){lines.push(line);line='   '+word;}else line=next;}
-    if(line)lines.push(line);}
-  if(lines.length){
-    const pad=8*s,height=lines.length*16*s+pad*2,top=canvas.height-height-10*s;
-    g.fillStyle='#ffffffee';g.fillRect(10*s,top,320*s,height);
-    g.fillStyle='#152a38';lines.forEach((line,i)=>g.fillText(line,10*s+pad,top+pad+(i+1)*16*s-4*s));}
-  return canvas;
-}
+// Sandboxed previews may block the clipboard: fall back to selecting the text for Ctrl+C.
+function copyText(id){const el=document.querySelector(id),select=()=>{const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r);say('Clipboard blocked here — text selected, press Ctrl+C.');};
+  if(!navigator.clipboard)return select();navigator.clipboard.writeText(el.textContent).then(()=>say('Copied.'),select);}
 function say(message){document.querySelector('#shotmsg').textContent=message;}
-function download(canvas){const a=document.createElement('a');a.download=`${data.project_id}-${data.revision}-concept.png`;a.href=canvas.toDataURL('image/png');a.click();}
-document.querySelector('#shot').onclick=()=>{const canvas=snapshot();
-  if(!navigator.clipboard||!window.ClipboardItem){download(canvas);return say('Clipboard unavailable here — saved a PNG instead.');}
-  canvas.toBlob(blob=>navigator.clipboard.write([new ClipboardItem({'image/png':blob})])
-    .then(()=>say('Snapshot copied — paste it into the chat.'))
-    .catch(()=>{download(canvas);say('Clipboard refused — saved a PNG instead.');}),'image/png');};
-document.querySelector('#png').onclick=()=>{download(snapshot());say('PNG saved.');};
+document.querySelector('#copynotes').onclick=()=>copyText('#notes');
 const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let down;
 renderer.domElement.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
 renderer.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;const rect=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);ray.setFromCamera(pointer,camera);const hit=ray.intersectObjects(meshes.filter(m=>m.visible))[0];
