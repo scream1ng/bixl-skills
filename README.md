@@ -20,6 +20,7 @@ Default construction is 5 mm laser-cut tab-and-slot ribs. Blocks (weld) and prin
 
 | Release | Change |
 |---|---|
+| [`v1.2.5`](../../releases/tag/v1.2.5) | Brace merge and flange coverage checks; datum preview shows sheet features checked or not; re-exported STEP keeps the datum review; clearer tab errors. |
 | [`v1.2.4`](../../releases/tag/v1.2.4) | Concept stops on basic check failures, including new unload and pin clearance checks; preview about 60% smaller; `spec_patch.py` for small spec edits. |
 | [`v1.2.3`](../../releases/tag/v1.2.3) | Standard clamp mount plate, cross-support check, single compressed `preview.html`, restored nester. |
 | [`v1.2.2`](../../releases/tag/v1.2.2) | Comment pins in datum and concept previews. |
