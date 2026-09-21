@@ -3,19 +3,11 @@
 [Design Fixture](design-fixture/SKILL.md) designs weld and checking fixtures from a STEP file or dimensioned drawing.
 
 ```mermaid
-%%{init: {'flowchart': {'curve': 'step'}}}%%
-flowchart TD
-    A["STEP or drawing + weld / check"] --> B["Datum preview on bare part"]
-    B --> B1{"User OK?"}
-    B1 -- "No" --> B
-    B1 -- "Yes" --> C["Concept"]
-    C --> C1{"Basic checks pass?<br/>cap tabs, rib width, cross ribs,<br/>clamp plate size, straight unload"}
-    C1 -- "No: stop, no preview" --> C2["Fix with spec patch"] --> C
-    C1 -- "Yes" --> D["Interactive preview"]
-    D --> D1{"User says finalize?"}
-    D1 -- "Revise" --> C2
-    D1 -- "Finalize" --> E["STEP, DXF, PNGs, verification records"]
+flowchart LR
+    A[STEP / drawing] --> B[Datum preview] -->|user OK| C[Concept] -->|5 checks pass| D[Preview] -->|user: finalize| E[Package]
 ```
+
+Each gate loops back until it passes. The 5 checks: cap tabs, rib width, cross ribs, clamp plate size, straight unload. A failed check stops the concept with no preview.
 
 Default construction is 5 mm laser-cut tab-and-slot ribs. Blocks (weld) and printed solid (check) are explicit alternatives. Finalizing generates the package; it is not engineering approval.
 
