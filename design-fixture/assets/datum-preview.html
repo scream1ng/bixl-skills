@@ -4,20 +4,21 @@
 <style>
 html,body{margin:0;height:100%;font:14px system-ui;background:#e8edf2;color:#152a38}#view{position:absolute;inset:0}aside{position:absolute;top:12px;left:12px;max-height:85%;overflow:auto;width:265px;background:#fffe;padding:14px;border-radius:12px;box-shadow:0 3px 16px #1232}h1{font-size:17px;margin:0 0 8px}p{font-size:12px}button{padding:6px;margin:2px;border:1px solid #c1cdd5;background:white;border-radius:5px;cursor:pointer}label{display:block;margin:5px 0;font-size:12px}#notice{position:absolute;bottom:10px;left:12px;right:12px;background:#fffe;padding:9px;border-radius:7px;font-size:12px}#failure{padding:8px;color:#873700}details{margin-top:12px}canvas{display:block}
 table{border-collapse:collapse;font-size:11px;width:100%}td,th{border-bottom:1px solid #dde4e9;padding:2px 3px;text-align:left}.sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px}.off{color:#873700;font-weight:600}
-#pins{position:absolute;inset:0;pointer-events:none;overflow:hidden}.pin{position:absolute;pointer-events:auto}.pin b{position:absolute;left:-11px;top:-26px;display:flex;width:22px;height:22px;border-radius:50% 50% 50% 3px;background:#c0392b;color:#fff;font:600 12px system-ui;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 7px #0006;transform:rotate(-45deg)}.pin b span{transform:rotate(45deg)}.pin .box{position:absolute;left:16px;bottom:8px;width:196px;background:#fff;border-radius:9px;box-shadow:0 3px 14px #1234;padding:7px}.pin textarea{width:100%;box-sizing:border-box;height:54px;font:12px system-ui;border:1px solid #c1cdd5;border-radius:5px;resize:vertical}.pin.shut .box{display:none}.pin.flip .box{left:auto;right:16px}.pin .del{float:right;padding:3px 6px;font-size:11px}
-body.commenting #view canvas{cursor:crosshair}#comment.on{background:#c0392b;color:#fff;border-color:#c0392b}#shotmsg{font-size:11px;color:#42606f}
+#pins{position:absolute;inset:0;pointer-events:none;overflow:hidden}.tag{position:absolute;transform:translate(-50%,-50%);font:600 11px system-ui;color:#152a38;background:#fffd;padding:0 3px;border-radius:3px;white-space:nowrap}.pin{position:absolute;pointer-events:auto}.pin b{position:absolute;left:-11px;top:-26px;display:flex;width:22px;height:22px;border-radius:50% 50% 50% 3px;background:#c0392b;color:#fff;font:600 12px system-ui;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 7px #0006;transform:rotate(-45deg)}.pin b span{transform:rotate(45deg)}.pin .box{position:absolute;left:16px;bottom:8px;width:196px;background:#fff;border-radius:9px;box-shadow:0 3px 14px #1234;padding:7px}.pin textarea{width:100%;box-sizing:border-box;height:54px;font:12px system-ui;border:1px solid #c1cdd5;border-radius:5px;resize:vertical}.pin.shut .box{display:none}.pin.flip .box{left:auto;right:16px}.pin .del{float:right;padding:3px 6px;font-size:11px}
+body.commenting #view canvas{cursor:crosshair}#comment.on{background:#c0392b;color:#fff;border-color:#c0392b}#copymsg{font-size:11px;color:#42606f}h2{font-size:14px;margin:14px 0 2px}h2 button{font-size:11px;padding:2px 6px;margin-left:6px}
 #edits{position:absolute;top:12px;right:12px;width:265px;max-height:85%;overflow:auto;background:#fffe;padding:14px;border-radius:12px;box-shadow:0 3px 16px #1232}pre{font:11px ui-monospace,monospace;white-space:pre-wrap;margin:6px 0 0}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
 </head><body><div id="view"></div><aside><h1 id="title">Datum scheme</h1><p id="counts"></p>
 <div id="cameras"><button data-view="iso">Iso</button><button data-view="front">Front</button><button data-view="right">Right</button><button data-view="top">Top</button></div>
 <p>Drag: rotate · right-drag: pan · wheel: zoom. Click a marker to grab it; drag to move it (0.5 mm snap, 0.1 mm with shift). A contact slides only in its own face plane.</p>
-<button id="comment">Comment mode</button><p id="shotmsg">Comment mode: click the part to pin a note.</p>
 <label><input type="checkbox" id="showpart" checked> workpiece</label><label><input type="checkbox" id="xray" checked> see-through part</label>
 <p id="selected">Selected: none</p><div id="schedule"></div>
 <div id="failure">Loading 3D modules… If blocked/offline, the datum schedule above is the authoritative list.</div></aside>
-<div id="edits"><h1>Edits (mm)</h1><p>Exact numbers for the next revision. Never read dimensions off the picture. A moved point is only a proposal: apply it to the spec and re-run <code>workflow.py datum</code>, which re-measures every point against the placed CAD.</p><button id="copy">Copy JSON</button><button id="reset">Reset all</button><pre id="patch">[]</pre>
-<h1 style="margin-top:14px">Comments</h1><button id="copynotes">Copy comments</button><pre id="notes">none</pre></div>
+<div id="edits"><h1>Feedback</h1><button id="comment">Comment mode</button><button id="copy" title="Copies the moved points and the comments as one text">Copy all</button><p id="copymsg">Turn on Comment mode to pin notes.</p>
+<h2>Comments</h2><pre id="notes">none</pre>
+<h2>Moved points (mm) <button id="reset">Reset</button></h2><pre id="patch">none</pre>
+<p>A moved point is only a proposal: apply it to the spec and re-run <code>workflow.py datum</code>, which re-measures every point against the placed CAD. Never read dimensions off the picture.</p></div>
 <div id="notice">DATUM SCHEME ONLY · no ribs, blocks or clamp bodies exist yet · approximate mesh, exact measurements/validation remain in OCP CAD. Full 3-2-1 rank is not seating or force-closure approval.</div>
 <script id="scene-data" type="application/json">__SCENE_JSON__</script>
 <script type="module">
@@ -53,7 +54,8 @@ for(const m of data.markers){
   const normal=new THREE.Vector3(...m.normal).normalize();
   object.quaternion.setFromUnitVectors(up,m.kind==='clamp'?normal.clone().negate():normal);
   object.position.set(...m.point);
-  object.userData={marker:m,home:object.position.clone(),normal};
+  object.userData={marker:m,home:object.position.clone(),normal,height};
+  const tag=document.createElement('div');tag.className='tag';tag.textContent=m.name.replace(/^CLAMP:/,'');pins.append(tag);object.userData.tag=tag;
   scene.add(object);handles.push(object);
   if(m.off_surface){const ring=new THREE.Mesh(new THREE.TorusGeometry(unit*2.2,unit*.18,8,28),new THREE.MeshBasicMaterial({color:0x873700}));ring.position.copy(object.position);ring.quaternion.copy(object.quaternion);ring.rotateX(Math.PI/2);scene.add(ring);}
 }
@@ -98,7 +100,7 @@ function report(){
     .map(o=>({name:o.userData.marker.name,kind:o.userData.marker.kind,
       from:o.userData.home.toArray().map(round),to:o.position.toArray().map(round),
       normal:o.userData.seated||o.userData.marker.normal.map(round)}));
-  document.querySelector('#patch').textContent=JSON.stringify(moved,null,1);
+  document.querySelector('#patch').textContent=moved.length?JSON.stringify(moved,null,1):'none';
 }
 gizmo.addEventListener('objectChange',()=>{
   const o=gizmo.object;if(!o)return;
@@ -110,7 +112,7 @@ gizmo.addEventListener('objectChange',()=>{
 // Click-to-comment: a note is anchored to a 3D point on the part, so its pin tracks the view.
 let commenting=false,notes=[];
 const commentButton=document.querySelector('#comment');
-commentButton.onclick=()=>{commenting=!commenting;commentButton.classList.toggle('on',commenting);
+commentButton.onclick=()=>{commenting=!commenting;commentButton.classList.toggle('on',commenting);say(commenting?'Click the part to pin a note. Click Comment mode again to stop.':'Turn on Comment mode to pin notes.');
   document.body.classList.toggle('commenting',commenting);gizmo.enabled=!commenting;if(commenting)gizmo.detach();};
 function renumber(){notes.forEach((note,i)=>{note.n=i+1;note.el.querySelector('b span').textContent=note.n;});}
 function reportNotes(){document.querySelector('#notes').textContent=notes.length
@@ -124,6 +126,12 @@ function addNote(point,on){
   const area=el.querySelector('textarea');area.oninput=()=>{note.text=area.value;reportNotes();};
   note.el=el;pins.append(el);notes.push(note);reportNotes();area.focus();
 }
+// Each marker's name sits past the far end of its body, so it never covers the contact point.
+function placeTags(){
+  const width=renderer.domElement.clientWidth,height=renderer.domElement.clientHeight;
+  for(const o of handles){const v=new THREE.Vector3(0,-o.userData.height*1.35,0).applyQuaternion(o.quaternion).add(o.position).project(camera);
+    o.userData.tag.style.display=v.z>1?'none':'block';o.userData.tag.style.left=(v.x*.5+.5)*width+'px';o.userData.tag.style.top=(-v.y*.5+.5)*height+'px';}
+}
 function placePins(){
   const width=renderer.domElement.clientWidth,height=renderer.domElement.clientHeight,v=new THREE.Vector3();
   for(const note of notes){v.copy(note.point).project(camera);
@@ -133,10 +141,12 @@ function placePins(){
     note.el.classList.toggle('flip',note.screen[0]>width-230);}
 }
 // Sandboxed previews may block the clipboard: fall back to selecting the text for Ctrl+C.
-function copyText(id){const el=document.querySelector(id),select=()=>{const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r);say('Clipboard blocked here — text selected, press Ctrl+C.');};
-  if(!navigator.clipboard)return select();navigator.clipboard.writeText(el.textContent).then(()=>say('Copied.'),select);}
-function say(message){document.querySelector('#shotmsg').textContent=message;}
-document.querySelector('#copynotes').onclick=()=>copyText('#notes');
+// One copy hands back both the edits and the comments; the result shows next to the button.
+function copyAll(){const patch=document.querySelector('#patch'),notes=document.querySelector('#notes');
+  const text=`Edits (mm):\n${patch.textContent}\n\nComments:\n${notes.textContent}`;
+  const select=()=>{const r=document.createRange();r.setStartBefore(patch);r.setEndAfter(notes);const s=getSelection();s.removeAllRanges();s.addRange(r);say('Clipboard blocked here — text selected, press Ctrl+C.');};
+  if(!navigator.clipboard)return select();navigator.clipboard.writeText(text).then(()=>say('Copied.'),select);}
+function say(message){document.querySelector('#copymsg').textContent=message;}
 const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let down;
 renderer.domElement.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
 renderer.domElement.addEventListener('pointerup',e=>{
@@ -151,9 +161,9 @@ renderer.domElement.addEventListener('pointerup',e=>{
   if(hit&&hit.object.userData.marker){gizmo.attach(hit.object);document.querySelector('#selected').textContent='Selected: '+hit.object.userData.marker.name;}
   else{gizmo.detach();document.querySelector('#selected').textContent='Selected: '+(hit?hit.object.name:'none');}
 });
-document.querySelector('#copy').onclick=()=>copyText('#patch');
+document.querySelector('#copy').onclick=copyAll;
 document.querySelector('#reset').onclick=()=>{for(const o of handles)o.position.copy(o.userData.home);report();};
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
-document.querySelector('#failure').style.display='none';function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);if(notes.length)placePins();}animate();
+document.querySelector('#failure').style.display='none';function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);placeTags();if(notes.length)placePins();}animate();
 }catch(error){document.querySelector('#failure').prepend(document.createTextNode('Interactive preview unavailable: '+error.message+'. '));}
 </script></body></html>

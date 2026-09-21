@@ -100,7 +100,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('HW_T1', ids)  # one coarse clamp mesh; the full mechanism stays in concept.step
         self.assertEqual(result['components'], len(ids))
         self.assertEqual(result['blocking'], [])
-        self.assertEqual(set(result['checks']), {'cap_joints', 'material_width', 'cross_support', 'mount_compactness', 'unload'})
+        self.assertEqual(set(result['checks']), {'cap_joints', 'material_width', 'cross_support', 'mount_compactness', 'unload', 'pin_clearance'})
         self.assertEqual(result['checks']['unload'], 'unknown')
         self.assertTrue(result['soft_target_met'])
         self.assertLessEqual(result['bytes'], INLINE_HTML_TARGET)

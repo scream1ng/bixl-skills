@@ -62,11 +62,14 @@ def evaluate(spec_path, kind, construction, out):
     shapes = read_step(target)
     from unload_path import audit as unload
     audit['unload'] = unload(spec, shapes)
+    if construction == 'laser_rib':
+        from pin_clearance import audit as pin_clearance
+        audit['pin_clearance'] = pin_clearance(spec, shapes)
     (out / 'audit.json').write_text(json.dumps(audit, indent=2))
     return spec, shapes, target, digest(evaluated), audit
 
 
-CHECKS = ('cap_joints', 'material_width', 'cross_support', 'mount_compactness', 'unload')
+CHECKS = ('cap_joints', 'material_width', 'cross_support', 'mount_compactness', 'unload', 'pin_clearance')
 
 
 def failing_items(name, report):
@@ -75,6 +78,7 @@ def failing_items(name, report):
     if name == 'cross_support': return [r['plate'] for r in report['plates'] if r['status'] == 'fail'] + [f"{j['a']}x{j['b']}" for j in report['bad_joints']]
     if name == 'mount_compactness': return [r['mount_plate'] for r in report['mounts'] if r['status'] == 'fail']
     if name == 'unload': return [c['obstacle'] for c in report['collisions']]
+    if name == 'pin_clearance': return [f"{v['pin']}~{v['plate']} {v['gap_mm']}mm" for v in report['violations']] + report.get('unseated', [])
     if name == 'material_width': return [k for k, c in report['categories'].items() if c['failed']] + [f['plate'] if isinstance(f, dict) and 'plate' in f else str(f) for f in report['edge_pair']['failures']]
     return []
 

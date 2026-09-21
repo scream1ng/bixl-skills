@@ -12,7 +12,7 @@ Backwell IXL assistant skills. Install a skill by copying its whole folder into 
 
 ![Stage gates](flow.svg)
 
-The 5 checks: cap tabs, rib width, cross ribs, clamp plate size, straight unload. A failed check stops the concept with no preview.
+The 6 checks: cap tabs, rib width, cross ribs, clamp plate size, straight unload, pin clearance. A failed check stops the concept with no preview.
 
 Default construction is 5 mm laser-cut tab-and-slot ribs. Blocks (weld) and printed solid (check) are explicit alternatives. Finalizing generates the package; it is not engineering approval.
 
@@ -20,7 +20,7 @@ Default construction is 5 mm laser-cut tab-and-slot ribs. Blocks (weld) and prin
 
 | Tag | Change |
 |---|---|
-| `v1.2.4` | Current, not tagged yet. Concept stops on basic check failures, including the new unload check; preview about 60% smaller; `spec_patch.py` for small spec edits. |
+| `v1.2.4` | Current, not tagged yet. Concept stops on basic check failures, including the new unload and pin clearance checks; preview about 60% smaller; `spec_patch.py` for small spec edits. |
 | [`v1.2.3`](../../tree/v1.2.3) | Standard clamp mount plate, cross-support check, single compressed `preview.html`. |
 | [`v1.2.2`](../../tree/v1.2.2) | Comment pins in datum and concept previews. |
 | [`v1.2`](../../tree/v1.2) | Generated cap tab-and-slot joints. |
