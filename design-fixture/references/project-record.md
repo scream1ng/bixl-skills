@@ -7,6 +7,7 @@ Use `spec.decisions`, `spec.open_items`, `engineering_checks`, and checking-only
 ```bash
 python scripts/workflow.py init spec.json project.json --kind checking
 python scripts/workflow.py resume spec.json project.json
+python scripts/spec_patch.py spec.json '{"revision":"R2","plates":{"R1":{"outer":[[0,0],[80,0],[80,40],[0,40]]}}}'
 python scripts/workflow.py checkpoint spec.json project.json
 python scripts/workflow.py concept spec.json project.json WORK/concept
 python scripts/workflow.py authorize spec.json project.json --request "Please finalize the full package"

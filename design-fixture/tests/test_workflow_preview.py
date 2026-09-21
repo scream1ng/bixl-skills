@@ -94,16 +94,21 @@ class WorkflowTests(unittest.TestCase):
         scene = json.loads((out / 'scene.json').read_text())
         evaluated = json.loads((out / 'evaluated-spec.json').read_text())
         self.assertEqual(scene['evaluated_spec_sha256'], wf.digest(evaluated))
-        self.assertEqual(set(result['component_ids']), set(read_step(out / 'concept.step')))
-        self.assertIn('HW_', ' '.join(result['component_ids']))
-        self.assertTrue(result['inline_eligible'])
+        ids = {c['id'] for c in scene['components']}
+        step_ids = set(read_step(out / 'concept.step'))
+        self.assertEqual(ids - {'HW_T1'}, {n for n in step_ids if not n.startswith('HW_T1_')})
+        self.assertIn('HW_T1', ids)  # one coarse clamp mesh; the full mechanism stays in concept.step
+        self.assertEqual(result['components'], len(ids))
+        self.assertEqual(result['blocking'], [])
+        self.assertEqual(set(result['checks']), {'cap_joints', 'material_width', 'cross_support', 'mount_compactness', 'unload'})
+        self.assertEqual(result['checks']['unload'], 'unknown')
         self.assertTrue(result['soft_target_met'])
         self.assertLessEqual(result['bytes'], INLINE_HTML_TARGET)
         html = (out / 'preview.html').read_text()
         self.assertNotIn('__SCENE_GZIP_BASE64__', html)
         self.assertIn('DecompressionStream', html)
         self.assertNotIn('assembled.png', html)
-        self.assertEqual(set(result['private_files']), {'scene', 'evaluated_spec', 'concept_step', 'review_pngs'})
+        self.assertEqual(Path(result['private_dir']), out.resolve())
 
     def test_inline_html_is_deterministic_and_strictly_budgeted(self):
         scene = {'schema_version': 'fixture-preview-1', 'components': [], 'authoritative': False}
@@ -123,13 +128,14 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(record['construction'], construction)
             if mode == 'checking-rib': self.assertIn('CHECK_RIB', record['component_ids'])
             result = generate(ROOT / 'examples' / mode / 'spec.json', self.path / mode, 'checking', construction, render=False)
-            self.assertFalse(result['authoritative']); self.assertTrue(result['component_ids'])
+            self.assertGreater(result['components'], 0); self.assertEqual(result['blocking'], [])
         data = json.loads((ROOT / 'examples/checking-printed/spec.json').read_text())
         data['workpiece']['placed_step'] = str(ROOT / 'examples/checking-printed/workpiece.step')
         data['block_bodies'] = data.pop('printed_bodies'); data.pop('inspection'); data['clamps'] = []
         path = self.path / 'block.json'; path.write_text(json.dumps(data))
         result = generate(path, self.path / 'block', 'weld', 'block', render=False)
-        self.assertIn('BODY_MAIN', result['component_ids'])
+        scene = json.loads((self.path / 'block/scene.json').read_text())
+        self.assertIn('BODY_MAIN', {c['id'] for c in scene['components']})
 
     def test_unauthorized_concept_loop_drifts_without_losing_retirement(self):
         record = wf.initialize(self.spec, 'weld')

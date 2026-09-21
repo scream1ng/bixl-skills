@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 from workflow import resource, digest
 
-INLINE_HTML_TARGET = 850_000
+INLINE_HTML_TARGET = 250_000
 INLINE_HTML_LIMIT = 1_000_000
 
 
@@ -32,12 +32,14 @@ def evaluate(spec_path, kind, construction, out):
         from clamp_mount import mount
         import audit_width
         import cross_support
+        import mount_compactness
         caps = cap_design(spec, lambda *args: None)
         tabs = design(spec, lambda *args: None); mount(spec)
-        audit = {'cap_joints': caps, 'material_width': audit_width.audit(spec, tabs['tabs']), 'cross_support': cross_support.audit(spec)}
+        audit = {'cap_joints': caps, 'material_width': audit_width.audit(spec, tabs['tabs']), 'cross_support': cross_support.audit(spec),
+                 'mount_compactness': mount_compactness.audit(spec)}
         export(spec, target)
     else:
-        audit = None
+        audit = {}
         from printed_body import build_shapes
         from hardware_geometry import definition, asset_path, rigid
         body_spec = copy.deepcopy(spec)
@@ -57,9 +59,45 @@ def evaluate(spec_path, kind, construction, out):
         write_step(target, shapes)
     evaluated = {k: v for k, v in spec.items() if k != '_dir'}
     (out / 'evaluated-spec.json').write_text(json.dumps(evaluated, indent=2))
-    if audit is not None:
-        (out / 'audit.json').write_text(json.dumps(audit, indent=2))
-    return spec, read_step(target), target, digest(evaluated), audit
+    shapes = read_step(target)
+    from unload_path import audit as unload
+    audit['unload'] = unload(spec, shapes)
+    (out / 'audit.json').write_text(json.dumps(audit, indent=2))
+    return spec, shapes, target, digest(evaluated), audit
+
+
+CHECKS = ('cap_joints', 'material_width', 'cross_support', 'mount_compactness', 'unload')
+
+
+def failing_items(name, report):
+    """Short names of what failed, so the blocker list reads without opening audit.json."""
+    if name == 'cap_joints': return [r['cap'] for r in report['caps'] if r['status'] == 'fail']
+    if name == 'cross_support': return [r['plate'] for r in report['plates'] if r['status'] == 'fail'] + [f"{j['a']}x{j['b']}" for j in report['bad_joints']]
+    if name == 'mount_compactness': return [r['mount_plate'] for r in report['mounts'] if r['status'] == 'fail']
+    if name == 'unload': return [c['obstacle'] for c in report['collisions']]
+    if name == 'material_width': return [k for k, c in report['categories'].items() if c['failed']] + [f['plate'] if isinstance(f, dict) and 'plate' in f else str(f) for f in report['edge_pair']['failures']]
+    return []
+
+
+def blockers(audit):
+    """Basic-practice failures a concept must not be shown with; unknown stays reviewable."""
+    rows = []
+    for name in CHECKS:
+        r = audit.get(name)
+        if r and r['status'] == 'fail':
+            action = r.get('next_action') or next((x.get('next_action') for x in r.get('mounts', []) if x.get('next_action')), None)
+            rows.append({'check': name, 'items': failing_items(name, r), 'next_action': action})
+    return rows
+
+
+def hardware_proxies(shapes, clamps, triangles):
+    """One coarse mesh per clamp: the full 14-part mechanism stays in concept.step, not the review HTML."""
+    merged = {}
+    for name, shape in shapes.items():
+        leaf = name.split('/')[-1]
+        tag = next((c['tag'] for c in clamps if leaf.startswith('HW_' + c['tag'] + '_')), None)
+        if tag: merged.setdefault('HW_' + tag, []).append(triangles(shape))
+    return {k: np.concatenate(v) for k, v in merged.items()}
 
 
 def compact_mesh(triangles, target=1800):
@@ -106,11 +144,20 @@ def generate(spec_path, out, kind='weld', construction='laser_rib', render=True)
     from render_review import triangles, render as render_png
     spec, shapes, step, evaluated_hash, audit = evaluate(spec_path, kind, construction, out)
     out = Path(out)
+    checks = {name: audit[name]['status'] if name in audit else 'unknown' for name in CHECKS}
+    blocking = blockers(audit)
+    if blocking:  # no viewable concept exists while a basic check fails; audit.json and concept.step remain
+        (out / 'preview.html').unlink(missing_ok=True)
+        return {'html': None, 'evaluated_spec_sha256': evaluated_hash, 'checks': checks, 'blocking': blocking}
     components = []
+    proxies = hardware_proxies(shapes, spec.get('clamps', []), triangles)
     for name, shape in shapes.items():
         leaf = name.split('/')[-1]
         group = 'workpiece' if leaf.startswith(('Part_', 'REF_source_')) else 'hardware' if leaf.startswith('HW_') else 'fixture'
-        components.append({'id': name, 'group': group, **compact_mesh(triangles(shape), 1800 if group == 'workpiece' else 900)})
+        if group == 'hardware' and any(leaf.startswith(k + '_') for k in proxies): continue
+        components.append({'id': name, 'group': group, **compact_mesh(triangles(shape), 1200 if group == 'workpiece' else 900)})
+    for name, tris in proxies.items():
+        components.append({'id': name, 'group': 'hardware', **compact_mesh(tris, 2000)})
     scene = {'schema_version': 'fixture-preview-1', 'project_id': spec['project_id'], 'revision': spec['revision'],
         'units': 'mm', 'fixture_kind': kind, 'construction': construction, 'evaluated_spec_sha256': evaluated_hash,
         'authoritative': False, 'components': components}
@@ -119,17 +166,9 @@ def generate(spec_path, out, kind='weld', construction='laser_rib', render=True)
     html, html_bytes = inline_html(scene)
     (out / 'preview.html').write_text(html)
     if render: render_png(step, out, spec['revision'])
-    return {'html': str((out / 'preview.html').resolve()),
-        'evaluated_spec_sha256': evaluated_hash, 'bytes': html_bytes,
-        'soft_target_bytes': INLINE_HTML_TARGET, 'size_limit_bytes': INLINE_HTML_LIMIT,
-        'soft_target_met': html_bytes <= INLINE_HTML_TARGET, 'inline_eligible': True,
-        'component_ids': [c['id'] for c in components], 'authoritative': False,
-        'material_width': audit['material_width']['status'] if audit else 'unknown',
-        'cap_joints': audit['cap_joints']['status'] if audit else 'unknown',
-        'cross_support': audit['cross_support']['status'] if audit else 'unknown',
-        'private_files': {'scene': str((out / 'scene.json').resolve()),
-            'evaluated_spec': str((out / 'evaluated-spec.json').resolve()), 'concept_step': str(step.resolve()),
-            'review_pngs': [str((out / n).resolve()) for n in ('assembled.png', 'empty-fixture.png')] if render else []}}
+    return {'html': str((out / 'preview.html').resolve()), 'evaluated_spec_sha256': evaluated_hash,
+        'bytes': html_bytes, 'soft_target_met': html_bytes <= INLINE_HTML_TARGET, 'components': len(components),
+        'checks': checks, 'blocking': [], 'private_dir': str(out.resolve())}
 
 
 if __name__ == '__main__':

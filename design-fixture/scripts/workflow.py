@@ -256,6 +256,8 @@ def main():
                     raise ValueError('Review the datum scheme first: workflow.py datum, then datum-ok --note')
                 from preview import generate
                 result = generate(a.spec, a.out, record['fixture_kind'], record['construction'])
+                if result['blocking']:
+                    raise ValueError('no preview until fixed: ' + json.dumps(result['blocking'], separators=(',', ':')))
                 record['stage'] = 'preview'; record['preview'] = result
             else: result = finalize(a.spec, record, a.out)
         save(a.record, record)
