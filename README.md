@@ -20,8 +20,7 @@ Default construction is 5 mm laser-cut tab-and-slot ribs. Blocks (weld) and prin
 
 | Tag | Change |
 |---|---|
-| `v1.2.4` | Current, not tagged yet. Concept stops on basic check failures, including the new unload and pin clearance checks; preview about 60% smaller; `spec_patch.py` for small spec edits. |
-| [`v1.2.3`](../../tree/v1.2.3) | Standard clamp mount plate, cross-support check, single compressed `preview.html`. |
+| [`v1.2.4`](../../tree/v1.2.4) | Concept stops on basic check failures, including new unload and pin clearance checks; preview about 60% smaller; `spec_patch.py` for small spec edits; standard clamp mount plate, cross-support check, single compressed `preview.html`. |
 | [`v1.2.2`](../../tree/v1.2.2) | Comment pins in datum and concept previews. |
 | [`v1.2`](../../tree/v1.2) | Generated cap tab-and-slot joints. |
 
