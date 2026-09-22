@@ -20,6 +20,7 @@ Default construction is 5 mm laser-cut tab-and-slot ribs. Blocks (weld) and prin
 
 | Release | Change |
 |---|---|
+| [`v1.2.6`](../../releases/tag/v1.2.6) | Printed checking gauge defaults and reference build; one-command `revise`; datum review kept on rib/clamp-body edits; near-flat spline faces checked; about 10 KB less reading per concept. |
 | [`v1.2.5`](../../releases/tag/v1.2.5) | Brace merge and flange coverage checks; datum preview shows sheet features checked or not; re-exported STEP keeps the datum review; clearer tab errors. |
 | [`v1.2.4`](../../releases/tag/v1.2.4) | Concept stops on basic check failures, including new unload and pin clearance checks; preview about 60% smaller; `spec_patch.py` for small spec edits. |
 | [`v1.2.3`](../../releases/tag/v1.2.3) | Standard clamp mount plate, cross-support check, single compressed `preview.html`, restored nester. |
