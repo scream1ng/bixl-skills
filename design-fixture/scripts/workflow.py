@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Versioned, source-bound concept/revision/finalization entrypoint."""
 import argparse
+import subprocess
 import hashlib
 import json
 from pathlib import Path
@@ -55,6 +56,25 @@ def geometry_fingerprint(path):
     return digest(rows)
 
 
+def survey_sources(sources):
+    """Surveyed workpiece inputs only: a rebuilt finished body is design output, not a re-survey."""
+    return [x for x in sources if x['role'] != 'finished_body']
+
+
+# Fixture-body fields (which rib carries a pad, clamp model/plate/arm) never move a datum; every other field does.
+BODY_FIELDS = {'contacts': {'rib', 'source_face_note'},
+               'clamps': {'hardware', 'mount_plate', 'arm_direction', 'apply_hole_pattern', 'mount_transform', 'schematic_pivot'}}
+
+
+def datum_scheme(spec):
+    """What the datum review showed: contacts, locating groups and clamp forces, minus fixture-body fields."""
+    out = {'locating_groups': spec.get('locating_groups')}
+    for key, drop in BODY_FIELDS.items():
+        rows = spec.get(key)
+        out[key] = rows if rows is None else [{k: v for k, v in r.items() if k not in drop} for r in rows]
+    return out
+
+
 def rebase_sources(spec, current, record):
     """Byte-changed sources with identical solid geometry (re-export): carry the record and datum review over."""
     old = {x['path']: x for x in record['sources']}
@@ -64,8 +84,8 @@ def rebase_sources(spec, current, record):
     changed = [x['path'] for x in current['sources'] if x['sha256'] != old[x['path']]['sha256']]
     if not changed or any(not known.get(p) or geometry_fingerprint(p) != known[p] for p in changed):
         return False
-    kept = {k: spec.get(k) for k in ('contacts', 'locating_groups', 'clamps')} | {
-        'frame': current['coordinate_frame']['source_to_fixture'], 'sources': record['sources']}
+    kept = datum_scheme(spec) | {
+        'frame': current['coordinate_frame']['source_to_fixture'], 'sources': survey_sources(record['sources'])}
     if digest(kept) == record.get('datum_digest'):
         for key in ('datum_review', 'datum_preview'):
             if (record.get(key) or {}).get('datum_digest') == record['datum_digest']:
@@ -122,8 +142,8 @@ def snapshot(spec_path):
     return spec, {'project_id': spec['project_id'], 'revision': spec['revision'], 'units': 'mm',
         'coordinate_frame': {'name': 'fixture', 'source_to_fixture': frame}, 'sources': sources,
         'geometry_digest': digest({'spec': geometry, 'sources': sources}), 'input_digest': digest(identity),
-        'datum_digest': digest({k: spec.get(k) for k in ('contacts', 'locating_groups', 'clamps')} |
-            {'frame': frame, 'sources': sources}),
+        'datum_digest': digest(datum_scheme(spec) |
+            {'frame': frame, 'sources': survey_sources(sources)}),
         'component_ids': sorted(set(ids)), 'decisions': spec.get('decisions', []),
         'open_items': spec.get('open_items', []),
         'evidence': [{k: row[k] for k in ('name', 'status', 'geometry_fingerprint', 'evidence', 'next_action') if k in row}
@@ -171,7 +191,8 @@ def resume(spec_path, record):
     if (record.get('authorization') or current['revision'] != record['revision']
             or current['project_id'] != record['project_id']):
         raise ValueError('Source/spec changed; re-survey if necessary and checkpoint before reuse')
-    if ([(x['role'], x['sha256']) for x in current['sources']] != [(x['role'], x['sha256']) for x in record['sources']]
+    if ([(x['role'], x['sha256']) for x in survey_sources(current['sources'])]
+            != [(x['role'], x['sha256']) for x in survey_sources(record['sources'])]
             or current['coordinate_frame'] != record['coordinate_frame']) and not (
             current['coordinate_frame'] == record['coordinate_frame'] and rebase_sources(spec, current, record)):
         raise ValueError('Source/frame changed; fresh survey required (checkpoint --resurveyed)')
@@ -186,8 +207,8 @@ def checkpoint(spec_path, record, resurveyed=False):
     spec, snap = snapshot(spec_path)
     if snap['project_id'] != record['project_id']:
         raise ValueError('Cannot change project identity')
-    old_sources = [(x['role'], x['sha256']) for x in record['sources']]
-    new_sources = [(x['role'], x['sha256']) for x in snap['sources']]
+    old_sources = [(x['role'], x['sha256']) for x in survey_sources(record['sources'])]
+    new_sources = [(x['role'], x['sha256']) for x in survey_sources(snap['sources'])]
     if (old_sources != new_sources or snap['coordinate_frame'] != record['coordinate_frame']) and not resurveyed:
         raise ValueError('Source/frame changed; fresh survey required (--resurveyed only after surveying)')
     if snap['input_digest'] == record['input_digest']:
@@ -267,14 +288,47 @@ def finalize(spec_path, record, out):
     return {k: v for k, v in result.items() if k not in ('cad', 'plates', 'joints')}
 
 
+def run_concept(spec_path, out, record):
+    if not datum_reviewed(record):
+        raise ValueError('Review the datum scheme first: workflow.py datum, then datum-ok --note')
+    from preview import generate
+    result = generate(spec_path, out, record['fixture_kind'], record['construction'])
+    Path(out).mkdir(parents=True, exist_ok=True)
+    (Path(out) / 'result.json').write_text(json.dumps(result, indent=2, default=str) + '\n')
+    if result['blocking']:
+        raise ValueError('no preview until fixed: ' + json.dumps(result['blocking'], separators=(',', ':')))
+    record['stage'] = 'preview'; record['preview'] = result
+    return result
+
+
+def concept_line(result):
+    """One line for the chat; the full result stays in OUT/result.json."""
+    checks = ' '.join(f'{k}={v}' for k, v in sorted(result.get('checks', {}).items()))
+    return f"blocking=[] {checks} html={result.get('html')} bytes={result.get('bytes')}"
+
+
+def run_job(cmd, cwd, tag, log):
+    """Run a job script; the log keeps full output, the chat gets its last line."""
+    p = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, text=True)
+    out = (p.stdout + p.stderr).strip()
+    with open(log, 'a') as f:
+        f.write(f'$ {cmd}\n{out}\n')
+    tail = out.splitlines()[-1] if out else ''
+    if p.returncode:
+        raise ValueError(f'{tag} failed (exit {p.returncode}, full output in {log}): {tail}')
+    return tail
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('action', choices=['route', 'init', 'resume', 'checkpoint', 'datum', 'datum-ok', 'concept', 'authorize', 'finalize'])
+    p.add_argument('action', choices=['route', 'init', 'resume', 'checkpoint', 'datum', 'datum-ok', 'concept', 'revise',
+                                      'authorize', 'finalize'])
     p.add_argument('spec', nargs='?'); p.add_argument('record', nargs='?'); p.add_argument('out', nargs='?')
     p.add_argument('--kind', choices=['weld', 'checking', 'check']); p.add_argument('--construction')
     p.add_argument('--concept-exception'); p.add_argument('--complete-package-request'); p.add_argument('--request')
     p.add_argument('--note')
     p.add_argument('--resurveyed', action='store_true')
+    p.add_argument('--build'); p.add_argument('--verify')
     a = p.parse_args()
     if a.action == 'route':
         result = route(a.kind, a.construction, a.concept_exception)
@@ -284,10 +338,23 @@ def main():
             if Path(a.record).exists():
                 raise ValueError('Project exists; resume or checkpoint instead of overwriting')
             save(a.record, result)
+    elif a.action == 'revise':
+        # build -> checkpoint -> concept -> verify, one summary line
+        cwd, log = Path(a.spec).resolve().parent, Path(a.out) / 'revise.log'
+        Path(a.out).mkdir(parents=True, exist_ok=True); log.write_text('')
+        lines = ['build: ' + run_job(a.build, cwd, 'build', log)] if a.build else []
+        record = checkpoint(a.spec, read_record(a.record), a.resurveyed); save(a.record, record)
+        resume(a.spec, record)
+        lines.append('concept: ' + concept_line(run_concept(a.spec, a.out, record))); save(a.record, record)
+        if a.verify:
+            lines.append('verify: ' + run_job(a.verify, cwd, 'verify', log))
+        print(f"{record['revision']} ok | " + ' | '.join(lines))
+        return
     else:
         record = read_record(a.record)
         if a.action == 'checkpoint':
-            record = checkpoint(a.spec, record, a.resurveyed); result = record
+            record = checkpoint(a.spec, record, a.resurveyed)
+            result = f"{record['revision']} ok stage={record['stage']} datum_reviewed={datum_reviewed(record)}"
         else:
             resume(a.spec, record)
             if a.action == 'resume': result = record
@@ -298,17 +365,10 @@ def main():
                 record['stage'] = 'datum_preview'
                 record['datum_preview'] = {**result, 'datum_digest': record['datum_digest']}
             elif a.action == 'datum-ok': result = datum_ok(record, a.note)
-            elif a.action == 'concept':
-                if not datum_reviewed(record):
-                    raise ValueError('Review the datum scheme first: workflow.py datum, then datum-ok --note')
-                from preview import generate
-                result = generate(a.spec, a.out, record['fixture_kind'], record['construction'])
-                if result['blocking']:
-                    raise ValueError('no preview until fixed: ' + json.dumps(result['blocking'], separators=(',', ':')))
-                record['stage'] = 'preview'; record['preview'] = result
+            elif a.action == 'concept': result = concept_line(run_concept(a.spec, a.out, record))
             else: result = finalize(a.spec, record, a.out)
         save(a.record, record)
-    print(json.dumps(result, indent=2))
+    print(result if isinstance(result, str) else json.dumps(result, indent=2))
 
 
 if __name__ == '__main__':

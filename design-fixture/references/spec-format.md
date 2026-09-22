@@ -99,11 +99,7 @@ Datum choice, rib outline and land shapes, cross-joint slots, clamp position and
 - Each clamp should name `part` and `support`; its recorded force direction is opposite `surface_normal`.
 - `retention`: members, fastening/welding method, proposed dimensions, status and outstanding verification. Proposed dimensions are design inputs, not proven strength.
 - `assumptions` and `requirements` are retained in the output records.
-- `engineering_checks`: optional measured checks named in `scripts/records.py`. Missing checks are generated as unknown. Required topics include original-source survey, clamp seating/motion, workpiece loading/unloading, weld access, retention, strength, tolerances, distortion and trial validation.
-
-To supply a completed engineering check, include `name`, `status`, `measured`, `limit`, `units`, `scope`, `next_action`, `geometry_fingerprint` and `evidence`. Each evidence item must contain a local `file` and its exact `sha256`. Use the geometry fingerprint printed by the current build. The fingerprint includes the design inputs, source CAD and hardware hashes, but excludes `engineering_checks` so attaching evidence does not invalidate itself. A changed design/source invalidates prior evidence. Evidence files must exist at build time and match their hashes; retaining their underlying reports is the project owner's responsibility. The delivery JSON retains measurements and evidence identities, not extra routine files.
-
-A check is not established by copying its target value into `measured`. Carry out and describe the actual measurement. Independent engineering review is still needed where calculations or physical trials are required.
+- `engineering_checks`: measured checks attached at finalization; schema in [evidence](evidence.md).
 
 ## Automation limits
 
@@ -128,9 +124,3 @@ A non-default height uses the following clamp field (example only, not approval)
 ```
 
 Positive offset means the mounting face lies above the clamping surface along `surface_normal`. Both `hardware_pose` and `clamp_seating` entries in `engineering_checks` must pass, carry the current geometry fingerprint and hash-checked evidence, and include `clamp_tags: ["T1"]` identifying every clamp they actually cover. A height override alone, unrelated evidence, or a changed evidence file cannot waive the mismatch. The exported height must also match the override within the fixed CAD checking tolerance. The result is `exception`, not fabrication approval. Include spindle adjustment and locked linkage in the measured evidence.
-
-## Construction and operation evidence (v8)
-
-The required `rib_construction`, `fastener_access`, and `pin_mechanisms` engineering checks use the per-item schema in [construction-operation.md](construction-operation.md). Add a top-level `pin_locators` inventory for every pin, including fixed pins; this is an evidence inventory, not automatic geometry generation. Missing gates are emitted as unknown. A proposed bush or rib in prose does not satisfy component identity or measured-evidence checks. The output schema is now 1.2; rebuild earlier delivery records.
-
-V8 accepts a fully detailed hand-removable pin without captive hardware. Use `mode: "removable"`, the `grip` role, measured grip/travel/guidance and `manual_operation` as specified in construction-operation.md. Use `sliding` for captive mechanisms. Applicable rib evidence additionally needs `handling_clearance`; distinguish contact patches, non-locating gaps and the scope of lateral/rocking checks. These evidence additions do not automate CAD generation or change the 1.2 output schema.

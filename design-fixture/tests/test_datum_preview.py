@@ -1,4 +1,5 @@
 """Stage 3.5 datum scheme preview and its hard-predecessor gate."""
+import copy
 import json
 import shutil
 import sys
@@ -59,6 +60,25 @@ class DatumPreviewTests(unittest.TestCase):
         data['contacts'][1]['contact'] = [40.0, -30.0, 60.0]
         self.spec.write_text(json.dumps(data))
         wf.resume(self.spec, record)
+        self.assertFalse(wf.datum_reviewed(record))
+
+    def test_rib_and_clamp_body_edits_keep_the_review_but_clamp_force_edits_stale_it(self):
+        record = wf.initialize(self.spec, 'weld')
+        record['datum_preview'] = {**generate(self.spec, self.path / 'datum'), 'datum_digest': record['datum_digest']}
+        wf.datum_ok(record, 'Reviewed')
+        data = json.loads(self.spec.read_text())
+        data['contacts'][0]['rib'] = 'R_NEW'
+        for c in data['clamps']: c.update(arm_direction=[1, 0, 0], mount_plate='P_NEW')
+        self.spec.write_text(json.dumps(data)); wf.resume(self.spec, record)
+        self.assertTrue(wf.datum_reviewed(record))
+        for change in ({'role': 'Auxiliary'}, {'constraint_role': 'mating'}, {'normal': [0, 0, -1]}):
+            edited = copy.deepcopy(data); edited['contacts'][0].update(change)
+            self.spec.write_text(json.dumps(edited)); wf.resume(self.spec, record)
+            self.assertFalse(wf.datum_reviewed(record), change)
+            self.spec.write_text(json.dumps(data)); wf.resume(self.spec, record)
+            self.assertTrue(wf.datum_reviewed(record), change)
+        data['clamps'][0]['contact'] = [c + 1 for c in data['clamps'][0]['contact']]
+        self.spec.write_text(json.dumps(data)); wf.resume(self.spec, record)
         self.assertFalse(wf.datum_reviewed(record))
 
     def test_cannot_ack_a_scheme_that_was_never_previewed(self):

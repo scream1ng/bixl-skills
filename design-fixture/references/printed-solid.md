@@ -13,3 +13,17 @@ Offset only the intended checking surfaces, keep datum pads in contact, and prov
 Plan build orientation to control critical surface stair-stepping and distortion, avoid supports on datum/checking lands where feasible, and allow finishing stock where needed. Follow the selected process's drying/curing/conditioning steps. Inspect after conditioning and final hardware installation. Qualify checking surfaces for wear and repeatability; use replaceable finished wear faces where raw plastic cannot satisfy the error budget.
 
 Export authoritative analytic STEP plus a print-ready 3MF or per-body STL with explicit millimetre units. Reopen the mesh, check watertight/manifold geometry, outward normals, dimensions, small-feature preservation and chordal error relative to the checking accuracy. Record print settings and post-processing. Do not deliver G-code without the target machine/process. Use a DXF only for genuinely laser-cut supplementary parts, not as a substitute for print files.
+
+## Printed gauge layout (user-accepted practice)
+
+Default layout for a printed checking gauge unless the user asks otherwise:
+
+- Check the surface and flanges only; no rails around the part perimeter.
+- Flat printed base plate; no feet or block under it.
+- One merged surface body: net pads, clamp pedestals and flange-check posts are the same body, not separate screwed-on details.
+- A flange facing out of the outline gets a post that rises only to the top of its 3 mm land, tied back low (about 15 mm below the station); do not wrap a wall around the tab.
+- Locating pins: ground steel dowels pressed into plain D6 printed holes (about 25 mm deep); no pin towers.
+- No 1 mm clearance between neighbouring printed bodies where it leaves thin walls; merge instead.
+- Every body to base: 2 D6 dowels plus M5 heat-set insert and bolt from under the base.
+
+A job-specific reference build is in `examples/checking-printed/gauge-reference/` (unsupported, hard-coded for one part).

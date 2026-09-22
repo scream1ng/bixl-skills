@@ -64,6 +64,9 @@ def resolve_part(parts, key):
     if len(matches) != 1: return None, None
     return matches[0]
 
+FLAT_FACE_TOL_MM = 0.001                        # non-analytic face counts as planar only within this fit
+
+
 def face_contact(c, target):
     """Planar descriptors + actual trimmed face + actual outward normal, scoped to this source revision."""
     point = np.array(c['contact'], float)
@@ -77,17 +80,22 @@ def face_contact(c, target):
         face = TopoDS.Face_s(exp.Current()); exp.Next()
         if gap(vertex, face) > .01: continue
         surf = BRepAdaptor_Surface(face, True)
-        if surf.GetType() != GeomAbs_Plane: continue
-        plane = surf.Plane()
-        normal = np.array(plane.Axis().Direction().Coord())
-        if face.Orientation() == TopAbs_REVERSED: normal = -normal
-        anchor = np.array(plane.Location().Coord())
+        if surf.GetType() == GeomAbs_Plane:
+            plane = surf.Plane(); flat = {'surface': 'Plane'}
+            normal = np.array(plane.Axis().Direction().Coord())
+            if face.Orientation() == TopAbs_REVERSED: normal = -normal
+            anchor = np.array(plane.Location().Coord())
+        else:                                   # B-spline etc.: accepted only when measured flat
+            from flange_features import planar_face
+            fit = planar_face(face)
+            if fit is None or fit[2] > FLAT_FACE_TOL_MM: continue
+            anchor, normal = fit[0], fit[1]; flat = {'surface': fit[4], 'plane_fit_deviation_mm': fit[2]}
         if desc:
             if desc.get('type') != 'plane': continue
             dn = np.asarray(desc['outward_normal'], float)
             if not np.isclose(np.linalg.norm(dn), 1): raise ValueError('face outward_normal must be unit length')
             if normal @ dn < .9999 or abs((np.array(desc['point'])-anchor) @ normal) > .01: continue
-        candidates.append({'face_index_in_export': index, 'outward_normal': normal.tolist(),
+        candidates.append({'face_index_in_export': index, 'outward_normal': normal.tolist(), **flat,
                            'inward_alignment': float(np.array(c['normal']) @ -normal), 'face_gap_mm': gap(vertex,face)})
     if len(candidates) != 1:
         return {'status': 'fail' if desc else 'unknown', 'reason': 'intended trimmed planar face is missing or ambiguous', 'candidate_count': len(candidates)}

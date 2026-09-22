@@ -77,6 +77,39 @@ class WorkflowTests(unittest.TestCase):
         self.edit(units='inch')
         with self.assertRaises(ValueError): wf.snapshot(self.spec)
 
+    def test_rebuilt_finished_body_is_not_a_resurvey(self):
+        body = self.path / 'input/body.step'; body.write_text('body v1\n')
+        self.edit(printed_bodies=[{'name': 'Printed_Nest', 'finished_step': 'body.step'}])
+        record = wf.initialize(self.spec, 'weld')
+        record['datum_review'] = {'note': 'ok', 'datum_digest': record['datum_digest']}
+        record['stage'] = 'preview'; wf.authorize(record, 'Finalize')
+        body.write_text('body v2\n')
+        with self.assertRaises(ValueError): wf.resume(self.spec, record)      # authorized package goes stale
+        self.edit(revision='R2'); fresh = wf.checkpoint(self.spec, record)     # no --resurveyed needed
+        self.assertTrue(wf.datum_reviewed(fresh)); self.assertIsNone(fresh['authorization'])
+        self.assertNotEqual(record['input_digest'], fresh['input_digest'])
+
+    def test_revise_one_line_and_stops_on_failed_verify(self):
+        import io, contextlib
+        record = wf.initialize(self.spec, 'weld')
+        record['datum_review'] = {'note': 'ok', 'datum_digest': record['datum_digest']}
+        wf.save(self.path / 'project.json', record)
+        ok = {'blocking': [], 'checks': {'unload': 'unknown'}, 'html': 'p.html', 'bytes': 1}
+        py = f'"{sys.executable}" -c'
+        def revise(rev, verify):
+            self.edit(revision=rev)
+            argv = ['workflow.py', 'revise', str(self.spec), str(self.path / 'project.json'), str(self.path / 'out'),
+                    '--build', f"{py} \"print('noise'); print('built')\"", '--verify', f'{py} "{verify}"']
+            buf = io.StringIO()
+            with patch('preview.generate', return_value=ok), patch.object(sys, 'argv', argv), contextlib.redirect_stdout(buf):
+                wf.main()
+            return buf.getvalue().strip()
+        self.assertEqual(revise('R2', "print('pass')"),
+                         'R2 ok | build: built | concept: blocking=[] unload=unknown html=p.html bytes=1 | verify: pass')
+        self.assertIn('noise', (self.path / 'out/revise.log').read_text())
+        with self.assertRaisesRegex(ValueError, 'verify failed.*FAIL x'):
+            revise('R3', "import sys; print('FAIL x'); sys.exit(1)")
+
     def test_evidence_not_circular_geometry_digest(self):
         _, before = wf.snapshot(self.spec)
         self.edit(checking_evidence=[{'name': 'test', 'status': 'unknown'}]); _, after = wf.snapshot(self.spec)

@@ -56,7 +56,7 @@ Include shared identity, `geometry_revision`, `geometry_fingerprint`, `checks`, 
 
 Required check names live in `scripts/records.py`. Every check records name, status, measured result, acceptance limit, units, evidence identity, scope/limitations and next action. Retain the detailed tab, mount, width, nest and CAD reports under `measurements`, including individual contact gaps, face normals, constraint conditioning, collisions and export comparison results. Use pointers from summary checks to these measurements rather than duplicating whole reports.
 
-Manual engineering evidence is supplied through the input spec; see `spec-format.md`. Do not relabel an old result after changing geometry. Unknowns remain null with explanations; no fabricated measurements.
+Manual engineering evidence is supplied through the input spec; see [evidence](evidence.md). Do not relabel an old result after changing geometry. Unknowns remain null with explanations; no fabricated measurements.
 
 ## Exports and review images
 
@@ -82,4 +82,4 @@ The required `mounting_height` check retains per-clamp measured values under `me
 
 Require `rib_construction`, `fastener_access`, and `pin_mechanisms` in every verification record. Retain their per-item measurements in the check's `measured` object and the input `pin_locators` inventory in `design_spec`. The validator checks coverage and named STEP components for accepted results; it does not independently solve stiffness or motion. Unknown/fail/exception results prevent fabrication readiness. Empty inventories require a measured applicability explanation. Bushes, operating pin components and related fasteners must be recorded in hardware.json and named in STEP, with purchased/custom origin and finishing requirements. Keep the same four JSON files and two PNGs; use detail insets in those images when needed.
 
-For v8, retain the rib `handling_clearance` findings and mode-specific pin-operation evidence defined in construction-operation.md. Record exact bodies, contact exclusions, job-specific allowances, tested transforms and remaining path limitations. A local clearance pass must not promote whole-fixture loading/unloading. Do not carry forward a v7 pass without checking the added evidence requirements.
+For v8, retain the rib `handling_clearance` findings and mode-specific pin-operation evidence defined in [evidence](evidence.md). Record exact bodies, contact exclusions, job-specific allowances, tested transforms and remaining path limitations. A local clearance pass must not promote whole-fixture loading/unloading. Do not carry forward a v7 pass without checking the added evidence requirements.

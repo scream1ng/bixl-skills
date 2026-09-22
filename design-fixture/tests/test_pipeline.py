@@ -133,6 +133,21 @@ class FixtureTests(unittest.TestCase):
         c=copy.deepcopy(self.spec['contacts'][0]);c['face']['point']=[0,0,66]
         _,target=resolve_part(read_step(self.step),'Part_Plate')
         self.assertEqual(face_contact(c,target)['status'],'fail')
+    def test_bspline_face_accepted_only_when_flat(self):
+        from OCP.TColgp import TColgp_Array2OfPnt
+        from OCP.GeomAPI import GeomAPI_PointsToBSplineSurface
+        from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeFace
+        from OCP.gp import gp_Pnt
+        def face(sag):
+            a=TColgp_Array2OfPnt(1,5,1,5)
+            for i in range(5):
+                for j in range(5):x,y=-20+10*i,-20+10*j;a.SetValue(i+1,j+1,gp_Pnt(x,y,sag*(x*x+y*y)/400))
+            return BRepBuilderAPI_MakeFace(GeomAPI_PointsToBSplineSurface(a).Surface(),1e-6).Face()
+        c={'contact':[0,0,0],'normal':[0,0,-1],'face':{'type':'plane','point':[0,0,0],'outward_normal':[0,0,1]}}
+        flat=face(0)
+        if face_contact(c,flat).get('outward_normal',[0,0,1])[2]<0:c['normal']=[0,0,1];c['face']['outward_normal']=[0,0,-1]
+        r=face_contact(c,flat);self.assertEqual(r['status'],'pass');self.assertNotEqual(r['surface'],'Plane')
+        self.assertEqual(face_contact(c,face(.5))['status'],'fail')
     def test_nested_step_occurrence_placement(self):
         from OCP.TDocStd import TDocStd_Document
         from OCP.TCollection import TCollection_ExtendedString
