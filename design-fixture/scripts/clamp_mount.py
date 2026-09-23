@@ -29,9 +29,16 @@ def unit(x):
     return x / np.linalg.norm(x)
 
 
+def pin_pads(spec):
+    """Plate names declared as pin pads by pin_locators[].pad."""
+    return {p["pad"] for p in spec.get("pin_locators", []) if p.get("pad")}
+
+
 def min_width_for(spec, plate_name):
-    """A clamp cap with a standard plate uses that hardware's ligament; every other plate keeps the spec limit."""
+    """A clamp cap or pin pad on a standard plate uses that plate's ligament; every other plate keeps the spec limit."""
     limit = spec.get("min_width_mm", 10.0)
+    if plate_name in pin_pads(spec):
+        limit = min(limit, json.loads((HARDWARE / "pin-pad.json").read_text())["standard_pad"]["min_ligament_mm"])
     for clamp in spec.get("clamps", []):
         if clamp["mount_plate"] == plate_name:
             std = json.loads((HARDWARE / f"{clamp['hardware'].lower()}.json").read_text()).get("standard_mount_plate")

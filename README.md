@@ -21,6 +21,7 @@ Default construction is 5 mm laser-cut tab-and-slot ribs. Blocks (weld) and prin
 
 | Release | Change |
 |---|---|
+| [`design-fixture-v1.3`](../../releases/tag/design-fixture-v1.3) | Dowels carried on a standard pin pad (`pin_locators[].pad`), never a rib edge; `pin_clearance` checks pressed, seated and bush pins; reference pins shown in the datum preview; concept preview about 40% faster, and faster again on a rerun. |
 | [`v1.2.6`](../../releases/tag/v1.2.6) | Printed checking gauge defaults and reference build; one-command `revise`; datum review kept on rib/clamp-body edits; near-flat spline faces checked; about 10 KB less reading per concept. |
 | [`v1.2.5`](../../releases/tag/v1.2.5) | Brace merge and flange coverage checks; datum preview shows sheet features checked or not; re-exported STEP keeps the datum review; clearer tab errors. |
 | [`v1.2.4`](../../releases/tag/v1.2.4) | Concept stops on basic check failures, including new unload and pin clearance checks; preview about 60% smaller; `spec_patch.py` for small spec edits. |
@@ -30,6 +31,8 @@ Default construction is 5 mm laser-cut tab-and-slot ribs. Blocks (weld) and prin
 | [`v1.2`](../../releases/tag/v1.2) | Generated cap tab-and-slot joints. |
 | [`v1.1`](../../releases/tag/v1.1) | First combined design-fixture skill. |
 
+Tags up to `v1.2.6` are unprefixed, from when this repo held one skill; every tag from `design-fixture-v1.3` on carries its skill's name.
+
 ## draft-drawing
 
 [SKILL.md](draft-drawing/SKILL.md) · local scripts need [`scripts/requirements.txt`](draft-drawing/scripts/requirements.txt) (OCP 7.8.x, matplotlib)
@@ -38,7 +41,7 @@ STEP file in, measured numbers out: overall size, flanges, bends, hole and slot 
 
 `workflow.py preview` writes a single self-contained `preview.html` (3D plus one tab per sheet) with comment pins. Comments are applied by editing `drawing.json` and re-running the preview. The A3 PDF is only generated on an explicit request, and `finalize` refuses if the STEP or settings changed since the last preview. What is not measured — flat pattern, tolerances, GD&T, welds, threads — is listed as NOT DIMENSIONED, never passed off as checked.
 
-Release tags for this skill are prefixed `draft-drawing-`.
+First release: [`draft-drawing-v1.0`](../../releases/tag/draft-drawing-v1.0).
 
 ---
 

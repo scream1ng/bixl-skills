@@ -104,5 +104,13 @@ class HardwareTests(unittest.TestCase):
     def test_standard_cap_uses_hardware_ligament(self):
         from clamp_mount import min_width_for
         self.assertEqual(min_width_for(self.spec,'P_T1'),5.0);self.assertEqual(min_width_for(self.spec,'K1'),self.spec.get('min_width_mm',10.0))
+    def test_pin_pad_is_a_cap_on_the_standard_pad_ligament(self):
+        import cap_joints
+        from clamp_mount import min_width_for,pin_pads
+        s=copy.deepcopy(self.spec);s['pin_locators']=[{'id':'P1','shape_name':'REF_PIN_P1','mode':'fixed','orientation_sensitive':False,'pad':'PP1'}]
+        self.assertEqual(pin_pads(s),{'PP1'});self.assertEqual(min_width_for(s,'PP1'),5.0)
+        s['plates'].append({'name':'PP1','origin':[0.0,0.0,60.0],'u':[1.0,0.0,0.0],'v':[0.0,1.0,0.0],'w':[0.0,0.0,1.0],
+                            'outer':[[-20,-20],[20,-20],[20,20],[-20,20]],'holes':[],'contacts':[]})
+        self.assertIn('PP1',[r['cap'] for r in cap_joints.audit(s)['caps']])
 
 if __name__=='__main__':unittest.main()

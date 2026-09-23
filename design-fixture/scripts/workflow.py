@@ -288,11 +288,11 @@ def finalize(spec_path, record, out):
     return {k: v for k, v in result.items() if k not in ('cad', 'plates', 'joints')}
 
 
-def run_concept(spec_path, out, record):
+def run_concept(spec_path, out, record, png=False):
     if not datum_reviewed(record):
         raise ValueError('Review the datum scheme first: workflow.py datum, then datum-ok --note')
     from preview import generate
-    result = generate(spec_path, out, record['fixture_kind'], record['construction'])
+    result = generate(spec_path, out, record['fixture_kind'], record['construction'], render=png)
     Path(out).mkdir(parents=True, exist_ok=True)
     (Path(out) / 'result.json').write_text(json.dumps(result, indent=2, default=str) + '\n')
     if result['blocking']:
@@ -329,6 +329,7 @@ def main():
     p.add_argument('--note')
     p.add_argument('--resurveyed', action='store_true')
     p.add_argument('--build'); p.add_argument('--verify')
+    p.add_argument('--png', action='store_true', help='also render review PNGs at concept')
     a = p.parse_args()
     if a.action == 'route':
         result = route(a.kind, a.construction, a.concept_exception)
@@ -345,7 +346,7 @@ def main():
         lines = ['build: ' + run_job(a.build, cwd, 'build', log)] if a.build else []
         record = checkpoint(a.spec, read_record(a.record), a.resurveyed); save(a.record, record)
         resume(a.spec, record)
-        lines.append('concept: ' + concept_line(run_concept(a.spec, a.out, record))); save(a.record, record)
+        lines.append('concept: ' + concept_line(run_concept(a.spec, a.out, record, a.png))); save(a.record, record)
         if a.verify:
             lines.append('verify: ' + run_job(a.verify, cwd, 'verify', log))
         print(f"{record['revision']} ok | " + ' | '.join(lines))
@@ -365,7 +366,7 @@ def main():
                 record['stage'] = 'datum_preview'
                 record['datum_preview'] = {**result, 'datum_digest': record['datum_digest']}
             elif a.action == 'datum-ok': result = datum_ok(record, a.note)
-            elif a.action == 'concept': result = concept_line(run_concept(a.spec, a.out, record))
+            elif a.action == 'concept': result = concept_line(run_concept(a.spec, a.out, record, a.png))
             else: result = finalize(a.spec, record, a.out)
         save(a.record, record)
     print(result if isinstance(result, str) else json.dumps(result, indent=2))

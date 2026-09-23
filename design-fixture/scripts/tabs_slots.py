@@ -9,10 +9,15 @@ footprints do not collide. Pinned positions (tab_slot.pinned) skip the search.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import itertools
+import json
 import math
+import pickle
+from pathlib import Path
 
 import numpy as np
+import shapely
 from shapely import area, distance, intersection
 from shapely.geometry import LineString, MultiPolygon, Point, Polygon, box
 from shapely.ops import unary_union
@@ -58,8 +63,10 @@ def assert_seat_frame(seat):
     assert np.allclose(o[:2], 0) and np.allclose(u, [1, 0, 0]) and np.allclose(v, [0, 1, 0]), "seat plate frame must be world XY"
 
 
-def foot_option(d, fam, a, b, base_poly, cuts, oldobs, P, T, min_width):
-    """Return (added_area, new_profile, slots, footprints) or None if the pair is invalid."""
+def foot_option(d, fam, a, b, base_poly, cuts, oldobs, P, T, min_width, slots=None):
+    """Return (added_area, new_profile, slots, footprints) or None if the pair is invalid.
+
+    slots: optional {(plate name, s): slot polygon} computed once per family search."""
     p = poly(d)
     lo, _, hi, _ = p.bounds
     ends = [x for x, y in d["outer"] if abs(y) < 1e-6]
@@ -67,7 +74,7 @@ def foot_option(d, fam, a, b, base_poly, cuts, oldobs, P, T, min_width):
     hw = P["width_mm"] / 2
     if b - a < P["min_tab_spacing_mm"] or (hi - lo > P["wide_plate_mm"] and b - a < P["wide_spacing_ratio"] * (hi - lo)):
         return None
-    qs = [slot_world(f, s, P, T) for s in (a, b) for f in fam]
+    qs = [slots[f["name"], s] if slots else slot_world(f, s, P, T) for s in (a, b) for f in fam]
     if any(x.distance(y) < P["min_bridge_mm"] for x, y in itertools.combinations(qs, 2)):
         return None
     foot = box(min(fl, a - hw), 0, max(fh, b + hw), P["foot_height_mm"]).difference(cuts)
@@ -92,7 +99,7 @@ def family_options(fam, base_poly, joints, oldobs, P, T, min_width):
     lo, _, hi, _ = p.bounds
     cuts = bottom_cuts(d, joints)
     hw, ext = P["width_mm"] / 2, P["max_tab_beyond_foot_mm"]
-    one = []
+    one, slots = [], {}
     for s in np.arange(math.ceil(fl - ext), math.floor(fh + ext) + .01, P["search_step_mm"]):
         qs = [slot_world(f, s, P, T) for f in fam]
         if any(not base_poly.covers(q) or q.distance(base_poly.boundary) < P["min_bridge_mm"] for q in qs):
@@ -100,13 +107,43 @@ def family_options(fam, base_poly, joints, oldobs, P, T, min_width):
         if box(s - hw, 0, s + hw, P["foot_height_mm"]).intersection(cuts).area > 1e-4:
             continue
         one.append(float(s))
+        slots.update({(f["name"], float(s)): q for f, q in zip(fam, qs)})
     vals = []
     for a, b in itertools.combinations(one, 2):
-        opt = foot_option(d, fam, a, b, base_poly, cuts, oldobs, P, T, min_width)
+        opt = foot_option(d, fam, a, b, base_poly, cuts, oldobs, P, T, min_width, slots)
         if opt:
             added, pnew, qs, fs = opt
             vals.append(((added, -(b - a), abs((a + b - fl - fh) / 2)), [a, b], pnew, MultiPolygon(qs), unary_union(fs)))
     vals.sort(key=lambda x: x[0])
+    return vals
+
+
+CACHE_KEEP = 64                                 # newest entries kept (about 0.6 MB each)
+CODE = hashlib.sha256(b"".join(Path(__file__).with_name(n).read_bytes() for n in ("tabs_slots.py", "fixture_common.py"))).hexdigest()
+
+
+def cached_family_options(cache_dir, fam, base_poly, joints, oldobs, P, T, min_width):
+    """family_options, cached on disk by every input it reads plus this code's hash; output is identical."""
+    if cache_dir is None:
+        return family_options(fam, base_poly, joints, oldobs, P, T, min_width)
+    key = hashlib.sha256(json.dumps({
+        "code": CODE, "shapely": shapely.__version__, "fam": [{k: f.get(k) for k in ("name", "outer", "holes", "origin", "u", "v", "w")} for f in fam],
+        "joints": joints, "base": base_poly.wkb_hex, "oldobs": oldobs.wkb_hex, "P": P, "T": T, "min_width": min_width,
+    }, sort_keys=True, default=str).encode()).hexdigest()
+    path = Path(cache_dir) / f"{key}.pickle"
+    try:
+        vals = pickle.loads(path.read_bytes()); path.touch()
+        return vals
+    except (OSError, pickle.PickleError, EOFError, AttributeError, ValueError):
+        pass
+    vals = family_options(fam, base_poly, joints, oldobs, P, T, min_width)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp"); tmp.write_bytes(pickle.dumps(vals)); tmp.replace(path)
+        for old in sorted(path.parent.glob("*.pickle"), key=lambda f: f.stat().st_mtime)[:-CACHE_KEEP]:
+            old.unlink(missing_ok=True)
+    except OSError:
+        pass
     return vals
 
 
@@ -216,8 +253,9 @@ def design(spec, log=print):
         mode = "pinned"
     else:
         options = {}
+        cache_dir = Path(spec["_dir"]) / ".fixture-cache" / "tabs" if spec.get("_dir") else None
         for pn, fam in families.items():
-            options[pn] = family_options(fam, base_poly, joints, oldobs[pn], P, T, min_width)
+            options[pn] = cached_family_options(cache_dir, fam, base_poly, joints, oldobs[pn], P, T, min_width)
             log(f"  {pn}: {len(options[pn])} tab options")
             if not options[pn]:
                 raise ValueError(f"no two-tab options for {pn}: "

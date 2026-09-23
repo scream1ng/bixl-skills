@@ -3,7 +3,8 @@
 
 laser-cut-construction.md requires every supported cap to be located by at least two separated
 tabs; base-tab automation does not create them. This module is that automation: each cap plate
-named by a clamp (plus spec.cap_joints.extra_caps) gets two tabs from the cheeks it sits on.
+named by a clamp, every pin pad named by pin_locators[].pad (plus spec.cap_joints.extra_caps) gets
+two tabs from the cheeks it sits on.
 
 Run before tabs_slots.design: cap tabs change cheek profile above tab_slot.foot_height_mm, and
 the foot search asserts that region is unchanged. Run before clamp_mount.mount: the clamp tap
@@ -20,6 +21,7 @@ import itertools
 import numpy as np
 from shapely.geometry import LineString, Polygon, box
 
+import clamp_mount
 from fixture_common import clean, load_spec, poly, set_profile, write_json
 
 class Infeasible(Exception):
@@ -173,7 +175,7 @@ def design(spec, log=print):
     P, T = params(spec), spec["thickness_mm"]
     plates = spec["plates"]
     by = {d["name"]: d for d in plates}
-    names = [c["mount_plate"] for c in spec.get("clamps", [])] + list(P["extra_caps"])
+    names = [c["mount_plate"] for c in spec.get("clamps", [])] + sorted(clamp_mount.pin_pads(spec)) + list(P["extra_caps"])
     joints = spec.setdefault("joints", [])
     rows, family_span = [], {}
     for name in dict.fromkeys(names):
@@ -219,11 +221,14 @@ def audit(spec, tol=0.01):
     """Backstop for the evaluated spec: two separated tabs per cap, none standing proud of it."""
     P, T = params(spec), spec["thickness_mm"]
     by = {d["name"]: d for d in spec["plates"]}
-    names = [c["mount_plate"] for c in spec.get("clamps", [])] + list(P["extra_caps"])
+    names = [c["mount_plate"] for c in spec.get("clamps", [])] + sorted(clamp_mount.pin_pads(spec)) + list(P["extra_caps"])
     rows = []
     for name in dict.fromkeys(names):
         if name in P["skip"]:
             rows.append({"cap": name, "status": "unknown", "reason": "listed in cap_joints.skip"})
+            continue
+        if name not in by:
+            rows.append({"cap": name, "status": "fail", "reason": "no plate of this name to take the cap tabs"})
             continue
         cap = by[name]
         tabs = [j for j in spec.get("joints", []) if j.get("b") == name and j.get("a_slot") == "tab"]

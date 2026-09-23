@@ -33,6 +33,17 @@ class DatumPreviewTests(unittest.TestCase):
         self.assertFalse(list((self.path / 'datum').glob('*.step')))
         self.assertFalse(list((self.path / 'datum').glob('*.dxf')))
 
+    def test_reference_pins_are_shown_as_pins_with_their_own_label(self):
+        from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox
+        from OCP.gp import gp_Pnt
+        from export_step import read_step, write_step
+        step = self.path / 'input/workpiece.step'
+        write_step(step, {**read_step(step), 'REF_PIN_P1': BRepPrimAPI_MakeBox(gp_Pnt(-130, 100, 0), gp_Pnt(-124, 106, 12)).Shape()})
+        generate(self.spec, self.path / 'datum')
+        scene = json.loads((self.path / 'datum/datum-scene.json').read_text())
+        self.assertEqual([c['id'].split('/')[-1] for c in scene['components'] if c['group'] == 'pin'], ['REF_PIN_P1'])
+        self.assertIn('pintag', (self.path / 'datum/datum-preview.html').read_text())
+
     def test_point_off_the_part_is_reported_not_silently_moved(self):
         data = json.loads(self.spec.read_text())
         data['contacts'][0]['contact'] = [-50.0, -30.0, 90.0]

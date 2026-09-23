@@ -44,10 +44,10 @@ def _raster_mesh(canvas, depth, mesh, color, scale):
         shade=.45+.55*abs((normal/length)@light) if length else 1
         canvas[y0:y1+1,x0:x1+1][mask]=np.clip(color*shade,0,255).astype(np.uint8);region[mask]=z[mask]
 
-def render(step_path,out,revision,mount_heights=None):
+def render(step_path,out,revision,mount_heights=None,shapes=None):
     """Orthographic triangle rasterization with a per-pixel depth buffer (no painter sorting)."""
     from PIL import Image, ImageDraw, ImageFont
-    out=Path(out);shapes=read_step(step_path)
+    out=Path(out);shapes=read_step(step_path) if shapes is None else shapes
     meshes={n:triangles(shape) for n,shape in shapes.items()}
     allpts=np.concatenate([m.reshape(-1,3) for m in meshes.values()])
     centre=(allpts.min(axis=0)+allpts.max(axis=0))/2

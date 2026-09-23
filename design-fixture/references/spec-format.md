@@ -84,7 +84,7 @@ Draw `outer` without tabs: a rectangle plus required contact lands, joint slots 
 
 ## Hole/slot locators and finished dowel bores (v6)
 
-Follow [hole-slot-locating.md](hole-slot-locating.md) for feature selection, ground dowels, separate mounting fits, release checks and the explicit CAD/constraint-analysis boundary. Retain the measured feature identities, pin definitions and finishing operations in `requirements` and the four delivery records. Additional project fields are not automatically interpreted by the bundled planar-contact scripts. Do not assume a `pin_locators` list supplies geometry or locating rank.
+Follow [hole-slot-locating.md](hole-slot-locating.md) for feature selection, ground dowels, separate mounting fits, release checks and the explicit CAD/constraint-analysis boundary. Retain the measured feature identities, pin definitions and finishing operations in `requirements` and the four delivery records. Additional project fields are not automatically interpreted by the bundled planar-contact scripts. Do not assume a `pin_locators` list supplies geometry or locating rank. Each pin record may name its pad plate as `pad`: that plate is then treated as a cap (two tabs from the cheeks under it) and uses the standard pin-pad ligament instead of `min_width_mm`.
 
 Keep the DXF laser profile and finished STEP geometry tied to explicit finishing operations when an undersize pilot is reamed. Compare each export against its intended manufacturing stage; do not silently substitute a different hole size or ignore a failed roundtrip check.
 

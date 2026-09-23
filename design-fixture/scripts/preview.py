@@ -174,7 +174,7 @@ def generate(spec_path, out, kind='weld', construction='laser_rib', render=True)
     (out / 'scene.json').write_text(payload)
     html, html_bytes = inline_html(scene)
     (out / 'preview.html').write_text(html)
-    if render: render_png(step, out, spec['revision'])
+    if render: render_png(step, out, spec['revision'], shapes=shapes)
     return {'html': str((out / 'preview.html').resolve()), 'evaluated_spec_sha256': evaluated_hash,
         'bytes': html_bytes, 'soft_target_met': html_bytes <= INLINE_HTML_TARGET, 'components': len(components),
         'checks': checks, 'blocking': [], 'private_dir': str(out.resolve())}
