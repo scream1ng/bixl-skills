@@ -1,1 +1,3 @@
 .fixture-cache/
+__pycache__/
+plan/
