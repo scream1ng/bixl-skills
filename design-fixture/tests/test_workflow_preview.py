@@ -89,6 +89,34 @@ class WorkflowTests(unittest.TestCase):
         self.assertTrue(wf.datum_reviewed(fresh)); self.assertIsNone(fresh['authorization'])
         self.assertNotEqual(record['input_digest'], fresh['input_digest'])
 
+    def test_init_prints_summary_and_preserves_full_record(self):
+        import io, contextlib
+        path = self.path / 'project.json'
+        buf = io.StringIO()
+        argv = ['workflow.py', 'init', str(self.spec), str(path), '--kind', 'weld']
+        with patch.object(sys, 'argv', argv), contextlib.redirect_stdout(buf):
+            wf.main()
+        self.assertEqual(buf.getvalue(), f'R1 ok stage=concept record={path}\n')
+        record = wf.read_record(path)
+        self.assertEqual(record['fixture_kind'], 'weld')
+        self.assertIsNone(record['authorization'])
+        self.assertFalse(any(record['readiness'].values()))
+
+    def test_record_actions_print_one_line(self):
+        import io, contextlib
+        record = wf.initialize(self.spec, 'weld'); record['stage'] = 'preview'
+        wf.save(self.path / 'project.json', record)
+        def run(*args):
+            buf = io.StringIO()
+            with patch.object(sys, 'argv', ['workflow.py', *args, str(self.spec), str(self.path / 'project.json')]), \
+                    contextlib.redirect_stdout(buf):
+                wf.main()
+            return buf.getvalue().strip()
+        self.assertEqual(run('resume'), 'R1 ok stage=preview datum_reviewed=False authorized=False open_items=0')
+        line = run('authorize', '--request', 'Finalize')
+        self.assertNotIn('\n', line); self.assertIn('not engineering approval', line)
+        self.assertTrue(wf.read_record(self.path / 'project.json')['authorization'])
+
     def test_revise_one_line_and_stops_on_failed_verify(self):
         import io, contextlib
         record = wf.initialize(self.spec, 'weld')

@@ -35,8 +35,17 @@ def file_hash(path):
     return _HASHES[key]
 
 
+REF_SOLIDS = ('REF_PIN_', 'REF_BUSH_', 'REF_CARRIER_')
+
+
 def geometry_fingerprint(path):
-    """Solid geometry of a STEP source, blind to header/timestamp bytes; None for other formats."""
+    """[all solids, datum geometry] of a STEP source, blind to header/timestamp bytes; None for other formats.
+
+    The second drops REF_ fixture solids. A pin grown, shortened or added in the surveyed STEP is
+    fixture hardware, not workpiece geometry: where it locates the part is its contacts rows, which
+    datum_scheme() already watches. A pin shortened at its engagement end is the gap here -- the
+    contact row still claims a touch that the solid no longer makes.
+    """
     if Path(path).suffix.lower() not in ('.step', '.stp'):
         return None
     from OCP.BRepGProp import BRepGProp
@@ -53,7 +62,7 @@ def geometry_fingerprint(path):
         while it.More(): faces += 1; it.Next()
         rows.append([name, round(v.Mass(), 2), round(a.Mass(), 2), [round(x, 3) for x in v.CentreOfMass().Coord()],
                      [round(x, 3) for x in bbox(shape)], faces])
-    return digest(rows)
+    return [digest(rows), digest([r for r in rows if not r[0].split('/')[-1].startswith(REF_SOLIDS)])]
 
 
 def survey_sources(sources):
@@ -75,14 +84,30 @@ def datum_scheme(spec):
     return out
 
 
+REBASE_REASONS = ('bytes changed, solid geometry identical',
+                  'only REF_ fixture solids changed; datum geometry identical')
+
+
 def rebase_sources(spec, current, record):
-    """Byte-changed sources with identical solid geometry (re-export): carry the record and datum review over."""
+    """Byte-changed sources whose datum geometry is unchanged: carry the record and datum review over.
+
+    Level 0 is a plain re-export (every solid identical); level 1 also allows the REF_ fixture solids
+    to differ, so lengthening a pin in the surveyed STEP does not cost a datum review.
+    """
     old = {x['path']: x for x in record['sources']}
     if [(x['role'], x['path']) for x in current['sources']] != [(x['role'], x['path']) for x in record['sources']]:
         return False
     known = record.get('source_geometry') or {}
     changed = [x['path'] for x in current['sources'] if x['sha256'] != old[x['path']]['sha256']]
-    if not changed or any(not known.get(p) or geometry_fingerprint(p) != known[p] for p in changed):
+    if not changed:
+        return False
+    fresh = {p: geometry_fingerprint(p) for p in changed}
+    # a pre-datum-level record stored the all-solids digest as a plain string
+    stored = lambda p, i: [known[p], None][i] if isinstance(known.get(p), str) else (known.get(p) or [None, None])[i]
+    matches = lambda i: all(isinstance(fresh[p], list) and stored(p, i) is not None
+                            and fresh[p][i] == stored(p, i) for p in changed)
+    level = 0 if matches(0) else 1 if matches(1) else None
+    if level is None:
         return False
     kept = datum_scheme(spec) | {
         'frame': current['coordinate_frame']['source_to_fixture'], 'sources': survey_sources(record['sources'])}
@@ -90,7 +115,8 @@ def rebase_sources(spec, current, record):
         for key in ('datum_review', 'datum_preview'):
             if (record.get(key) or {}).get('datum_digest') == record['datum_digest']:
                 record[key]['datum_digest'] = current['datum_digest']
-    record.setdefault('history', []).append({'rebased_sources': changed, 'reason': 'bytes changed, solid geometry identical'})
+    record['source_geometry'] = {**known, **fresh}
+    record.setdefault('history', []).append({'rebased_sources': changed, 'reason': REBASE_REASONS[level]})
     return True
 
 
@@ -185,7 +211,9 @@ def resume(spec_path, record):
     if record.get('schema_version') != VERSION:
         raise ValueError('Unsupported project version')
     if current['input_digest'] == record['input_digest']:
-        if 'source_geometry' not in record:
+        known = record.get('source_geometry') or {}
+        stale = lambda p: p not in known or isinstance(known[p], str)   # absent, or a pre-datum-level fingerprint
+        if any(stale(x['path']) for x in current['sources']):
             record['source_geometry'] = {x['path']: geometry_fingerprint(x['path']) for x in current['sources']}
         return current
     if (record.get('authorization') or current['revision'] != record['revision']
@@ -209,8 +237,11 @@ def checkpoint(spec_path, record, resurveyed=False):
         raise ValueError('Cannot change project identity')
     old_sources = [(x['role'], x['sha256']) for x in survey_sources(record['sources'])]
     new_sources = [(x['role'], x['sha256']) for x in survey_sources(snap['sources'])]
-    if (old_sources != new_sources or snap['coordinate_frame'] != record['coordinate_frame']) and not resurveyed:
-        raise ValueError('Source/frame changed; fresh survey required (--resurveyed only after surveying)')
+    if old_sources != new_sources or snap['coordinate_frame'] != record['coordinate_frame']:
+        if snap['coordinate_frame'] == record['coordinate_frame'] and rebase_sources(spec, snap, record):
+            record['datum_digest'] = snap['datum_digest']   # rebase restamped the review to it
+        elif not resurveyed:
+            raise ValueError('Source/frame changed; fresh survey required (--resurveyed only after surveying)')
     if snap['input_digest'] == record['input_digest']:
         return record
     if snap['revision'] == record['revision']:
@@ -307,6 +338,26 @@ def concept_line(result):
     return f"blocking=[] {checks} html={result.get('html')} bytes={result.get('bytes')}"
 
 
+def action_line(action, result, record):
+    """One line for the chat; the full result stays in project.json."""
+    head = f"{record['revision']} ok stage={record['stage']}"
+    if action == 'resume':
+        return (f"{head} datum_reviewed={datum_reviewed(record)} authorized={bool(record.get('authorization'))}"
+                f" open_items={len(record.get('open_items') or [])}")
+    if action == 'datum':
+        return (f"{head} html={result['html']} bytes={result['bytes']} off_surface={result['off_surface']}"
+                f" features_without_check={result['features_without_check']}")
+    if action == 'datum-ok':
+        return f"{head} datum_reviewed={datum_reviewed(record)}"
+    if action == 'authorize':
+        return f"{head} authorized: {record['authorization']['scope']}"
+    if 'status' in result:   # block construction hands off to references/finalization.md
+        return f"{head} status={result['status']} see={result['reference']}"
+    return (f"{head} overall={result['overall_status']} geometry={result['geometry_status']}"
+            f" exit_code={result['exit_code']} delivery={result['delivery']}"
+            f" delivery_validation={json.dumps(result['delivery_validation'], separators=(',', ':'))}")
+
+
 def run_job(cmd, cwd, tag, log):
     """Run a job script; the log keeps full output, the chat gets its last line."""
     p = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, text=True)
@@ -339,6 +390,7 @@ def main():
             if Path(a.record).exists():
                 raise ValueError('Project exists; resume or checkpoint instead of overwriting')
             save(a.record, result)
+            result = f"{result['revision']} ok stage={result['stage']} record={a.record}"
     elif a.action == 'revise':
         # build -> checkpoint -> concept -> verify, one summary line
         cwd, log = Path(a.spec).resolve().parent, Path(a.out) / 'revise.log'
@@ -368,6 +420,7 @@ def main():
             elif a.action == 'datum-ok': result = datum_ok(record, a.note)
             elif a.action == 'concept': result = concept_line(run_concept(a.spec, a.out, record, a.png))
             else: result = finalize(a.spec, record, a.out)
+            if not isinstance(result, str): result = action_line(a.action, result, record)
         save(a.record, record)
     print(result if isinstance(result, str) else json.dumps(result, indent=2))
 

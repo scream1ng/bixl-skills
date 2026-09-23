@@ -6,6 +6,7 @@ html,body{margin:0;height:100%;font:14px system-ui;background:#e8edf2;color:#152
 #pins{position:absolute;inset:0;pointer-events:none;overflow:hidden}.pin{position:absolute;pointer-events:auto}.pin b{position:absolute;left:-11px;top:-26px;display:flex;width:22px;height:22px;border-radius:50% 50% 50% 3px;background:#c0392b;color:#fff;font:600 12px system-ui;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 7px #0006;transform:rotate(-45deg)}.pin b span{transform:rotate(45deg)}.pin .box{position:absolute;left:16px;bottom:8px;width:196px;background:#fff;border-radius:9px;box-shadow:0 3px 14px #1234;padding:7px}.pin textarea{width:100%;box-sizing:border-box;height:54px;font:12px system-ui;border:1px solid #c1cdd5;border-radius:5px;resize:vertical}.pin.shut .box{display:none}.pin.flip .box{left:auto;right:16px}.pin .del{float:right;padding:3px 6px;font-size:11px}
 body.commenting #view canvas{cursor:crosshair}#comment.on{background:#c0392b;color:#fff;border-color:#c0392b}#copymsg{font-size:11px;color:#42606f}
 #feedback{position:absolute;top:12px;right:12px;width:245px;max-height:85%;overflow:auto;background:#fffe;padding:14px;border-radius:12px;box-shadow:0 3px 16px #1232}pre{font:11px ui-monospace,monospace;white-space:pre-wrap;margin:6px 0 0}
+#copybuffer{width:100%;box-sizing:border-box;height:110px;font:11px ui-monospace,monospace;margin:6px 0;resize:vertical}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
 </head><body><div id="view"></div><aside><h1 id="title">Fixture concept</h1><p id="mode"></p>
@@ -13,7 +14,7 @@ body.commenting #view canvas{cursor:crosshair}#comment.on{background:#c0392b;col
 <p>Drag: rotate · right-drag: pan · wheel: zoom. Click a component for its ID.</p>
 <div id="groups"></div><p id="selected">Selected: none</p><details><summary>Component visibility</summary><div id="parts"></div></details>
 <div id="failure">Loading 3D modules…</div></aside>
-<div id="feedback"><h1>Comments</h1><button id="comment">Comment mode</button><button id="copynotes">Copy comments</button><p id="copymsg">Turn on Comment mode to pin notes.</p><pre id="notes">none</pre><p>Review notes only. A comment never edits the spec — revise the responsible spec and re-run <code>workflow.py concept</code>.</p></div>
+<div id="feedback"><h1>Comments</h1><button id="comment">Comment mode</button><button id="copynotes">Copy comments</button><p id="copymsg">Turn on Comment mode to pin notes.</p><textarea id="copybuffer" aria-label="Feedback to copy" readonly hidden></textarea><pre id="notes">none</pre><p>Review notes only. A comment never edits the spec — revise the responsible spec and re-run <code>workflow.py concept</code>.</p></div>
 <div id="notice">CONCEPT ONLY · approximate mesh · exact measurements/validation remain in OCP CAD. Hardware shown in supplied pose, not verified closed. Comment pins plus Copy comments are the quickest feedback; a plain window capture still works.</div>
 <script id="scene-data" type="application/octet-stream">__SCENE_GZIP_BASE64__</script>
 <script type="module">
@@ -61,9 +62,13 @@ function placePins(){
     note.el.style.left=note.screen[0]+'px';note.el.style.top=note.screen[1]+'px';
     note.el.classList.toggle('flip',note.screen[0]>width-230);}
 }
-// Sandboxed previews may block the clipboard: fall back to selecting the text for Ctrl+C.
-function copyText(id){const el=document.querySelector(id),select=()=>{const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r);say('Clipboard blocked here — text selected, press Ctrl+C.');};
-  if(!navigator.clipboard)return select();navigator.clipboard.writeText(el.textContent).then(()=>say('Copied.'),select);}
+// Keep the complete feedback selectable when an embedded viewer blocks clipboard access.
+function copyText(id){copyFeedback(document.querySelector(id).textContent);}
+async function copyFeedback(text){
+  const buffer=document.querySelector('#copybuffer');buffer.value=text;buffer.hidden=false;buffer.focus();buffer.select();
+  say('Text selected — press ⌘C / Ctrl+C, then paste into chat.');
+  try{await navigator.clipboard.writeText(text);buffer.hidden=true;say('Copied — paste into chat.');}catch{}
+}
 function say(message){document.querySelector('#copymsg').textContent=message;}
 document.querySelector('#copynotes').onclick=()=>copyText('#notes');
 const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let down;

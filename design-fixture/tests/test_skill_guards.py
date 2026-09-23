@@ -115,10 +115,58 @@ class SourceRebaseTests(unittest.TestCase):
         self.assertTrue(wf.datum_reviewed(self.record))
         self.assertIn('rebased_sources', self.record['history'][-1])
 
+    def test_reexport_rebases_a_record_with_an_old_string_fingerprint(self):
+        self.record['source_geometry'] = {p: v[0] for p, v in self.record['source_geometry'].items()}
+        write_step(self.step, read_step(self.step))
+        wf.resume(self.spec, self.record)
+        self.assertTrue(wf.datum_reviewed(self.record))
+        self.assertIn('rebased_sources', self.record['history'][-1])
+
     def test_changed_geometry_still_needs_survey(self):
         shapes = read_step(self.step); shapes['EXTRA'] = next(iter(shapes.values()))
         write_step(self.step, shapes)
         with self.assertRaisesRegex(ValueError, 'fresh survey'): wf.resume(self.spec, self.record)
+
+    def pin(self, top):
+        from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox
+        from OCP.gp import gp_Pnt
+        write_step(self.step, {**read_step(self.step),
+                               'REF_PIN_P1': BRepPrimAPI_MakeBox(gp_Pnt(-130, 100, 0), gp_Pnt(-124, 106, top)).Shape()})
+
+    def edit(self, **changes):
+        data = json.loads(self.spec.read_text()); data.update(changes)
+        self.spec.write_text(json.dumps(data)); return data
+
+    def pinned_record(self):
+        self.pin(12)
+        record = wf.initialize(self.spec, 'weld', 'laser_rib')
+        record['datum_review'] = {'note': 'ok', 'datum_digest': record['datum_digest']}
+        wf.resume(self.spec, record)
+        return record
+
+    def test_a_longer_pin_in_the_surveyed_step_keeps_the_datum_review(self):
+        record = self.pinned_record()
+        self.pin(20); self.edit(revision='R2')
+        record = wf.checkpoint(self.spec, record)
+        self.assertTrue(wf.datum_reviewed(record))
+        self.assertIn(wf.REBASE_REASONS[1], [h.get('reason') for h in record['history']])
+
+    def test_a_pin_change_beside_a_workpiece_change_still_needs_survey(self):
+        record = self.pinned_record()
+        self.pin(20)
+        shapes = read_step(self.step); shapes['EXTRA'] = next(iter(shapes.values()))
+        write_step(self.step, shapes); self.edit(revision='R2')
+        with self.assertRaisesRegex(ValueError, 'fresh survey'): wf.checkpoint(self.spec, record)
+
+    def test_a_moved_datum_beside_a_longer_pin_still_stales_the_review(self):
+        record = self.pinned_record()
+        self.pin(20)
+        data = json.loads(self.spec.read_text())
+        data['contacts'][0]['contact'] = [-45.0, -30.0, 60.0]
+        data['revision'] = 'R2'
+        self.spec.write_text(json.dumps(data))
+        record = wf.checkpoint(self.spec, record)
+        self.assertFalse(wf.datum_reviewed(record))
 
 
 if __name__ == '__main__':

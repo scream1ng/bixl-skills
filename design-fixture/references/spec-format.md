@@ -1,7 +1,7 @@
 # Fixture spec format (laser-cut scripts)
 
 `scripts/build.py` turns one JSON spec into the delivery package. Write the spec only after the
-survey, orientation and locating decisions in [the workflow](workflow.md) are made; the scripts
+survey, orientation and locating decisions in [the weld workflow](weld-workflow.md) are made; the scripts
 check and finish geometry, they do not choose datums. Worked example:
 `examples/flat-plate/make_example.py`.
 
