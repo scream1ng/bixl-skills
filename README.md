@@ -13,7 +13,7 @@ Backwell IXL assistant skills. Each [release](../../releases) carries one skill 
 
 ![Stage gates](flow.svg)
 
-**[Download design-fixture-v1.3.zip](../../releases/download/design-fixture-v1.3/design-fixture-v1.3.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-fixture`.
+**[Download design-fixture-v1.4.zip](../../releases/download/design-fixture-v1.4/design-fixture-v1.4.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-fixture`.
 
 The checks: cap tabs, rib width, cross ribs, clamp plate size, straight unload, pin clearance, brace merge, flange coverage (checking fixtures). A failed check stops the concept with no preview.
 
