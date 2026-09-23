@@ -25,7 +25,7 @@ Default construction is 5 mm laser-cut tab-and-slot ribs. Blocks (weld) and prin
 
 ![Workflow](draft-flow.svg)
 
-**[Download draft-drawing-v1.0.zip](../../releases/download/draft-drawing-v1.0/draft-drawing-v1.0.zip)** — `SKILL.md` at the zip root; unzip into a folder named `draft-drawing`.
+**[Download draft-drawing-v1.1.zip](../../releases/download/draft-drawing-v1.1/draft-drawing-v1.1.zip)** — `SKILL.md` at the zip root; unzip into a folder named `draft-drawing`.
 
 STEP file in, measured numbers out: overall size, flanges, bends, hole and slot positions, and total steel weight. Every number comes from exact OCP geometry, never a picture.
 
