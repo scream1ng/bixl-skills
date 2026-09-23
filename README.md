@@ -13,6 +13,8 @@ Backwell IXL assistant skills. Each [release](../../releases) carries one skill 
 
 ![Stage gates](flow.svg)
 
+**[Download design-fixture-v1.3.zip](../../releases/download/design-fixture-v1.3/design-fixture-v1.3.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-fixture`.
+
 The checks: cap tabs, rib width, cross ribs, clamp plate size, straight unload, pin clearance, brace merge, flange coverage (checking fixtures). A failed check stops the concept with no preview.
 
 Default construction is 5 mm laser-cut tab-and-slot ribs. Blocks (weld) and printed solid (check) are explicit alternatives. Finalizing generates the package; it is not engineering approval.
@@ -22,6 +24,8 @@ Default construction is 5 mm laser-cut tab-and-slot ribs. Blocks (weld) and prin
 [SKILL.md](draft-drawing/SKILL.md) · local scripts need [`scripts/requirements.txt`](draft-drawing/scripts/requirements.txt) (OCP 7.8.x, matplotlib)
 
 ![Workflow](draft-flow.svg)
+
+**[Download draft-drawing-v1.0.zip](../../releases/download/draft-drawing-v1.0/draft-drawing-v1.0.zip)** — `SKILL.md` at the zip root; unzip into a folder named `draft-drawing`.
 
 STEP file in, measured numbers out: overall size, flanges, bends, hole and slot positions, and total steel weight. Every number comes from exact OCP geometry, never a picture.
 
