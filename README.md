@@ -30,13 +30,3 @@ Default construction is 5 mm laser-cut tab-and-slot ribs. Blocks (weld) and prin
 STEP file in, measured numbers out: overall size, flanges, bends, hole and slot positions, and total steel weight. Every number comes from exact OCP geometry, never a picture.
 
 `workflow.py preview` writes a single self-contained `preview.html` (3D plus one tab per sheet) with comment pins. Comments are applied by editing `drawing.json` and re-running the preview. The A3 PDF is only generated on an explicit request, and `finalize` refuses if the STEP or settings changed since the last preview. What is not measured — flat pattern, tolerances, GD&T, welds, threads — is listed as NOT DIMENSIONED, never passed off as checked.
-
-## Releasing
-
-Tags carry the skill name (`design-fixture-v1.3`); tags `v1.2.6` and below are unprefixed, from when this repo held one skill. Changes are listed on the [releases page](../../releases), not here.
-
-Run the tests in the skill's folder, then:
-
-```sh
-./release.sh design-fixture v1.3 "First line of the notes"
-```
