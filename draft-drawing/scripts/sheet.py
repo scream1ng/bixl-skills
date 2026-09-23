@@ -7,7 +7,6 @@ and the final PDF, so the PDF matches what was reviewed.
 """
 from __future__ import annotations
 
-import datetime as dt
 import io
 import math
 import re
@@ -167,11 +166,7 @@ def bubble(ax, at, where, label, color=BLUE):
 
 
 def fmt(v):
-    return f'{v:.1f}' if abs(v - round(v, 1)) < 1e-9 else f'{v:.2f}'
-
-
-def scale_label(s):
-    return f'{s[0]}:{s[1]}'
+    return f'{v:.1f}' if abs(v - round(v, 1)) < 5e-3 else f'{v:.2f}'
 
 
 # ---------- layout ----------
@@ -231,9 +226,9 @@ def draw_views(ax, shape, size, origin, k, show_hidden, tiers):
 
 
 def draw_iso(ax, shape, size, boxes_free, k):
-    """Isometric in the largest free box (x, y, w, h); skipped when none is at least 45 mm square."""
+    """Isometric in the largest free box (x, y, w, h); skipped when none is at least 45 mm square. Returns the paper it uses."""
     box = max(boxes_free, key=lambda b: min(b[2], b[3]), default=None)
-    if box is None or min(box[2], box[3]) < 45: return
+    if box is None or min(box[2], box[3]) < 45: return None
     corners = np.array([project('iso', np.array(size) * c) for c in np.ndindex(2, 2, 2)])
     lo, hi = corners.min(0), corners.max(0)
     vis = clip(hlr(shape, 'iso')['visible'], lo, hi)
@@ -242,6 +237,7 @@ def draw_iso(ax, shape, size, boxes_free, k):
     lines(ax, vis, o, ki, LW_THIN * 1.4)
     lines(ax, clip(hlr(shape, 'iso')['tangent'], lo, hi), o, ki, LW_THIN, '#666')  # bend lines
     text(ax, box[0] + 4, box[1] + 2, 'ISOMETRIC (not to scale)', 2.2, color='#444')
+    return (box[0], box[1], 8 + (hi - lo)[0] * ki, 12 + (hi - lo)[1] * ki)
 
 
 def new_tiers():
@@ -253,6 +249,15 @@ def add_overall(tiers, size):
     L, W, H = size
     tiers['top']['T'].append([((0, W), (L, W))]); tiers['top']['L'].append([((0, 0), (0, W))])
     tiers['front']['L'].append([((0, 0), (0, H))]); tiers['right']['B'].append([((0, 0), (W, 0))])
+    for sides in tiers.values():  # a lone dim repeating another's span on the same axis is dropped; the outer one stays
+        for pair, a in (('TB', 0), ('LR', 1)):
+            seen = set()
+            for s in pair:
+                for r in reversed(list(sides[s])):
+                    if len(r) != 1: continue
+                    span = tuple(sorted(round(c[a], 1) for c in r[0]))
+                    if span in seen: sides[s].remove(r)
+                    seen.add(span)
     return tiers
 
 
@@ -405,15 +410,16 @@ _TRI, _MASK = {}, {}
 
 
 def silhouette(shape, view, res=0.5):
-    """Where the part has material in a view: boolean grid of res-mm cells, indexed [v, u] from the view origin."""
+    """Where the part is in a view, holes and slots included: boolean grid of res-mm cells, indexed [v, u] from the view origin."""
     key = (id(shape), view)
     if key not in _MASK:
         if id(shape) not in _TRI: _TRI[id(shape)] = (shape, triangles(shape))
         _, x, y = basis(view); t = _TRI[id(shape)][1]
-        uv = np.stack([t @ x, t @ y], -1) / res
-        img = Image.new('1', tuple(int(c) + 2 for c in np.ceil(uv.reshape(-1, 2).max(0)))); d = ImageDraw.Draw(img)
+        uv = np.stack([t @ x, t @ y], -1) / res + 2  # 2-cell margin all round, so the outside is one connected region
+        img = Image.new('L', tuple(int(c) + 3 for c in np.ceil(uv.reshape(-1, 2).max(0)))); d = ImageDraw.Draw(img)
         for tri in uv: d.polygon([tuple(q) for q in tri], fill=1)
-        _MASK[key] = (shape, np.array(img, bool))
+        ImageDraw.floodfill(img, (0, 0), 2)  # everything the outside can't reach is part: openings count as occupied
+        _MASK[key] = (shape, (np.array(img) != 2)[2:, 2:])
     return _MASK[key][1], res
 
 
@@ -422,7 +428,8 @@ def overlaps(a, b):
 
 
 class Space:
-    """Free paper for labels: off the part, the dimension bands and extension lines, the other views and labels already placed."""
+    """Free paper for labels: on the page, off the part (openings included), the dimension bands and extension lines,
+    the other views, the view names and whatever is already placed."""
     DIRS = [45, 135, 225, 315, 0, 180, 90, 270, 22.5, 157.5, 202.5, 337.5, 67.5, 112.5, 247.5, 292.5]
 
     def __init__(self, origin, k, size, tiers, shape, ext_lines):
@@ -433,10 +440,10 @@ class Space:
                               [(o[0] - P['L'], o[1] + e[1], e[0] + P['L'] + P['R'], P['T']), (o[0] - P['L'], o[1] - P['B'], e[0] + P['L'] + P['R'], P['B']),
                                (o[0] - P['L'], o[1] - P['B'], P['L'], e[1] + P['B'] + P['T']), (o[0] + e[0], o[1] - P['B'], P['R'], e[1] + P['B'] + P['T'])])
         self.taken = list(ext_lines) + [b for r in self.region.values() for b in r[1]]
+        self.taken += [(r[0][0], r[0][1] - 4, 30, 4) for r in self.region.values()]  # view names under each view
 
     def clear(self, view, box):
-        outer = self.region[view][0]
-        if box[0] < outer[0] or box[0] + box[2] > outer[0] + outer[2] or box[1] < outer[1] or box[1] + box[3] > outer[1] + outer[3]: return False
+        if box[0] < MARGIN + 2 or box[0] + box[2] > A3[0] - MARGIN - 2 or box[1] < MARGIN + TITLE_H or box[1] + box[3] > A3[1] - MARGIN - 8: return False
         if any(overlaps(box, b) for b in self.taken + [r[0] for v, r in self.region.items() if v != view]): return False
         mask, res = silhouette(self.shape, view); o, k = self.origin[view], self.k
         u0, v0 = ((np.array(box[:2]) - 1 - o) / k / res).astype(int); u1, v1 = np.ceil((np.array(box[:2]) + box[2:] + 1 - o) / k / res).astype(int)
@@ -527,25 +534,15 @@ class Column:
         self.y = A3[1] - MARGIN - 4; self.floor = MARGIN + 4
 
 
+LABEL_W, LABEL_H = 75.0, 13.0
+
+
 def title_block(ax, fields):
-    w, h = TABLE_W, 44.0; x0, y0 = A3[0] - MARGIN - w, MARGIN
-    ax.add_patch(Rectangle((x0, y0), w, h, fill=False, lw=LW_THICK, color=INK))
-    rows = [('TITLE', fields['title']), ('DRAWING No.', fields['drawing_no']), ('MATERIAL', fields['material']),
-            ('MASS', fields['mass']), ('SCALE', fields['scale']), ('UNITS', 'mm   GENERAL TOL: ' + fields['tolerance']),
-            ('DRAWN', fields['drawn_by'] + '   ' + fields['date']), ('SHEET', fields['sheet'] + '   ' + fields['company'])]
-    rh = h / len(rows)
-    for i, (k_, v) in enumerate(rows):
-        y = y0 + h - (i + 1) * rh
-        ax.plot([x0, x0 + w], [y, y], lw=LW_THIN, color=INK)
-        text(ax, x0 + 1, y + 1.3, k_, 1.8, color='#555'); text(ax, x0 + 22, y + 1.2, v, min(2.4 if i else 3.0, (w - 24) / (1.1 * max(len(v), 1))), weight='bold' if i == 0 else 'normal')
-    ax.plot([x0 + 21, x0 + 21], [y0, y0 + h], lw=LW_THIN, color=INK)
-    third_angle_symbol(ax, x0 + w - 16, y0 + h - rh * 5 + 1.2)
-    return y0 + h
-
-
-def third_angle_symbol(ax, x, y):
-    ax.add_patch(Polygon([(x, y + .6), (x, y + 3), (x + 5, y + 3.6), (x + 5, y)], closed=True, fill=False, lw=LW_THIN, color=INK))
-    ax.add_patch(Circle((x + 10, y + 1.8), 1.8, fill=False, lw=LW_THIN, color=INK)); ax.add_patch(Circle((x + 10, y + 1.8), .8, fill=False, lw=LW_THIN, color=INK))
+    """Plain label for the supplier: part × qty, then material, thickness and mass. draw() adds a page number when there is more than one."""
+    x0, y0 = A3[0] - MARGIN - LABEL_W, MARGIN
+    ax.plot([x0, x0, A3[0] - MARGIN], [y0, y0 + LABEL_H, y0 + LABEL_H], lw=LW_THIN * 1.4, color=INK)
+    text(ax, x0 + 3, y0 + LABEL_H - 6, fields['title'], min(3.0, (LABEL_W - 6) / (0.75 * max(len(fields['title']), 1))), weight='bold')
+    text(ax, x0 + 3, y0 + LABEL_H - 11, f"{fields['material']}  ·  {fields['mass']}", 2.4)
 
 
 def notes(ax, items, y):
@@ -556,27 +553,13 @@ def notes(ax, items, y):
 
 # ---------- sheets ----------
 
-DEFAULT_NOTES = ['Dimensions measured from the 3D STEP model; the model governs. Tolerances not specified by the model.']
-
-
-def frame_note(item):
-    f = item['frame']
-    ax_ = lambda v: next((('+' if c > 0 else '-') + 'XYZ'[i] for i, c in enumerate(v) if abs(abs(c) - 1) < 1e-4), 'oblique')
-    o = ', '.join(fmt(v) for v in f['origin_model_mm'])
-    return f"Part frame: datum at model ({o}); part X={ax_(f['x_model'])}, Y={ax_(f['y_model'])}, Z={ax_(f['z_model'])} of model."
-
-
 def page(ax, pages, shape, size, settings, key, title_fields, tables, note_lines, mark=None, tiers=None, calls=None, item=None):
     """One sheet: views, dimensions, optional marks, tables flowing down the right column, iso, notes."""
     tiers = tiers or add_overall(new_tiers(), size)
-    scale, k, origin, boxes = layout(size, tiers, settings.get('scales', {}).get(key))
+    _, k, origin, boxes = layout(size, tiers, settings.get('scales', {}).get(key))
     outline = draw_views(ax, shape, size, origin, k, settings.get('show_hidden', False), tiers)
     ext_lines = draw_tiers(ax, tiers, origin, k, size, outline)
-    space = Space(origin, k, size, tiers, shape, ext_lines)
-    if item: angles(ax, item, origin, k, space)
-    if calls: callouts(ax, calls, origin, k, size, space)
-    if mark: mark(ax, origin, k)
-    title_block(ax, {**title_fields, 'scale': scale_label(scale)})
+    title_block(ax, title_fields)
     x = max(boxes[1][0] + boxes[1][2] + pad(tiers, 'top', 'R'), boxes[2][0]) + 4
     y = boxes[2][1] + boxes[2][3] + pad(tiers, 'right', 'T') + 4
     free = [(x, y, A3[0] - MARGIN - 4 - x, A3[1] - MARGIN - 8 - y)]
@@ -584,23 +567,26 @@ def page(ax, pages, shape, size, settings, key, title_fields, tables, note_lines
         col = Column(pages, table_floor(boxes))
         for t in tables: col.table(*t)
         free = [(boxes[2][0], y, TABLE_X - 6 - boxes[2][0], free[0][3])] + ([(TABLE_X, col.floor, TABLE_W, col.y - col.floor)] if col.ax is ax else [])
-    draw_iso(ax, shape, size, [b for b in free if b[2] > 0 and b[3] > 0], k)
+    iso = draw_iso(ax, shape, size, [b for b in free if b[2] > 0 and b[3] > 0], k)
+    space = Space(origin, k, size, tiers, shape, ext_lines)
+    if iso: space.taken.append(iso)
+    if item: angles(ax, item, origin, k, space)
+    if calls: callouts(ax, calls, origin, k, size, space)
+    if mark: mark(ax, origin, k)
     notes(ax, note_lines, MARGIN + 3 + 3.4 * (len(note_lines) - 1))
 
 
 def bend_note(item):
     if not item['bends']: return []
     r = sorted({fmt(b['inner_radius_mm']) for b in item['bends']}); a = Counter(f"{b['angle_deg']:g}°" for b in item['bends'])
-    return [f"{len(item['bends'])} bends, inside R{'/R'.join(r)} ({', '.join(f'{n}× {v}' for v, n in a.items())})."]
+    n = len(item['bends'])
+    return [f"{n} bend{'s' * (n > 1)}, inside R{'/R'.join(r)} ({', '.join(f'{n}× {v}' for v, n in a.items())})."]
 
 
 def draw(result, settings):
     items = [r for r in result['items'] if r['role'] == 'sheet' and r['item'] not in settings.get('skip_items', [])]
     multi = len(result['items']) > 1
     pages = []
-    base = {'drawing_no': settings['drawing_no'], 'material': settings['material'], 'tolerance': settings.get('general_tolerance') or '—',
-            'drawn_by': settings.get('drawn_by') or '—', 'company': settings.get('company') or '',
-            'date': settings.get('date') or dt.date.today().isoformat(), 'sheet': ''}
     if multi and items:
         main = items[0]
         shape = placed([sh for r in result['items'] for sh in r['_shapes']], main['frame'])
@@ -620,10 +606,9 @@ def draw(result, settings):
                 f"{r['mass_each_kg']:.3f}", f"{r['mass_total_kg']:.3f}"] for r in result['items']]
         bom.append(['', 'TOTAL', '', sum(r['qty'] for r in result['items']), '', f"{result['total_mass_kg']:.3f}"])
         page(ax, pages, shape, size, settings, 'assembly',
-             {**base, 'title': settings['title'] + ' — WELDMENT', 'mass': f"{result['total_mass_kg']:.3f} kg total"},
+             {'title': settings['title'] + ' — WELDMENT', 'material': settings['material'], 'mass': f"{result['total_mass_kg']:.3f} kg total"},
              [('PARTS LIST', ['ITEM', 'DESCRIPTION', 'TYPE', 'QTY', 'kg EA', 'kg TOT'], bom, [9, 45, 20, 10, 22, 22])],
-             [f"Mass at {result['density_kg_m3']:g} kg/m³, every solid summed; '?' = type inferred from geometry, confirm.",
-              'Overall size in the frame of item 1. Detail sheets follow for each sheet-metal item.', frame_note(main)] + settings.get('notes', []),
+             ["'?' = type guessed from the shape, please confirm."] * any('probable' in r['role'] for r in result['items']) + settings.get('notes', []),
              balloons)
     for item in items:
         shape = placed(item['_shapes'][:1], item['frame'])
@@ -633,14 +618,13 @@ def draw(result, settings):
         unk = [u['what'] + (f": {u['counts']}" if 'counts' in u else '') + (f": {', '.join(u['ids'])}" if 'ids' in u else '') for u in item['unknowns']]
         if oblique: unk.append('openings on oblique faces or irregular cutouts: ' + ', '.join(oblique))
         page(ax, pages, shape, item['overall_mm'], settings, str(item['item']),
-             {**base, 'title': settings['title'] + (f" — ITEM {item['item']}" if multi else ''),
-              'mass': f"{item['mass_each_kg']:.3f} kg  (t={fmt(item['thickness_mm'])})"},
-             [], DEFAULT_NOTES + bend_note(item) + [f'NOT DIMENSIONED: {u}' for u in unk] + settings.get('notes', []),
+             {'title': settings['title'] + (f" — ITEM {item['item']}" if multi else '') + f"  ×{item['qty']}",
+              'material': f"{settings['material']} {fmt(item['thickness_mm'])} mm", 'mass': f"{item['mass_each_kg']:.3f} kg each"},
+             [], bend_note(item) + [f'NOT DIMENSIONED: {u}' for u in unk] + settings.get('notes', []),
              tiers=tiers, calls=calls, item=item)
     n = len(pages)
     for i, (fig, ax, what) in enumerate(pages, 1):
-        text(ax, TABLE_X + 22, MARGIN + 1.2, f'{i} of {n}', 2.4)
-        text(ax, MARGIN + 2, A3[1] - MARGIN - 4, f"{settings['drawing_no']}  ·  DRAFT from STEP {result['source']['sha256'][:12]}", 2.2, color='#666')
+        if n > 1: text(ax, A3[0] - MARGIN - 18, MARGIN + 2, f'page {i} / {n}', 2.2, color='#444')
     return pages
 
 

@@ -2,7 +2,7 @@
 """draft-drawing workflow.
 
   preview  STEP OUT   measure the STEP, write OUT/measure.json, OUT/drawing.json (settings, created once), OUT/preview.html
-  finalize OUT --request "<user's words>"   write OUT/<drawing_no>.pdf from exactly what was previewed
+  finalize OUT --request "<user's words>"   write OUT/<title>.pdf from exactly what was previewed
 
 finalize refuses when the STEP file or drawing.json changed after the last preview.
 """
@@ -18,8 +18,7 @@ import measure
 import preview
 import sheet
 
-DEFAULTS = {'title': '', 'drawing_no': '', 'material': 'Steel', 'density_kg_m3': measure.STEEL_KG_M3, 'general_tolerance': '',
-            'drawn_by': '', 'company': '', 'date': None, 'show_hidden': False, 'scales': {}, 'notes': [], 'skip_items': []}
+DEFAULTS = {'title': '', 'material': 'Steel', 'density_kg_m3': measure.STEEL_KG_M3, 'show_hidden': False, 'scales': {}, 'notes': [], 'skip_items': []}
 
 
 def digest(path):
@@ -30,7 +29,7 @@ def settings_of(out, step):
     path = out / 'drawing.json'
     if not path.exists():
         stem = Path(step).stem
-        path.write_text(json.dumps({**DEFAULTS, 'title': stem, 'drawing_no': stem}, indent=1, ensure_ascii=False) + '\n')
+        path.write_text(json.dumps({**DEFAULTS, 'title': stem}, indent=1, ensure_ascii=False) + '\n')
     return {**DEFAULTS, **json.loads(path.read_text())}
 
 
@@ -66,7 +65,7 @@ def cmd_finalize(out, request):
     if digest(state['step']) != state['step_sha256']: raise SystemExit('STEP file changed since the preview; run preview again')
     if digest(out / 'drawing.json') != state['drawing_sha256']: raise SystemExit('drawing.json changed since the preview; run preview again')
     result, s, pages = render(state['step'], out)
-    pdf = out / f"{s['drawing_no'] or 'drawing'}.pdf"
+    pdf = out / f"{s['title'] or 'drawing'}.pdf"
     try:
         sheet.to_pdf(pages, pdf, {'Title': s['title'], 'Subject': f"Draft from STEP sha256 {state['step_sha256']}", 'Creator': 'draft-drawing'})
     finally:

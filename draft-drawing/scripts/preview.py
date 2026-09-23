@@ -16,7 +16,7 @@ MESH_TARGET = {'sheet': 6000}  # triangles per item; everything else gets 300
 
 
 def fmt(v):
-    return f'{v:g}' if abs(v - round(v, 1)) < 1e-9 else f'{v:.2f}'
+    return f'{v:g}' if abs(v - round(v, 1)) < 5e-3 else f'{v:.2f}'
 
 
 def annotations(r, frame):
@@ -47,7 +47,7 @@ def scene(result, svgs, settings):
         meshes.append({'item': r['item'], 'role': r['role'], 'positions': m['positions'], 'indices': m['indices']})
         if r['role'] == 'sheet': ann[r['item']] = annotations(r, frame)
     items = [{k: v for k, v in r.items() if not k.startswith('_')} for r in result['items']]
-    return {'title': settings['title'], 'drawing_no': settings['drawing_no'], 'source': result['source'],
+    return {'title': settings['title'], 'source': result['source'],
             'density_kg_m3': result['density_kg_m3'], 'total_mass_kg': result['total_mass_kg'], 'mass_note': result['mass_note'],
             'items': items, 'meshes': meshes, 'annotations': ann, 'sheets': svgs}
 

@@ -21,9 +21,10 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}tr.pick{cursor:point
 .dimlab{position:absolute;transform:translate(-50%,-50%);background:#f4f6f8;padding:0 5px;font:700 15px system-ui;color:var(--dim);white-space:nowrap}
 #left{display:none}#main{left:0!important}
 #tip{position:absolute;display:none;background:var(--ink);color:#fff;font:12px system-ui;padding:4px 8px;border-radius:5px;pointer-events:none;z-index:9}
-#edits{position:absolute;right:12px;bottom:44px;width:280px;max-height:60%;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px;box-shadow:0 3px 16px #1232;z-index:6}#edits.shut>:not(.head){display:none}.head{display:flex;gap:6px;align-items:center}.head b{margin-right:auto}
+#edits{position:absolute;left:12px;bottom:44px;width:280px;max-height:60%;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px;box-shadow:0 3px 16px #1232;z-index:6}#edits.shut>:not(.head){display:none}.head{display:flex;gap:6px;align-items:center}.head b{margin-right:auto}
 #comment.on{background:#c0392b;color:#fff;border-color:#c0392b}#copymsg{font-size:12px;color:var(--muted)}pre{font:12px ui-monospace,monospace;white-space:pre-wrap;margin:6px 0 0}
-#notice{position:absolute;bottom:8px;left:12px;right:12px;background:#fffe;border:1px solid var(--line);padding:6px 10px;border-radius:7px;font-size:12px;color:var(--muted);z-index:3}#failure{color:#873700;font-size:13px}
+#notice{position:absolute;bottom:8px;left:12px;right:12px;background:#fffe;border:1px solid var(--line);padding:6px 10px;border-radius:7px;font-size:12px;color:var(--muted);z-index:3}
+#failure{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:420px;margin:0;background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 14px;color:#873700;font-size:13px;z-index:2}
 .pin{position:absolute;pointer-events:auto;z-index:7}.pin b{position:absolute;left:-11px;top:-26px;display:flex;width:22px;height:22px;border-radius:50% 50% 50% 3px;background:#c0392b;color:#fff;font:600 12px system-ui;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 7px #0006;transform:rotate(-45deg)}.pin b span{transform:rotate(45deg)}
 .pin .box{position:absolute;left:16px;bottom:8px;width:210px;background:#fff;border-radius:9px;box-shadow:0 3px 14px #1234;padding:7px}.pin textarea{width:100%;box-sizing:border-box;height:58px;font:13px system-ui;border:1px solid #c1cdd5;border-radius:5px;resize:vertical}.pin.shut .box{display:none}.pin.flip .box{left:auto;right:16px}.pin .del{float:right;padding:3px 6px;font-size:11px}
 body.commenting canvas,body.commenting #sheets{cursor:crosshair}
@@ -33,15 +34,15 @@ body.commenting canvas,body.commenting #sheets{cursor:crosshair}
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
 </head><body>
 <header><h1 id="title">Draft drawing</h1><span class="mass" id="mass"></span><div id="tabs"></div></header>
-<div id="left"><h2>Parts</h2><table id="items"></table><div id="detail"></div><h2>Source</h2><p class="sub" id="source"></p><p id="failure">Loading 3D… if blocked/offline, the tables and sheets are still complete.</p></div>
+<div id="left"><h2>Parts</h2><table id="items"></table><div id="detail"></div><h2>Source</h2><p class="sub" id="source"></p></div>
 <div id="main">
- <div id="view"><svg id="overlay"></svg><div id="labels"></div>
+ <div id="view"><svg id="overlay"></svg><div id="labels"></div><p id="failure">Loading 3D… if blocked or offline, the sheets are still complete.</p>
   <div id="toolbar"><button data-view="iso">Iso</button><button data-view="top">Top</button><button data-view="front">Front</button><button data-view="right">Right</button>
    <label><input type="checkbox" data-show="dims" checked> Overall dims</label><label><input type="checkbox" data-show="hole"> <span class="chip" style="background:var(--hole)"></span>Holes / slots</label>
    <label><input type="checkbox" data-show="flange"> <span class="chip" style="background:var(--flange)"></span>Flanges</label><label><input type="checkbox" data-show="bend"> <span class="chip" style="background:var(--bend)"></span>Bends</label></div></div>
  <div id="sheets"><div id="sheethelp">Wheel: zoom · drag: pan · double-click: fit</div><div id="sheetwrap"></div></div>
  <div id="tip"></div>
- <div id="edits"><div class="head"><b>Comments</b><button id="comment">Comment mode</button><button id="fold" title="Hide / show">–</button></div>
+ <div id="edits" class="shut"><div class="head"><b>Comments</b><button id="comment">Comment mode</button><button id="fold" title="Hide / show">+</button></div>
   <p id="copymsg">Turn on Comment mode, then click the 3D part or a sheet to pin a note.</p><pre id="notes">none</pre><button id="copy">Copy all</button></div>
  <div id="notice">DRAFT · 3D mesh is approximate, for orientation only · every number is the exact OCP measurement of the STEP file · faded labels are on the far side · items listed as NOT DIMENSIONED were not measured.</div>
 </div>
@@ -51,7 +52,7 @@ const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const packed=Uint8Array.from(atob($('#scene-data').textContent.trim()),c=>c.charCodeAt(0));
 const data=JSON.parse(await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
 const f=v=>typeof v==='number'?(Math.round(v*100)/100).toString():v,esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-$('#title').textContent=data.title===data.drawing_no?data.title:`${data.title} · ${data.drawing_no}`;
+$('#title').textContent=data.title;
 $('#mass').textContent=`Total ${data.total_mass_kg} kg`;
 $('#source').innerHTML=`${esc(data.source.path.split('/').pop())} · sha ${data.source.sha256.slice(0,12)}<br>${data.density_kg_m3} kg/m³. <span class="warn">${esc(data.mass_note)}</span>`;
 $('#items').innerHTML='<tr><th>#</th><th>Part</th><th>Qty</th><th>kg</th></tr>'+data.items.map(r=>`<tr class="pick" data-item="${r.item}"><td>${r.item}</td><td>${esc(r.description)}${r.role==='sheet'?'':` <span class="warn">${r.role.replace(' (probable)','?')}</span>`}</td><td class="num">${r.qty}</td><td class="num">${r.mass_total_kg}</td></tr>`).join('');
@@ -104,9 +105,16 @@ function addNote(where,parent,extra){
   note.el=el;parent.append(el);notes.push(note);reportNotes();area.focus();return note;}
 for(const s of $$('.sheet'))s.addEventListener('click',e=>{if(!commenting)return;
   const r=s.getBoundingClientRect(),fx=(e.clientX-r.left)/r.width,fy=(e.clientY-r.top)/r.height;
-  const note=addNote(`sheet ${s.dataset.sheet}, paper (${round(fx*420)}, ${round((1-fy)*297)}) mm`,s,{});note.el.style.left=fx*100+'%';note.el.style.top=fy*100+'%';note.el.classList.toggle('flip',fx>.8);});
+  const near=nearest(s,e.clientX,e.clientY);
+  const note=addNote(`sheet ${s.dataset.sheet}${near?', '+near:''}, paper (${round(fx*420)}, ${round((1-fy)*297)}) mm`,s,{});note.el.style.left=fx*100+'%';note.el.style.top=fy*100+'%';note.el.classList.toggle('flip',fx>.8);});
+// What a sheet pin points at: the nearest sheet text within 15 paper mm, and the view whose name sits below-left of the click.
+function nearest(s,x,y){const mm=s.getBoundingClientRect().width/420,isView=t=>/ VIEW$|^ISOMETRIC/.test(t);
+  const t=[...s.querySelectorAll('svg text')].map(el=>({s:el.textContent.trim(),r:el.getBoundingClientRect()})).filter(o=>o.s);
+  const d=o=>Math.hypot(Math.max(o.r.left-x,0,x-o.r.right),Math.max(o.r.top-y,0,y-o.r.bottom)),by=(a,b)=>d(a)-d(b);
+  const ref=t.filter(o=>!isView(o.s)).sort(by)[0],view=t.filter(o=>isView(o.s)&&o.r.left<=x&&o.r.top>=y).sort(by)[0];
+  return [ref&&d(ref)<15*mm?`near “${ref.s}”`:'',view?view.s.split(' ')[0].toLowerCase()+' view':''].filter(Boolean).join(' · ');}
 // Sandboxed previews may block the clipboard: fall back to selecting the text for Ctrl+C.
-$('#copy').onclick=()=>{const text=`Comments on ${data.drawing_no} (STEP sha ${data.source.sha256.slice(0,12)}):\n${$('#notes').textContent}`;
+$('#copy').onclick=()=>{const text=`Comments on ${data.title} (STEP sha ${data.source.sha256.slice(0,12)}):\n${$('#notes').textContent}`;
   const select=()=>{const r=document.createRange();r.selectNodeContents($('#notes'));const s=getSelection();s.removeAllRanges();s.addRange(r);say('Clipboard blocked here — text selected, press Ctrl+C.');};
   if(!navigator.clipboard)return select();navigator.clipboard.writeText(text).then(()=>say('Copied.'),select);};
 detail(selected);show(data.sheets.length?"Sheet 1":"3D");
@@ -181,7 +189,9 @@ renderer.domElement.addEventListener('pointerup',e=>{
   if(Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;
   const r=renderer.domElement.getBoundingClientRect();ray.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);
   const hit=ray.intersectObjects(part,false)[0];if(!hit)return;
-  if(commenting){const note=addNote(`3D [${hit.point.toArray().map(round).join(', ')}] on item ${hit.object.userData.item}`,$('#labels').parentElement,{p:hit.point.clone()});pinned.push(note);dirty=true;}
+  if(commenting){const item=hit.object.userData.item,m=(data.annotations[String(item)]?.marks||[]).map(m=>[V(m.p).distanceTo(hit.point),m]).sort((a,b)=>a[0]-b[0])[0];
+    const near=m&&m[0]<15?`, near ${m[1].text.replace(/\s+/g,' ')}`:'';
+    const note=addNote(`3D [${hit.point.toArray().map(round).join(', ')}] on item ${item}${near}`,$('#labels').parentElement,{p:hit.point.clone()});pinned.push(note);dirty=true;}
   else if(hit.object.userData.item!==selected)detail(hit.object.userData.item);});
 const pinned=[];
 addEventListener('resize',()=>{renderer.setSize(W(),H());frustum();dirty=true;});
@@ -189,5 +199,5 @@ $('#failure').style.display='none';build();preset('iso');
 (function animate(){requestAnimationFrame(animate);if(tab!=='3D')return;controls.update();renderer.render(scene,camera);
   if(dirty){dirty=false;layout();}
   for(const n of pinned)if(notes.includes(n)){const [x,y]=project(n.p);n.el.style.left=x+'px';n.el.style.top=y+'px';n.el.classList.toggle('flip',x>W()-240);}})();
-}catch(error){$('#failure').prepend(document.createTextNode('3D view unavailable: '+error.message+'. '));}
+}catch(error){$('#failure').textContent=`3D view unavailable: ${error.message.replace(/\.$/,"")}. The sheet tabs are still complete.`;}
 </script></body></html>

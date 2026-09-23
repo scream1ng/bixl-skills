@@ -111,6 +111,29 @@ class BracketTest(unittest.TestCase):
         self.assertEqual((bend['inner_radius_mm'], bend['angle_deg']), (3.0, 90.0))
         self.assertEqual(item['unknowns'], [])
 
+    def test_sheet_dims_once_and_one_decimal(self):
+        item = self.r['items'][0]
+        tiers, _ = sheet.plan(item, item['overall_mm'], sheet.placed(item['_shapes'][:1], item['frame']))
+        self.assertEqual(len(tiers['right']['B']), 1)  # the 80.0 width once, not twice
+        self.assertEqual((sheet.fmt(35.001), sheet.fmt(4.999), sheet.fmt(18.757)), ('35.0', '5.0', '18.76'))
+        self.assertEqual(sheet.bend_note(item), ['1 bend, inside R3.0 (1× 90°).'])
+
+    def test_callouts_sit_off_the_part(self):
+        item = self.r['items'][0]
+        tiers, _ = sheet.plan(item, item['overall_mm'], sheet.placed(item['_shapes'][:1], item['frame']))
+        _, _, _, boxes = sheet.layout(item['overall_mm'], tiers)
+        views = [boxes[1], boxes[2]]  # top and right views of the bracket are full rectangles of material
+        pages = sheet.draw(self.r, {**workflow.DEFAULTS, 'title': 'B'})
+        try:
+            fig, ax, _ = pages[0]; fig.canvas.draw(); rnd = fig.canvas.get_renderer(); inv = ax.transData.inverted()
+            calls = [t for t in ax.texts if any(c in t.get_text() for c in 'Ø□') or t.get_text().startswith('SLOT')]
+            self.assertEqual(len(calls), 4)
+            for t in calls:
+                (x0, y0), (x1, y1) = inv.transform(t.get_window_extent(rnd).get_points())
+                self.assertEqual([v for v in views if x0 < v[0] + v[2] and v[0] < x1 and y0 < v[1] + v[3] and v[1] < y1], [], t.get_text())
+        finally:
+            sheet.close(pages)
+
 
 class AssemblyTest(unittest.TestCase):
     def test_second_body_is_separate_item_and_summed(self):
