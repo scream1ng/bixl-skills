@@ -36,6 +36,6 @@ STEP file in, measured numbers out: overall size, flanges, bends, hole and slot 
 
 [SKILL.md](costing/SKILL.md) · `calculate.py` is standard-library Python; STEP geometry and nesting need [`scripts/requirements.txt`](costing/scripts/requirements.txt) (OCP 7.8.x, shapely, scipy, matplotlib)
 
-**[Download costing-(unreleased)]** — `SKILL.md` at the zip root; unzip into a folder named `costing`.
+**[Download costing-v1.0.zip](../../releases/download/costing-v1.0/costing-v1.0.zip)** — `SKILL.md` at the zip root; unzip into a folder named `costing`.
 
 Drawing in, internal budget estimate out: per-part laser, bend, weld and finish costs, IXL baseline material pricing, and a selling price at 28% gross margin. AUD ex GST. Every total comes from `calculate.py`; unknown costs stay Unpriced, never zero. It is a budget estimate, not a supplier quotation.
