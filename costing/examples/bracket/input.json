@@ -1,0 +1,23 @@
+{
+  "schema_version": 2,
+  "job": "EX-001 mounting bracket assembly (illustrative)",
+  "revision": "A",
+  "quantity": 100,
+  "components": [
+    {"id": "assembly", "name": "EX-001 Mounting bracket assembly", "parent_id": null, "quantity_per_parent": 1, "make_buy": "make"},
+    {"id": "bracket", "name": "EX-001-01 Bracket", "parent_id": "assembly", "quantity_per_parent": 1, "make_buy": "make"},
+    {"id": "stud", "name": "M6 clinch stud", "parent_id": "bracket", "quantity_per_parent": 2, "make_buy": "buy"},
+    {"id": "weld-nut", "name": "M6 weld nut", "parent_id": "assembly", "quantity_per_parent": 4, "make_buy": "buy"}
+  ],
+  "rows": [
+    {"id": "bracket-laser", "name": "OP10 Laser", "kind": "process", "category": "component_processing", "component_id": "bracket", "basis": "Provisional medium_bracket fallback 200 pcs/h; one setup per batch", "resource": "laser", "setup_h": 0.25, "setup_count": 1, "pcs_per_h": 200, "cycle_seconds": {"cutting": 12, "load_unload_sort": 6}, "cycle_basis": "Fallback profile, no toolpath data"},
+    {"id": "bracket-bend", "name": "OP20 Bend", "kind": "process", "category": "component_processing", "component_id": "bracket", "basis": "Drawing: 2 bends; provisional 12 s handling + 12 s/bend", "resource": "bend", "setup_h": 0.25, "setup_count": 1, "pcs_per_h": 100, "cycle_seconds": {"handling": 12, "bending": 24}, "cycle_basis": "Estimated build-up from rates.json bend_cycle_seconds"},
+    {"id": "bracket-clinch", "name": "OP30 Install studs", "kind": "process", "category": "component_processing", "component_id": "bracket", "basis": "Drawing: 2 M6 clinch studs; provisional", "resource": "clinch", "setup_h": 0.1, "setup_count": 1, "pcs_per_h": 180, "cycle_seconds": {"handling": 8, "insert_press": 12}, "cycle_basis": "Estimated 8 s handling + 6 s/stud"},
+    {"id": "bracket-sheet", "name": "HA250 2.0 mm sheet 2440 x 1220", "kind": "material", "category": "material", "component_id": "bracket", "basis": "Estimated from IXL baseline: HA3PO 2.0 mm pricing proxy for specified HA250 (IXL-Steel-Price-Sept26.xlsx, Production Material IXL row 7, BIXL 703400); AUD/sheet ex GST assumed pending confirmation. Envelope estimate 180 x 240 flat, 10 mm margin, 5 mm gap: 6 x 9 = 54/sheet", "sheet_price": 72, "parts_per_sheet": 54, "sheet_size_mm": [1220, 2440], "procurement": "unknown", "stock_moq_sheets": 20},
+    {"id": "stud-purchase", "name": "M6 clinch stud", "kind": "fixed", "category": "material", "component_id": "stud", "basis": "Illustrative price AUD each ex GST", "unit_price": 0.18},
+    {"id": "weld-nut-purchase", "name": "M6 weld nut", "kind": "fixed", "category": "material", "component_id": "weld-nut", "basis": "Illustrative price AUD each ex GST", "unit_price": 0.12},
+    {"id": "assembly-weld", "name": "OP10 Weld four nuts", "kind": "process", "category": "assembly_finish", "component_id": "assembly", "basis": "Provisional weld fallback 20 assemblies/h", "resource": "weld", "setup_h": 0.25, "setup_count": 1, "pcs_per_h": 20, "cycle_seconds": {"load_clamp": 40, "weld": 100, "unclamp_clean": 40}, "cycle_basis": "Fallback 180 s total cycle"},
+    {"id": "assembly-ecoat", "name": "OP20 E-coat supplier finish", "kind": "fixed", "category": "assembly_finish", "component_id": "assembly", "basis": "No confirmed supplier quote or comparable basis", "unpriced": true},
+    {"id": "assembly-inspect-pack", "name": "Routine inspection and packing", "kind": "process", "category": "assembly_finish", "component_id": "assembly", "basis": "Routine default, absorbed in margin", "resource": "manual", "setup_h": 0, "setup_count": 0, "pcs_per_h": 120, "cycle_seconds": {"inspect": 15, "pack": 15}, "cycle_basis": "Provisional 30 s combined", "absorbed_in_margin": true}
+  ]
+}

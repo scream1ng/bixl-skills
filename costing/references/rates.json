@@ -1,0 +1,114 @@
+{
+  "status": "User-supplied combined resource hourly rates. IXL September 2026 material baseline first; estimate close materials, research substantially different materials online. Process setup/throughput and coating allowance are provisional.",
+  "currency": "AUD",
+  "tax": "excluding GST",
+  "default_batch_quantity": 100,
+  "hourly_rate_basis": "Single source: resources.<id>.labour_per_hour + machine_per_hour. Calculator sums these once. One operator; do not add labour again. Process throughput is estimated separately.",
+  "setup_hours": {
+    "laser": 0.25,
+    "bend": 0.25,
+    "weld": 0.25,
+    "manual": 0
+  },
+  "sheet_edge_margin_mm": 10,
+  "part_spacing_mm": 5,
+  "bend_cycle_seconds": {
+    "handling": 12,
+    "per_bend": 12
+  },
+  "laser_finished_parts_per_hour_fallback": {
+    "small_simple": 250,
+    "medium_bracket": 200,
+    "complex_many_internal_cuts": 120
+  },
+  "weld_finished_assemblies_per_hour_fallback": 20,
+  "routine_inspection_packing_finished_assemblies_per_hour_default": 120,
+  "routine_inspection_packing_basis": "Provisional combined 30 seconds/assembly or faster when justified. Commercially absorb routine labour equivalent in pricing margin and disclose effective margin after absorption; price special inspection or packaging explicitly.",
+  "fallback_cycle_basis": "Uncalibrated planning assumptions; replace with measured rates or an explicit time build-up. Do not apply uniformly to large or unusually complex work.",
+  "resources": {
+    "laser": {
+      "name": "LVD 2.5Kw Laser Cutter",
+      "labour_per_hour": 56.91,
+      "machine_per_hour": 154.06,
+      "status": "user supplied"
+    },
+    "bend": {
+      "name": "LVD 3m Press Brake",
+      "labour_per_hour": 56.91,
+      "machine_per_hour": 92.9,
+      "status": "user supplied"
+    },
+    "manual": {
+      "name": "B54 - P/S WORK BENCH",
+      "labour_per_hour": 56.91,
+      "machine_per_hour": 46.31,
+      "status": "user supplied"
+    },
+    "weld": {
+      "name": "B48 - MIG WELDER",
+      "labour_per_hour": 56.91,
+      "machine_per_hour": 50.77,
+      "status": "user supplied"
+    },
+    "clinch": {
+      "name": "Clinch Machine",
+      "labour_per_hour": 56.91,
+      "machine_per_hour": 46.31,
+      "status": "user supplied"
+    },
+    "dynapress": {
+      "name": "Pressbrake Dynapress 12/8 LVD",
+      "labour_per_hour": 56.91,
+      "machine_per_hour": 34.67,
+      "status": "user supplied"
+    },
+    "turret": {
+      "name": "Turret Punch Strippet P-1225 LVD",
+      "labour_per_hour": 56.91,
+      "machine_per_hour": 67.44,
+      "status": "user supplied"
+    },
+    "paint": {
+      "name": "1 MAN PAINT LINE",
+      "labour_per_hour": 56.91,
+      "machine_per_hour": 68.62,
+      "status": "user supplied"
+    }
+  },
+  "resource_selection": "Default laser=LVD 2.5Kw; bend=LVD 3m; weld=B48 MIG; manual=B54 bench. Select Dynapress, clinch or turret only when the route is feasible. Paint-line hourly rate is not an e-coat unit price or proof of coating capability; use only for confirmed applicable paint-line routes.",
+  "material_pricing_policy": "Read material-pricing.md and ixl-material-baseline.json. User current prices > exact IXL baseline > defensible close-material estimate > researched online prices. Preserve unconfirmed source price units/GST. Internet benchmarks are secondary and must be refreshed before use.",
+  "material_price_benchmarks": [
+    {
+      "supplier": "Prime Supplies, Bunbury WA",
+      "grade": "HA250",
+      "thickness_mm": 2,
+      "width_mm": 1200,
+      "length_mm": 1800,
+      "listed_price_inc_gst": 97,
+      "price_ex_gst": 88.18181818181817,
+      "accessed": "2026-09-23",
+      "url": "https://www.primesupplies.com.au/product/sheet-1800-x-1200-x-2mm-ha250-steel-mild-steel/",
+      "basis": "Public retail, local pickup, order in; refresh before reuse"
+    },
+    {
+      "supplier": "Prime Supplies, Bunbury WA",
+      "grade": "HA250",
+      "thickness_mm": 3,
+      "width_mm": 1200,
+      "length_mm": 3000,
+      "listed_price_inc_gst": 242,
+      "price_ex_gst": 220,
+      "accessed": "2026-09-23",
+      "url": "https://www.primesupplies.com.au/product/sheet-3000-x-1200-x-3mm-ha250-mild-steel/",
+      "basis": "Public retail benchmark; excludes delivery; refresh before reuse"
+    }
+  ],
+  "material_baseline_file": "ixl-material-baseline.json",
+  "default_gross_margin": 0.28,
+  "selling_price_basis": "Manufacturing cost / (1 - gross margin). Default 28% gross margin, not markup. Display profit and selling price separately; exclude GST.",
+  "ecoat_reference": {
+    "historical_example_per_assembly": 1.25,
+    "status": "Historical example only; not an automatic default",
+    "applicability": "No validated size, weight, batch or performance envelope has been supplied. Do not reuse without explicit user confirmation for this job or a documented comparable supplier quote. Otherwise use a justified scenario range or mark unpriced."
+  }
+}

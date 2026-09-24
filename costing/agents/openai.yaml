@@ -1,0 +1,14 @@
+interface:
+  display_name: Costing
+  short_description: Material and process costing with 28% gross margin
+  default_prompt: Use $costing to cost this drawing with material and process breakdowns
+    and a selling price at 28% gross margin.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
