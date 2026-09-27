@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""Extract sheet-metal costing geometry from a single-body STEP file.
+"""Extract sheet-metal costing geometry from a STEP file.
 
 Usage: python step_geometry.py PART.step [--png FLAT.png] [--outline FLAT.json] [--thickness T] > GEOMETRY.json
+
+A multi-body file is split into bodies; identical bodies are grouped with a
+quantity and each group is reported under "bodies" with its STEP product
+names. Sheet groups get their own FLAT-B<n>.png / FLAT-B<n>.json.
 Requires OCP (pip install cadquery-ocp) and numpy; matplotlib only for --png;
 shapely only for --outline (flat polygon with holes, input for nest.py).
 
@@ -23,7 +27,12 @@ from OCP.BRepTools import BRepTools
 from OCP.Bnd import Bnd_Box
 from OCP.GProp import GProp_GProps
 from OCP.GeomAbs import GeomAbs_Plane
-from OCP.STEPControl import STEPControl_Reader
+from OCP.STEPCAFControl import STEPCAFControl_Reader
+from OCP.TCollection import TCollection_ExtendedString
+from OCP.TDF import TDF_Label, TDF_LabelSequence
+from OCP.TDataStd import TDataStd_Name
+from OCP.TDocStd import TDocStd_Document
+from OCP.XCAFDoc import XCAFDoc_DocumentTool
 from OCP.TopAbs import TopAbs_EDGE, TopAbs_FACE, TopAbs_IN, TopAbs_REVERSED, TopAbs_SOLID, TopAbs_WIRE
 from OCP.TopExp import TopExp, TopExp_Explorer
 from OCP.TopLoc import TopLoc_Location
@@ -51,7 +60,7 @@ def plane_normal(face):
     return -v if face.Orientation() == TopAbs_REVERSED else v
 
 
-def is_edge_face(shape, face, probe_mm):
+def is_edge_face(clf, face, probe_mm):
     """Thickness (edge) face if points probe_mm inside along -normal stay in material."""
     loc = TopLoc_Location()
     tri = BRep_Tool.Triangulation_s(face, loc)
@@ -69,7 +78,8 @@ def is_edge_face(shape, face, probe_mm):
             n.Reverse()
         q = gp_Pnt(p.X() - probe_mm * n.X(), p.Y() - probe_mm * n.Y(), p.Z() - probe_mm * n.Z())
         total += 1
-        inside += BRepClass3d_SolidClassifier(shape, q, 1e-4).State() == TopAbs_IN
+        clf.Perform(q, 1e-4)
+        inside += clf.State() == TopAbs_IN
     return total and inside / total > 0.5
 
 
@@ -163,28 +173,48 @@ def min_rect(points):
     return best
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("step")
-    ap.add_argument("--png", help="write flat-pattern preview image")
-    ap.add_argument("--short-flat-mm", type=float, default=10.0,
-                    help="flag flats narrower than this between bends")
-    ap.add_argument("--outline", help="write unfolded flat polygon (exterior + holes) as JSON for nest.py")
-    ap.add_argument("--thickness", type=float, help="override auto-detected thickness (mm)")
-    args = ap.parse_args()
-
-    r = STEPControl_Reader()
-    if r.ReadFile(args.step) != 1:
+def read_bodies(path):
+    """Every solid in the file with its STEP product name, in assembly placement."""
+    doc = TDocStd_Document(TCollection_ExtendedString("costing"))
+    r = STEPCAFControl_Reader()
+    r.SetNameMode(True)
+    if r.ReadFile(path) != 1 or not r.Transfer(doc):
         sys.exit("cannot read STEP")
-    r.TransferRoots()
-    s = r.OneShape()
-    solids = 0
-    ex = TopExp_Explorer(s, TopAbs_SOLID)
-    while ex.More():
-        solids += 1
-        ex.Next()
-    BRepMesh_IncrementalMesh(s, 0.1, False, 0.1, True)
+    st = XCAFDoc_DocumentTool.ShapeTool_s(doc.Main())
 
+    def name(label):
+        a = TDataStd_Name()
+        return a.Get().ToExtString() if label.FindAttribute(TDataStd_Name.GetID_s(), a) else "unnamed"
+
+    bodies = []
+
+    def visit(label, loc):
+        ref = label
+        if st.IsReference_s(label):
+            ref = TDF_Label()
+            st.GetReferredShape_s(label, ref)
+        if st.IsAssembly_s(ref):
+            kids = TDF_LabelSequence()
+            st.GetComponents_s(ref, kids)
+            for j in range(1, kids.Length() + 1):
+                visit(kids.Value(j), loc.Multiplied(st.GetLocation_s(label)))
+        else:
+            shape = st.GetShape_s(label).Moved(loc)
+            ex = TopExp_Explorer(shape, TopAbs_SOLID)
+            while ex.More():
+                bodies.append((ex.Current(), name(ref)))
+                ex.Next()
+
+    roots = TDF_LabelSequence()
+    st.GetFreeShapes(roots)
+    for i in range(1, roots.Length() + 1):
+        visit(roots.Value(i), TopLoc_Location())
+    return bodies
+
+
+def analyse(s, short_flat_mm, thickness_override=None):
+    """Costing geometry of one shape. Returns (fields, unfold data for outline/png)."""
+    BRepMesh_IncrementalMesh(s, 0.1, False, 0.1, True)
     box = Bnd_Box()
     BRepBndLib.Add_s(s, box)
     x0, y0, z0, x1, y1, z1 = box.Get()
@@ -212,11 +242,12 @@ def main():
                 if 0.3 < g < 25:
                     gaps[g] += min(a1, a2)
     thickness = max(gaps, key=gaps.get) if gaps else round(2 * vol / props(s, "area"), 2)
-    if args.thickness:
-        thickness = args.thickness
+    if thickness_override:
+        thickness = thickness_override
 
     # Split faces into edge faces and the two skins.
-    edge_faces = {i for i in range(1, nf + 1) if is_edge_face(s, face(i), thickness * 1.5)}
+    clf = BRepClass3d_SolidClassifier(s)  # built once; per-point construction dominated run time
+    edge_faces = {i for i in range(1, nf + 1) if is_edge_face(clf, face(i), thickness * 1.5)}
     efm = TopTools_IndexedDataMapOfShapeListOfShape()
     TopExp.MapShapesAndAncestors_s(s, TopAbs_EDGE, TopAbs_FACE, efm)
     adj = defaultdict(set)
@@ -239,6 +270,15 @@ def main():
                     stack.append(y)
         skins.append(comp)
     skins.sort(key=len, reverse=True)
+    if not skins:  # every face reads as an edge face: a solid part (bush, stud, block), not sheet
+        return {
+            "bbox_mm": [round(x1 - x0, 1), round(y1 - y0, 1), round(z1 - z0, 1)],
+            "thickness_mm": thickness,
+            "volume_mm3": round(vol),
+            "mass_kg_steel": round(vol * STEEL_DENSITY, 3),
+            "skins_found": 0,
+            "warnings": ["no sheet skin found; solid part, not sheet metal"],
+        }, None
     skin = skins[0]
     skin_set = set(skin)
 
@@ -294,12 +334,10 @@ def main():
             BRepBndLib.Add_s(f, fb)
             b = fb.Get()
             longest = max(b[3] - b[0], b[4] - b[1], b[5] - b[2])
-            if longest and a / longest < args.short_flat_mm:
+            if longest and a / longest < short_flat_mm:
                 short.append({"area_mm2": round(a), "approx_width_mm": round(a / longest, 1)})
 
     out = {
-        "source": args.step,
-        "solids": solids,
         "bbox_mm": [round(x1 - x0, 1), round(y1 - y0, 1), round(z1 - z0, 1)],
         "thickness_mm": thickness,
         "volume_mm3": round(vol),
@@ -318,45 +356,121 @@ def main():
         "short_flats_between_bends": short,
         "warnings": [],
     }
-    if solids != 1:
-        out["warnings"].append("expected one solid; multi-body files need per-body handling")
     if len(skins) != 2:
         out["warnings"].append("skin split is not two components; check edge-face classification")
     if any(b["adjacent_flats"] != 2 for b in bends):
         out["warnings"].append("some bend groups do not sit between exactly two flats; audit visually")
     if pieces != 1:
         out["warnings"].append(f"disconnected unfold: {pieces} pieces laid 50 mm apart; flat envelope spans them all")
-    json.dump(out, sys.stdout, indent=1)
+    return out, (Q, T, ang, envelope, thickness)
+
+
+def write_outline(path, source, unf):
+    from shapely.geometry import Polygon
+    from shapely.ops import unary_union
+    Q, T, _, _, thickness = unf
+    tris = [Polygon([Q[a], Q[b], Q[c]]) for a, b, c in T]
+    u = unary_union([p.buffer(0.01) for p in tris if p.area > 1e-9]).buffer(-0.01)
+    if u.geom_type != "Polygon":
+        u = max(u.geoms, key=lambda g: g.area)
+    u = u.simplify(0.2)
+    x0, y0 = u.bounds[:2]
+    ring = lambda r: [[round(x - x0, 3), round(y - y0, 3)] for x, y in r.coords]
+    with open(path, "w") as fh:
+        json.dump({"source": source, "thickness_mm": thickness, "area_mm2": round(u.area),
+                   "exterior": ring(u.exterior), "interiors": [ring(r) for r in u.interiors]}, fh)
+
+
+def write_png(path, unf):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    Q, T, ang, envelope, _ = unf
+    t = np.radians(ang)
+    R = np.array([[np.cos(t), -np.sin(t)], [np.sin(t), np.cos(t)]])
+    fig, ax = plt.subplots(figsize=(8, 8))
+    for a, b, c in T:
+        tri = np.array([Q[a], Q[b], Q[c]]) @ R.T
+        ax.fill(tri[:, 0], tri[:, 1], color=(0.5, 0.6, 0.85), lw=0)
+    ax.set_aspect("equal")
+    ax.grid(True)
+    ax.set_title(f"Unfolded skin, envelope {envelope[0]} x {envelope[1]} mm")
+    plt.savefig(path, dpi=80)
+    plt.close(fig)
+
+
+def suffixed(path, tag):
+    stem, dot, ext = path.rpartition(".")
+    return f"{stem}-{tag}.{ext}" if dot else f"{path}-{tag}"
+
+
+def fingerprint(solid):
+    """Identical bodies share volume, area and sorted box size."""
+    box = Bnd_Box()
+    BRepBndLib.Add_s(solid, box)
+    x0, y0, z0, x1, y1, z1 = box.Get()
+    dims = sorted(round((v1 - v0) * 2) / 2 for v0, v1 in ((x0, x1), (y0, y1), (z0, z1)))
+    return (round(props(solid, "vol")), round(props(solid, "area")), *dims)
+
+
+def is_sheet(g):
+    """Sheet body: two skins whose area times thickness explains the volume."""
+    vol = g["volume_mm3"]
+    return g["skins_found"] == 2 and vol and abs(g["flat_area_mm2"] * g["thickness_mm"] - vol) / vol < 0.15
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("step")
+    ap.add_argument("--png", help="write flat-pattern preview image")
+    ap.add_argument("--short-flat-mm", type=float, default=10.0,
+                    help="flag flats narrower than this between bends")
+    ap.add_argument("--outline", help="write unfolded flat polygon (exterior + holes) as JSON for nest.py")
+    ap.add_argument("--thickness", type=float, help="override auto-detected thickness (mm)")
+    args = ap.parse_args()
+
+    bodies = read_bodies(args.step)
+    if len(bodies) == 1:
+        g, unf = analyse(bodies[0][0], args.short_flat_mm, args.thickness)
+        json.dump({"source": args.step, "solids": 1, **g}, sys.stdout, indent=1)
+        print()
+        if args.outline and unf:
+            write_outline(args.outline, args.step, unf)
+        if args.png and unf:
+            write_png(args.png, unf)
+        return
+
+    groups = {}
+    for solid, name in bodies:
+        groups.setdefault(fingerprint(solid), []).append((solid, name))
+    rows, total_vol = [], 0.0
+    for n, members in enumerate(sorted(groups.values(), key=lambda m: -props(m[0][0], "vol")), 1):
+        tag = f"B{n}"
+        names = sorted({nm for _, nm in members})
+        row = {"body": tag, "qty": len(members), "product_names": names}
+        try:
+            g, unf = analyse(members[0][0], args.short_flat_mm, args.thickness)
+        except Exception as e:  # odd bodies (threads, fillets) should not stop the job
+            vol = props(members[0][0], "vol")
+            g, unf = {"volume_mm3": round(vol), "mass_kg_steel": round(vol * STEEL_DENSITY, 3),
+                      "warnings": [f"analysis failed: {e}"]}, None
+        total_vol += g["volume_mm3"] * len(members)
+        if unf and is_sheet(g):
+            row["role"] = "sheet"
+            if args.outline:
+                row["outline"] = suffixed(args.outline, tag)
+                write_outline(row["outline"], args.step, unf)
+            if args.png:
+                row["png"] = suffixed(args.png, tag)
+                write_png(row["png"], unf)
+            row.update(g)
+        else:
+            row["role"] = "non-sheet (probable hardware or weld; confirm)"
+            row.update({k: g[k] for k in ("bbox_mm", "volume_mm3", "mass_kg_steel", "warnings") if k in g})
+        rows.append(row)
+    json.dump({"source": args.step, "solids": len(bodies), "body_groups": len(rows),
+               "mass_kg_steel": round(total_vol * STEEL_DENSITY, 3), "bodies": rows}, sys.stdout, indent=1)
     print()
-
-    if args.outline:
-        from shapely.geometry import Polygon
-        from shapely.ops import unary_union
-        tris = [Polygon([Q[a], Q[b], Q[c]]) for a, b, c in T]
-        u = unary_union([p.buffer(0.01) for p in tris if p.area > 1e-9]).buffer(-0.01)
-        if u.geom_type != "Polygon":
-            u = max(u.geoms, key=lambda g: g.area)
-        u = u.simplify(0.2)
-        x0, y0 = u.bounds[:2]
-        ring = lambda r: [[round(x - x0, 3), round(y - y0, 3)] for x, y in r.coords]
-        with open(args.outline, "w") as fh:
-            json.dump({"source": args.step, "thickness_mm": thickness, "area_mm2": round(u.area),
-                       "exterior": ring(u.exterior), "interiors": [ring(r) for r in u.interiors]}, fh)
-
-    if args.png:
-        import matplotlib
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-        t = np.radians(ang)
-        R = np.array([[np.cos(t), -np.sin(t)], [np.sin(t), np.cos(t)]])
-        fig, ax = plt.subplots(figsize=(8, 8))
-        for a, b, c in T:
-            tri = np.array([Q[a], Q[b], Q[c]]) @ R.T
-            ax.fill(tri[:, 0], tri[:, 1], color=(0.5, 0.6, 0.85), lw=0)
-        ax.set_aspect("equal")
-        ax.grid(True)
-        ax.set_title(f"Unfolded skin, envelope {envelope[0]} x {envelope[1]} mm")
-        plt.savefig(args.png, dpi=80)
 
 
 if __name__ == "__main__":

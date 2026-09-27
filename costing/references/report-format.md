@@ -67,7 +67,7 @@ Routine inspection and packing (deliberate user preference, stated only here): d
 
 ## Summary mode
 
-For `/costing summary`: lead line (part/job, batch quantity, AUD ex GST), then one table with a row per Part showing its main contributors in short arithmetic (e.g. laser 2.94, bend 5.18, deburr 0.72, sheet 3.79), a row per bought hardware line, one Assembly addition row, bold **Cost** and bold **Selling price** (margin %) rows. Below it, at most four bullets: comparison with the previous batch/estimate if one exists, procurement (whole sheets and supplier MOQ outlay, combining parts that share one sheet spec), unpriced items, and the effective margin after absorbed inspection/packing. No per-Part tables. The totals must equal the full-report totals.
+For summary mode: lead line (part/job, batch quantity, AUD ex GST), then one table with a row per Part showing its main contributors in short arithmetic (e.g. laser 2.94, bend 5.18, deburr 0.72, sheet 3.79), a row per bought hardware line, one Assembly addition row, bold **Cost** and bold **Selling price** (margin %) rows. Below it, at most four bullets: comparison with the previous batch/estimate if one exists, procurement (whole sheets and supplier MOQ outlay, combining parts that share one sheet spec), unpriced items, and the effective margin after absorbed inspection/packing. No per-Part tables. The totals must equal the full-report totals.
 
 ## Accounting and presentation checks
 

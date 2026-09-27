@@ -288,10 +288,24 @@ def calculate(data):
             'selling_status': 'provisional: known recurring costs only; unpriced items additional' if unknown_recurring else 'estimated recurring selling price; one-offs separate'}
 
 
+BRIEF = ('status', 'quantity', 'per_assembly', 'batch_cost', 'selling_per_assembly', 'selling_batch', 'gross_margin',
+         'effective_margin', 'category_batch_costs', 'one_off_batch_cost', 'unpriced_items')
+
+
+def brief(result):
+    """Headline totals for chat; the full result stays in the --out file."""
+    r2 = lambda v: round(v, 2) if isinstance(v, float) else {k: r2(x) for k, x in v.items()} if isinstance(v, dict) else v
+    return {k: r2(result[k]) for k in BRIEF}
+
+
 if __name__ == '__main__':
     try:
         with open(sys.argv[1], encoding='utf-8') as f:
             result = calculate(json.load(f))
-        print(json.dumps(result, indent=2, allow_nan=False))
+        if len(sys.argv) == 4 and sys.argv[2] == '--out':
+            Path(sys.argv[3]).write_text(json.dumps(result, indent=2, allow_nan=False) + '\n', encoding='utf-8')
+            print(json.dumps(brief(result), indent=1, allow_nan=False))
+        else:
+            print(json.dumps(result, indent=2, allow_nan=False))
     except (KeyError, ValueError, TypeError, IndexError, OSError) as error:
         sys.exit(f'Input error: {error}')

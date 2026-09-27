@@ -1,6 +1,6 @@
 # Calculator input contract (version 2)
 
-Run `python3 scripts/calculate.py INPUT.json > RESULT.json`. Use standard-library Python. Unknown fields, invalid types and missing required inputs fail; do not bypass a failure by removing relevant cost rows. Version 1 inputs must be rebuilt using the explicit component tree; there is no silent quantity migration.
+Run `python3 scripts/calculate.py INPUT.json --out RESULT.json`: the full result goes to the file and stdout gets headline totals only (status, quantity, per-assembly and batch cost, selling, margins, category costs, one-offs, unpriced items). Without `--out` the full result prints to stdout. Use standard-library Python. Unknown fields, invalid types and missing required inputs fail; do not bypass a failure by removing relevant cost rows. Version 1 inputs must be rebuilt using the explicit component tree; there is no silent quantity migration.
 
 ## Top level and BOM
 

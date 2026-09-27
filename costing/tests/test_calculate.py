@@ -146,6 +146,16 @@ class CostingTests(unittest.TestCase):
     def test_contract_example(self):
         text=(ROOT/'references/calculator-contract.md').read_text()
         calculate(json.loads(text.split('```json')[1].split('```')[0]))
+    def test_out_writes_full_result_and_prints_brief(self):
+        import subprocess, tempfile
+        src=ROOT/'examples/bracket/input.json'
+        with tempfile.TemporaryDirectory() as d:
+            out=Path(d)/'result.json'
+            printed=json.loads(subprocess.run([sys.executable,str(ROOT/'scripts/calculate.py'),str(src),'--out',str(out)],capture_output=True,text=True,check=True).stdout)
+            full=json.loads(out.read_text())
+        self.assertEqual(full,json.loads(json.dumps(calculate(json.loads(src.read_text())))))
+        self.assertNotIn('rows',printed);self.assertNotIn('input_snapshot',printed)
+        self.assertEqual(printed['per_assembly'],round(full['per_assembly'],2))
 
 
 if __name__=='__main__': unittest.main()
