@@ -1,6 +1,6 @@
 ---
 name: draft-drawing
-description: Turn a STEP file (sheet-metal part or weldment) into a draft drawing — overall size, flanges, bends, hole/slot positions and total steel weight — with an interactive HTML review before an explicitly requested A3 PDF.
+description: Turn a STEP file (sheet-metal part or weldment) into a draft drawing — overall size, flanges, bends, hole/slot positions and total steel weight — with an interactive HTML review before an explicitly requested A3 PDF. Use when a user drops a STEP file and wants a drawing, dimensions, a supplier sketch or the part weight.
 ---
 
 # Draft Drawing
@@ -10,7 +10,9 @@ Drop a STEP file → measured numbers → HTML review with comment pins → PDF 
 ## Setup
 
 Needs Python 3.10+ with `scripts/requirements.txt` (cadquery-ocp 7.8.x, numpy, matplotlib, pillow). System python usually lacks OCP, so run every command below through
-`uv run --no-project --python 3.12 --with-requirements scripts/requirements.txt python …` (below: `python …`). Tests: `python -m unittest discover -s tests`.
+`uv run --no-project --python 3.12 --with-requirements scripts/requirements.txt python …` (below: `python …`). Without `uv`, run `pip install -r scripts/requirements.txt` once and use plain `python`. Tests: `python -m unittest discover -s tests`.
+
+Before installing, tell the user the CAD engine takes about a minute. If it cannot install (no network), say so plainly and stop — every number needs exact CAD. Report a script error as one plain sentence plus the next action, never raw output.
 
 ## Workflow
 
