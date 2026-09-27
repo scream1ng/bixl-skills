@@ -81,6 +81,7 @@ def datum_scheme(spec):
     for key, drop in BODY_FIELDS.items():
         rows = spec.get(key)
         out[key] = rows if rows is None else [{k: v for k, v in r.items() if k not in drop} for r in rows]
+    if spec.get('primary_surface_waivers'): out['primary_surface_waivers'] = spec['primary_surface_waivers']
     return out
 
 
@@ -271,6 +272,9 @@ def datum_ok(record, note):
     shown = (record.get('datum_preview') or {}).get('datum_digest')
     if not shown or shown != record.get('datum_digest'):
         raise ValueError('Generate a current datum scheme preview before reviewing it')
+    if record['datum_preview'].get('primary_surface') == 'fail':
+        raise ValueError('Primary datum points of a part sit on separate surfaces (red in the datum preview): '
+                         'move them onto one face or record a user-quoted primary_surface_waivers entry, then rerun datum')
     record['datum_review'] = {'note': note.strip(), 'datum_digest': record['datum_digest'],
         'input_digest': record['input_digest']}
     return record['datum_review']

@@ -7,6 +7,27 @@ def fixed(c):
     return c.get('constraint_role','fixed_datum')=='fixed_datum'
 
 
+def pin_rows(spec,pin_id):
+    """Idealised bearing rows of a located pin: a round pin bears both ways across its axis (2 rows), a diamond
+    pin only across its relief direction (1 row). Finite hole clearance is treated as zero here."""
+    pins={p['id']:p for p in spec.get('pin_locators',[])}
+    bearing=next((b for b in spec.get('pin_bearings',[]) if b.get('pin')==pin_id),None)
+    pin=pins.get(pin_id)
+    if pin is None or bearing is None:raise ValueError(f'{pin_id}: pin_bearings needs a matching pin_locators entry')
+    axis=np.asarray(bearing['axis'],float);point=np.asarray(bearing['point'],float)
+    if axis.shape!=(3,) or not np.isclose(np.linalg.norm(axis),1):raise ValueError(f'{pin_id}: bearing axis must be a unit vector')
+    if pin.get('type')=='round':
+        e1=np.cross(axis,[1,0,0] if abs(axis[0])<.9 else [0,1,0]);e1/=np.linalg.norm(e1)
+        dirs=[e1,np.cross(axis,e1)]
+    elif pin.get('type')=='diamond':
+        relief=np.asarray(pin.get('relief_direction',[0,0,0]),float)
+        n=np.cross(axis,relief)
+        if np.linalg.norm(n)<.9:raise ValueError(f'{pin_id}: diamond relief_direction must be a unit vector across the pin axis')
+        dirs=[n/np.linalg.norm(n)]
+    else:raise ValueError(f"{pin_id}: pin type must be round or diamond to bear")
+    return [{'name':f'{pin_id}.{i+1}','part':pin['part'],'contact':point.tolist(),'normal':d.tolist()} for i,d in enumerate(dirs)]
+
+
 def secondary_sides(spec):
     if spec.get('inspection',{}).get('rigid_assembly'):
         from checking_locating import secondary_sides as checking_sides
@@ -47,11 +68,16 @@ def audit(spec):
         stage_ids.add(stage.get('id'))
         if len(active)!=len(ids) or not active or not active<=parts or not prior<=active:issues.append('Stage parts must be known, unique, nonempty and cumulative.')
         if not prior and plan.get('master_part') not in active:issues.append('First stage must include the master part.')
-        keys=stage.get('fixture_contacts',[]);mk=stage.get('mating_contacts',[])
+        keys=stage.get('fixture_contacts',[]);mk=stage.get('mating_contacts',[]);pk=stage.get('pins',[])
         if len(set(keys))!=len(keys) or len(set(mk))!=len(mk) or set(keys)-set(contacts) or set(mk)-set(mates):issues.append('Stage contains duplicate or unknown contacts.')
         if issues:
             result['stages'].append({'id':stage.get('id'),'status':'fail','issues':issues});prior=active;continue
         fs=[contacts[k] for k in keys];ms=[mates[k] for k in mk]
+        try:ps=[r for k in pk for r in pin_rows(spec,k)]
+        except ValueError as e:
+            result['stages'].append({'id':stage['id'],'status':'fail','issues':[str(e)]});prior=active;continue
+        if any(r['part'] not in active for r in ps):
+            result['stages'].append({'id':stage['id'],'status':'fail','issues':['Pin locates an absent body.']});prior=active;continue
         if any(c['part'] not in active for c in fs) or any(c.get('part_a') not in active or c.get('part_b') not in active or c.get('part_a')==c.get('part_b') for c in ms):
             result['stages'].append({'id':stage['id'],'status':'fail','issues':['Contact references an absent or identical mating body.']});prior=active;continue
         for c in fs:
@@ -60,7 +86,7 @@ def audit(spec):
             if role=='auxiliary_support':
                 if c.get('support_mode') not in ('adjustable_after_seating','floating','relieved') or not c.get('activation_sequence'):
                     issues.append(f"{c['name']}: extra support needs a non-competing mode and activation sequence")
-        pts=[c['contact'] for c in fs+ms]
+        pts=[c['contact'] for c in fs+ms+ps]
         origin=np.mean(pts,axis=0) if pts else np.zeros(3);length=max(float(np.linalg.norm(np.ptp(pts,axis=0))),1) if pts else 1
         order=sorted(active);index={p:i for i,p in enumerate(order)};matrix=[];row_names=[];used=[]
         def row(p,n,part):
@@ -70,6 +96,8 @@ def audit(spec):
         for c in fs:
             if not fixed(c):continue
             matrix.append(row(c['contact'],c['normal'],c['part']));row_names.append(c['name']);used.append(c)
+        for c in ps:
+            matrix.append(row(c['contact'],c['normal'],c['part']));row_names.append(c['name'])
         for c in ms:
             n=c['normal_on_a'];matrix.append(row(c['contact'],n,c['part_a'])-row(c['contact'],n,c['part_b']));row_names.append(c['name'])
         a=np.array(matrix) if matrix else np.zeros((0,6*len(order)));rank=int(np.linalg.matrix_rank(a)) if len(a) else 0;required=6*len(order);redundant=len(a)-rank
@@ -92,12 +120,13 @@ def audit(spec):
                 if v.shape!=(3,) or not np.isfinite(v).all() or not np.isclose(np.linalg.norm(v),1):issues.append(f'{part} {role}: seating direction must be a unit vector');continue
                 if any(np.dot(v,c['normal'])>=-1e-6 for c in group):issues.append(f'{part} {role}: declared seating direction does not drive every stop contact closed')
         state='fail' if issues else 'unknown' if unknown else 'pass'
-        result['stages'].append({'id':stage['id'],'parts':order,'constraint_rows':len(a),'required_rank':required,'rank':rank,'redundant_rows':redundant,'dependent_contacts':dependencies,'singular_values':sv,'origin':origin.tolist(),'characteristic_length_mm':length,'fixture_contacts':keys,'mating_contacts':mk,'status':state,'issues':issues,'unknowns':unknown})
+        result['stages'].append({'id':stage['id'],'parts':order,'constraint_rows':len(a),'required_rank':required,'rank':rank,'redundant_rows':redundant,'dependent_contacts':dependencies,'singular_values':sv,'origin':origin.tolist(),'characteristic_length_mm':length,'fixture_contacts':keys,'mating_contacts':mk,'pins':pk,'status':state,'issues':issues,'unknowns':unknown})
         prior=active
     if prior!=parts:result['issues'].append('Final loading stage does not cover every workpiece.')
     # Omitted physical fixed contacts must not silently disappear from the staged model.
     last=stages[-1];omitted=[c['name'] for c in contacts.values() if fixed(c) and c['name'] not in last.get('fixture_contacts',[])]
     omitted_mates=set(mates)-set(last.get('mating_contacts',[]))
+    omitted+=[b['pin'] for b in spec.get('pin_bearings',[]) if b['pin'] not in last.get('pins',[])]
     if omitted or omitted_mates:result['issues'].append('Final stage omits declared fixed/mating contacts: '+', '.join(omitted+sorted(omitted_mates)))
     stage_status=aggregate(s['status'] for s in result['stages'])
     result['status']='fail' if stage_status=='fail' else 'unknown' if result['issues'] else stage_status

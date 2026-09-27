@@ -66,6 +66,13 @@ def generate(spec_path, out):
     points = markers(spec, shapes)
     if not points:
         raise ValueError('Decide and record datum contacts before the datum scheme review')
+    from primary_surface import audit as primary_surface
+    primary = primary_surface(spec, shapes)
+    for row in primary['parts']:
+        if row['status'] != 'fail': continue
+        faces = list(row['faces'].values()); main = max(set(faces), key=faces.count)
+        for p in points:
+            if p['kind'] == 'contact' and row['faces'].get(p['name'], main) != main: p['off_primary'] = True
     features = []
     if spec.get('inspection'):  # checking fixtures: every sheet feature shown checked (green) or not (red)
         from OCP.BRep import BRep_Builder
@@ -86,7 +93,7 @@ def generate(spec_path, out):
                              'covered_by': [c['kind'] + ' ' + c['id'] for c in row['covered_by']]})
     scene = {'schema_version': 'fixture-datum-preview-1', 'project_id': spec['project_id'],
         'revision': spec['revision'], 'units': 'mm', 'authoritative': False, 'components': components,
-        'markers': points, 'features': features, 'locating_groups': spec.get('locating_groups', []),
+        'markers': points, 'features': features, 'primary_surface': primary, 'locating_groups': spec.get('locating_groups', []),
         'counts': {role: sum(1 for p in points if p['role'] == role) for role in list(ROLES) + ['Clamp']}}
     payload = json.dumps(scene, separators=(',', ':'), allow_nan=False).replace('<', '\\u003c')
     (out / 'datum-scene.json').write_text(payload)
@@ -96,6 +103,7 @@ def generate(spec_path, out):
         'bytes': len(html.encode()), 'inline_eligible': len(html.encode()) < 1_000_000,
         'marker_ids': [p['name'] for p in points], 'counts': scene['counts'],
         'off_surface': [p['name'] for p in points if p['off_surface']],
+        'primary_surface': primary['status'], 'off_primary': [p['name'] for p in points if p.get('off_primary')],
         'features_without_check': [f['id'] for f in features if f['status'] != 'pass'],
         'scene_sha256': digest(scene), 'authoritative': False}
 

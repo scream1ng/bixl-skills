@@ -68,6 +68,42 @@ class AssemblyTests(unittest.TestCase):
         self.assertEqual(mating_geometry(s,resolved)['status'],'pass')
         s['assembly_locating']['mating_contacts'][0]['contact'][2]=64
         self.assertEqual(mating_geometry(s,resolved)['status'],'fail')
+    def test_edge_on_plane_mate_is_measured_not_always_failed(self):
+        import math
+        from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox
+        from OCP.BRepBuilderAPI import BRepBuilderAPI_Transform
+        from OCP.gp import gp_Pnt,gp_Trsf,gp_Ax1,gp_Dir,gp_Vec
+        def ridge(z):  # square bar turned 45 deg about X: its lowest straight edge runs along X at height z
+            t=gp_Trsf();t.SetRotation(gp_Ax1(gp_Pnt(0,0,0),gp_Dir(1,0,0)),math.pi/4)
+            m=gp_Trsf();m.SetTranslation(gp_Vec(0,0,z+5*math.sqrt(2)))
+            return BRepBuilderAPI_Transform(BRepPrimAPI_MakeBox(gp_Pnt(-50,-5,-5),100,10,10).Shape(),m.Multiplied(t),True).Shape()
+        s=stacked();m=s['assembly_locating']['mating_contacts'][0];s['assembly_locating']['mating_contacts']=[m]
+        m.update(contact=[0,0,63],normal_on_a=[0,0,1],face_a={'type':'edge_on_plane'},face_b={'type':'plane','point':[0,0,63],'outward_normal':[0,0,1]})
+        lower=BRepPrimAPI_MakeBox(gp_Pnt(-50,-40,60),100,80,3).Shape()
+        r=mating_geometry(s,{m['part_a']:('Part_A',ridge(63)),m['part_b']:('Part_B',lower)})
+        self.assertEqual(r['status'],'pass',r)
+        self.assertEqual(mating_geometry(s,{m['part_a']:('Part_A',ridge(64)),m['part_b']:('Part_B',lower)})['status'],'fail')
+        plate=BRepPrimAPI_MakeBox(gp_Pnt(-50,-1,63),100,2,30).Shape()  # 2 mm plate standing on its edge face
+        self.assertEqual(mating_geometry(s,{m['part_a']:('Part_A',plate),m['part_b']:('Part_B',lower)})['status'],'pass')
+    def pinned(self,pins=('P1','P2')):
+        a=lambda n,x,y:dict(name=n,part='Tube',role='Primary',constraint_role='fixed_datum',contact=[x,y,0],normal=[0,0,1])
+        return dict(workpiece={'parts':{'Tube':'Part_Tube'}},contacts=[a('A1',0,-10),a('A2',0,10),a('A3',200,0)],
+            pin_locators=[dict(id='P1',part='Tube',type='round'),dict(id='P2',part='Tube',type='diamond',relief_direction=[1,0,0])],
+            pin_bearings=[dict(pin='P1',point=[-50,0,0],axis=[0,0,1]),dict(pin='P2',point=[250,0,0],axis=[0,0,1])],
+            locating_groups={'Tube':['A1','A2','A3',*pins]},
+            assembly_locating=dict(master_part='Tube',datum_rationale='A on one face; round + diamond pin in the bushes.',mating_contacts=[],
+                loading_stages=[dict(id='tube',parts=['Tube'],fixture_contacts=['A1','A2','A3'],pins=list(pins),mating_contacts=[],
+                                     seating_directions={'Tube':{'Primary':[0,0,-1]}})]))
+    def test_round_and_diamond_pins_supply_the_in_plane_rows(self):
+        from verify import constraint_rank
+        s=self.pinned()
+        r=audit(s);self.assertEqual((r['status'],r['stages'][0]['rank'],r['stages'][0]['constraint_rows']),('pass',6,6),r)
+        g=constraint_rank(s)['Tube'];self.assertEqual((g['status'],g['rank'],g['parts']),('pass',6,['Tube']))
+    def test_one_round_pin_alone_leaves_rotation_free(self):
+        r=audit(self.pinned(('P1',)));self.assertEqual(r['stages'][0]['rank'],5);self.assertEqual(r['status'],'fail')
+    def test_diamond_relieved_along_its_axis_is_rejected(self):
+        s=self.pinned();s['pin_locators'][1]['relief_direction']=[0,0,1]
+        self.assertIn('relief_direction',audit(s)['stages'][0]['issues'][0])
 
 class HardwareTests(unittest.TestCase):
     @classmethod

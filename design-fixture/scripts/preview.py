@@ -61,18 +61,22 @@ def evaluate(spec_path, kind, construction, out):
     evaluated = {k: v for k, v in spec.items() if k != '_dir'}
     (out / 'evaluated-spec.json').write_text(json.dumps(evaluated, indent=2))
     shapes = read_step(target)
+    from primary_surface import audit as primary_surface
+    audit['primary_surface'] = primary_surface(spec, shapes)
     from unload_path import audit as unload
     audit['unload'] = unload(spec, shapes)
     if construction == 'laser_rib':
         from pin_clearance import audit as pin_clearance
         audit['pin_clearance'] = pin_clearance(spec, shapes)
+        from verify import interference
+        audit['interference'] = interference(spec, shapes)
     from flange_coverage import audit as flange_coverage
     audit['flange_coverage'] = flange_coverage(spec, shapes) if kind == 'checking' else {'status': 'not_applicable'}
     (out / 'audit.json').write_text(json.dumps(audit, indent=2))
     return spec, shapes, target, digest(evaluated), audit
 
 
-CHECKS = ('cap_joints', 'material_width', 'cross_support', 'mount_compactness', 'unload', 'pin_clearance', 'flange_coverage', 'brace_merge')
+CHECKS = ('primary_surface', 'cap_joints', 'material_width', 'cross_support', 'mount_compactness', 'unload', 'pin_clearance', 'flange_coverage', 'brace_merge', 'interference')
 
 
 def failing_items(name, report):
@@ -83,6 +87,8 @@ def failing_items(name, report):
     if name == 'unload': return [c['obstacle'] for c in report['collisions']]
     if name == 'pin_clearance': return [f"{v['pin']}~{v['plate']} {v['gap_mm']}mm" for v in report['violations']] + report.get('unseated', [])
     if name == 'flange_coverage': return report['uncovered'] + [f"{o['station']} off part" for o in report['stations_off_part']]
+    if name == 'interference': return [f"{r['a']}x{r['b']}" for r in report['plate_intersections']] + [f"{r['plate']}x{r['part']}" for r in report['part_intersections']]
+    if name == 'primary_surface': return [r['part'] for r in report['parts'] if r['status'] == 'fail']
     if name == 'brace_merge': return [f"{r['a']}+{r['b']}" for r in report['pairs'] if r['status'] == 'fail']
     if name == 'material_width': return [k for k, c in report['categories'].items() if c['failed']] + [f['plate'] if isinstance(f, dict) and 'plate' in f else str(f) for f in report['edge_pair']['failures']]
     return []

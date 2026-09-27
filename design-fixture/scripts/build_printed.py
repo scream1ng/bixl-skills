@@ -78,6 +78,9 @@ def build(spec_file,out,render=True,log=print):
         'contacts':(aggregate(c['status'] for c in contacts),contacts),
         'interference':('fail' if intersections else 'pass',intersections),
         'step_roundtrip':(aggregate(r['status'] for r in roundtrip),roundtrip)}
+    from primary_surface import audit as primary_surface
+    primary=primary_surface(spec,actual)
+    measured['primary_surface']=({'not_applicable':'unknown'}.get(primary['status'],primary['status']),primary)
     checks=[]
     supplied={c['name']:c for c in spec.get('engineering_checks',[])}
     if set(supplied)-set(ENGINEERING_CHECKS):raise ValueError('Unsupported printed engineering check')

@@ -39,6 +39,33 @@ class PinClearanceTests(unittest.TestCase):
         self.assertEqual(r['status'], 'pass')
         self.assertEqual((r['pins'][0]['host'], r['pins'][0]['mode'], r['pins'][0]['bearing_mm']), (['PAD'], 'pressed', 5.0))
 
+    def faceted_pad(self, hole_d):
+        """Pad with a 64-facet laser hole of hole_d across corners, as a DXF hole cut at nominal size."""
+        import math
+        from OCP.BRepBuilderAPI import BRepBuilderAPI_MakePolygon, BRepBuilderAPI_MakeFace
+        from OCP.BRepPrimAPI import BRepPrimAPI_MakePrism
+        from OCP.gp import gp_Vec
+        poly = BRepBuilderAPI_MakePolygon()
+        for k in range(64):
+            a = 2 * math.pi * k / 64
+            poly.Add(gp_Pnt(20 + hole_d / 2 * math.cos(a), 20 + hole_d / 2 * math.sin(a), -1))
+        poly.Close()
+        hole = BRepPrimAPI_MakePrism(BRepBuilderAPI_MakeFace(poly.Wire()).Face(), gp_Vec(0, 0, 7)).Shape()
+        return BRepAlgoAPI_Cut(PAD, hole).Shape()
+
+    def round_pin(self):
+        from OCP.BRepPrimAPI import BRepPrimAPI_MakeCylinder
+        from OCP.gp import gp_Ax2, gp_Dir
+        return BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(20, 20, 0), gp_Dir(0, 0, 1)), 3.0, 15).Shape()
+
+    def test_round_dowel_in_a_nominal_faceted_hole_is_pressed(self):
+        r = pin_clearance.audit(SPEC, {'PAD': self.faceted_pad(6.0), **RAILS, 'REF_PIN_P1': self.round_pin()})
+        self.assertEqual(r['status'], 'pass'); self.assertEqual(r['pins'][0]['mode'], 'pressed')
+
+    def test_undersize_hole_is_a_clash_not_a_press(self):
+        r = pin_clearance.audit(SPEC, {'PAD': self.faceted_pad(5.6), **RAILS, 'REF_PIN_P1': self.round_pin()})
+        self.assertEqual(r['status'], 'fail'); self.assertEqual(r['unseated'], ['P1'])
+
     def test_dowel_part_way_into_the_hole_has_no_bearing_and_fails(self):
         r = pin_clearance.audit(SPEC, {'PAD': REAMED, **RAILS, 'REF_PIN_P1': box(17, 17, 2, 23, 23, 15)})
         self.assertEqual(r['status'], 'fail'); self.assertEqual(r['unseated'], ['P1'])

@@ -45,9 +45,10 @@ Treat 4.2 mm as the shop nominal. Confirm laser kerf, heat-affected edge, tappin
 - Use millimetres.
 - Keep closed fabrication contours on `CUT`. Convert identifiers/instructions to joined, open, single-stroke `LWPOLYLINE` geometry on `ETCH`; do not export `TEXT` or `MTEXT`, closed etch loops, duplicate segments, or visible travel lines between disconnected strokes.
 - Keep every etch stroke inside its final nested plate profile. Join connected character segments into the fewest practical continuous strokes so the laser does not perform unnecessary starts/stops.
-- Default physical stock is 2400 x 1200 mm. Reserve the top 100 mm clamp band and nest inside the 2400 x 1100 mm usable zone unless the project explicitly supplies another measured zone.
+- Default physical stock is 2400 x 1200 mm. Reserve the bottom 100 mm clamp strip (usable origin [0, 100]) and nest inside the 2400 x 1100 mm usable zone unless the project explicitly supplies another measured zone.
 - Pack all custom plates into the narrowest practical strip of the usable zone and report both strip utilization and whole-sheet utilization. Prefer leaving the largest contiguous rectangular remnant over scattering parts across the sheet. One sheet is preferred when feasible, not a fixed requirement.
 - Generate part IDs and quantities from the final verified geometry.
+- The base carries each standing plate's `part_number` (else name) etched beside its footprint, placed on the final base profile clear of slots, clamp cut-outs, footprints and the base label; a plate-level `etch_marks: [{text, at, angle, height_mm}]` (plate-local mm) replaces the automatic marks and `[]` suppresses them. No room for a mark is an error, never a silent skip.
 - Reopen the DXF and compare every closed `CUT` loop with the final plate profiles. Verify that `ETCH` contains only open polylines and zero text entities. Keep stock, usable-zone, clamp-exclusion and nest-strip references off `CUT`.
 
 Design clamp platforms from hardware and joint requirements, not broad default rectangles. Use the standard mount plate in [clamping.md](clamping.md). Keep auxiliary supports distinct from fixed datum lands; a solid fixed-height laser-cut land cannot be called floating or adjustable without the corresponding mechanism.

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Nest laser-cut plates on shop stock and write a verified cutting DXF.
 
-Default shop stock is 2400 x 1200 mm with a 2400 x 1100 mm usable zone. Parts
+Default shop stock is 2400 x 1200 mm; the bottom 100 mm is the clamp strip, leaving
+a 2400 x 1100 mm usable zone above it. Parts
 are packed into the narrowest left-hand strip that fits, preserving a large,
 rectangular remnant. Plate IDs are single-stroke open LWPOLYLINE geometry; DXF
 TEXT/MTEXT entities are deliberately not used.
@@ -23,11 +24,13 @@ DEFAULTS = {
     "gap_mm": 8.0,
     "margin_mm": 15.0,
     "stock_size_mm": [2400.0, 1200.0],
-    "usable_origin_mm": [0.0, 0.0],
+    "usable_origin_mm": [0.0, 100.0],  # bottom 100 mm is the machine clamp strip
     "usable_size_mm": [2400.0, 1100.0],
     "strip_width_step_mm": 10.0,
     "etch_height_mm": 3.5,
     "etch_edge_clearance_mm": 0.8,
+    "seat_part_numbers": True,  # etch each standing plate's part number beside its footprint on the base
+    "seat_etch_height_mm": 5.0,
 }
 
 # Compact 16-segment-style, single-line industrial alphabet. Each token names
@@ -234,6 +237,47 @@ def place_label(text, profile, nominal_height, edge_clearance):
     raise ValueError(f"Etch label {text!r} cannot fit inside its nested plate profile")
 
 
+def seat_marks(seat, plates, thickness, avoid, height):
+    """Part number of every upright standing on `seat` (tabbed or welded on), etched beside its footprint in seat-local mm.
+
+    Placed against the seat's final profile (tab slots and clamp cut-outs already cut), clear of every
+    footprint, of each other and of `avoid` (the seat's own name label)."""
+    import numpy as np
+    from shapely.ops import unary_union
+    o, su, sv, sw = (np.array(seat[k], float) for k in ("origin", "u", "v", "w"))
+    local = lambda p: np.array([(p - o) @ su, (p - o) @ sv])
+    feet = []
+    for d in plates:
+        if d is seat or not all(k in d for k in ("origin", "u", "v", "w")): continue
+        po, pu, pv, pw = (np.array(d[k], float) for k in ("origin", "u", "v", "w"))
+        m = np.array([pw @ su, pw @ sv])
+        if abs(pw @ sw) > 1e-6: continue                                   # only uprights leave a footprint
+        low = [local(po + pu * x + pv * y) for x, y in d["outer"] if abs((po + pu * x + pv * y - o) @ sw - thickness / 2) < 1e-3]
+        if len(low) < 2: continue
+        a, b = min(low, key=tuple), max(low, key=tuple)
+        m /= np.linalg.norm(m)
+        feet.append((d.get("part_number") or d["name"], d["name"], a, b, m))
+    if not feet: return []
+    keep = unary_union([Polygon([a + m * thickness / 2, b + m * thickness / 2, b - m * thickness / 2, a - m * thickness / 2])
+                        for *_, a, b, m in feet])
+    room, marks, taken = poly(seat).buffer(-2.0), [], [avoid.buffer(1.0)] if avoid is not None else []
+    for text, name, a, b, m in feet:
+        along = (b - a) / np.linalg.norm(b - a)
+        angle = math.degrees(math.atan2(along[1], along[0]))
+        angle = angle - 180 if angle > 90 else angle + 180 if angle <= -90 else angle
+        tries = [(h, frac, side, extra) for h in (height, 3.5) for extra in (0.0, 4.0, 8.0)
+                 for frac in sorted(np.linspace(0.05, 0.95, 19), key=lambda z: abs(z - 0.5)) for side in (1, -1)]
+        for h, frac, side, extra in tries:
+            at = a + (b - a) * frac + m * side * (thickness / 2 + 2.5 + h / 2 + extra)
+            q = MultiLineString(stroke_text(text, h, tuple(at), angle)[0]).buffer(0.3)
+            if room.covers(q) and q.distance(keep) > 1.5 and all(q.distance(t) > 1.0 for t in taken):
+                marks.append({"text": text, "at": [round(float(v), 4) for v in at], "angle": round(angle, 4), "height_mm": h, "for": name})
+                taken.append(q); break
+        else:
+            raise ValueError(f"No room on {seat['name']} to etch {text} beside {name}: widen the seat or pass explicit etch_marks")
+    return marks
+
+
 def _outline(modelspace, geometry, layer):
     polygons = [geometry] if isinstance(geometry, Polygon) else list(getattr(geometry, "geoms", []))
     for polygon in polygons:
@@ -333,6 +377,22 @@ def nest(spec, dxf_path):
         data["etch_rotation_degrees"] = label_angle
         etch_source_segments += source_segments
         etch_polylines += len(paths)
+        # Extra marks in plate-local coordinates: explicit etch_marks, else part numbers beside seat footprints.
+        safe = profile.buffer(-float(parameters["etch_edge_clearance_mm"]))
+        cosine, sine = math.cos(math.radians(angle)), math.sin(math.radians(angle))
+        marks = data.get("etch_marks")
+        if marks is None and parameters["seat_part_numbers"] and any(d.get("seat") == data["name"] for d in plates):
+            label_local = affinity.rotate(affinity.translate(label_geometry, -offset[0], -offset[1]), -angle, origin=(0, 0))
+            marks = data["etch_marks"] = seat_marks(data, plates, float(spec["thickness_mm"]), label_local, float(parameters["seat_etch_height_mm"]))
+        for mark in marks or []:
+            paths, source_segments = stroke_text(mark["text"], float(mark["height_mm"]), mark["at"], mark.get("angle", 0))
+            paths = [[(x * cosine - y * sine + offset[0], x * sine + y * cosine + offset[1]) for x, y in path] for path in paths]
+            if not safe.buffer(1e-7).covers(MultiLineString(paths)):
+                raise ValueError(f"Etch mark {mark['text']!r} on {data['name']} leaves the plate or crosses a cut")
+            for path in paths:
+                modelspace.add_lwpolyline(path, close=False, dxfattribs={"layer": "ETCH"})
+            etch_source_segments += source_segments
+            etch_polylines += len(paths)
     doc.saveas(dxf_path)
 
     back = ezdxf.readfile(dxf_path)

@@ -24,7 +24,7 @@ All values are millimetres in one right-handed fixture frame. Recommended: base 
 | `assembly_layers` | no | `[[plate names], ...]` install order; unlisted plates follow |
 | `insertion` | no | `offsets_mm`, `default_axis`, `along_w` (plates inserted along their own `w`) |
 | `tab_slot` | no | Overrides of `tabs_slots.DEFAULTS`; `pinned: {part_number: [s_a, s_b]}` fixes tab positions |
-| `nest` | no | Shop default: `stock_size_mm: [2400,1200]`, `usable_origin_mm: [0,0]`, `usable_size_mm: [2400,1100]`, plus `gap_mm`, `margin_mm`, `strip_width_step_mm`, `etch_height_mm`, `etch_edge_clearance_mm`. Supplying both legacy `sheet_width_mm` / `sheet_height_mm` `[min,max,step]` keeps the older generic size search. |
+| `nest` | no | Shop default: `stock_size_mm: [2400,1200]`, `usable_origin_mm: [0,100]`, `usable_size_mm: [2400,1100]`, plus `gap_mm`, `margin_mm`, `strip_width_step_mm`, `etch_height_mm`, `etch_edge_clearance_mm`, `seat_part_numbers` (default true), `seat_etch_height_mm` (5). Supplying both legacy `sheet_width_mm` / `sheet_height_mm` `[min,max,step]` keeps the older generic size search. |
 
 ## Plate record
 
@@ -54,8 +54,9 @@ Draw `outer` without tabs: a rectangle plus required contact lands, joint slots 
 
 - `normal` is the inward normal on the workpiece (direction the support pushes).
 - `rib` is the plate whose outline carries the contact. The normal must lie in that plate's plane (contact on the cut edge, not the plate face).
-- `face` identifies the intended plane by a point and outward unit normal. Verification requires the contact to lie on one actual trimmed CAD face matching this descriptor; it checks the contact normal against the measured inward normal. Missing descriptors or unsupported curved faces remain unknown.
+- `face` identifies the intended plane by a point and outward unit normal. Verification requires the contact to lie on one actual trimmed CAD face matching this descriptor; it checks the contact normal against the measured inward normal. Missing descriptors or unsupported curved faces remain unknown. `{"type": "edge_on_plane"}` (a plate edge or ridge bearing on the other body's face, typical for `mating_contacts` `face_a`/`face_b`) passes when the body's edge face lies in the contact plane through the contact (inward normal = contact normal), or a straight edge runs through the contact in that plane with the body on the pushed side.
 - `part` is a key of `workpiece.parts`. Contacts without `rib` are checked against the `reference_prefix + name` shape in the placed STEP.
+- Every `role: "Primary"` fixed-datum contact of one part must sit on one trimmed face (`primary_surface`): a face across a bend or on another straight carries the bend tolerance and tilts the primary plane. Only with the user's own words record `"primary_surface_waivers": [{"part": "Tube", "reason": "<user quote>"}]`; it reports `exception`, never pass.
 
 ## Joint (cross-halving slots)
 
@@ -84,13 +85,13 @@ Draw `outer` without tabs: a rectangle plus required contact lands, joint slots 
 
 ## Hole/slot locators and finished dowel bores (v6)
 
-Follow [hole-slot-locating.md](hole-slot-locating.md) for feature selection, ground dowels, separate mounting fits, release checks and the explicit CAD/constraint-analysis boundary. Retain the measured feature identities, pin definitions and finishing operations in `requirements` and the four delivery records. Additional project fields are not automatically interpreted by the bundled planar-contact scripts. Do not assume a `pin_locators` list supplies geometry or locating rank. Each pin record may name its pad plate as `pad`: that plate is then treated as a cap (two tabs from the cheeks under it) and uses the standard pin-pad ligament instead of `min_width_mm`.
+Follow [hole-slot-locating.md](hole-slot-locating.md) for feature selection, ground dowels, separate mounting fits, release checks and the explicit CAD/constraint-analysis boundary. Retain the measured feature identities, pin definitions and finishing operations in `requirements` and the four delivery records. Additional project fields are not automatically interpreted by the bundled planar-contact scripts. A pin supplies locating rank only through `pin_bearings: [{"pin": "P1", "point": [x,y,z], "axis": [0,0,1]}]` (point on the pin axis at the bore, unit axis) with `type: "round"` (2 rows across the axis) or `"diamond"` plus unit `relief_direction` (1 row across it) and `part` on its `pin_locators` entry. Name the pin id in `locating_groups` and in each loading stage's `pins` list; the rows are idealised zero-clearance bearings, so hole clearance and pin fit stay separate checks. Each pin record may name its pad plate as `pad`: that plate is then treated as a cap (two tabs from the cheeks under it) and uses the standard pin-pad ligament instead of `min_width_mm`.
 
 Keep the DXF laser profile and finished STEP geometry tied to explicit finishing operations when an undersize pilot is reamed. Compare each export against its intended manufacturing stage; do not silently substitute a different hole size or ignore a failed roundtrip check.
 
 ## Not automated
 
-Datum choice, rib outline and land shapes, cross-joint slots, clamp position and mount-plate support, weld access, clamp opening/motion, workpiece loading/unloading, strength and retention verification, and base etch marks. The builder renders the actual assembly STEP into the two PNGs.
+Datum choice, rib outline and land shapes, cross-joint slots, clamp position and mount-plate support, weld access, clamp opening/motion, workpiece loading/unloading, strength and retention verification. The builder renders the actual assembly STEP into the two PNGs.
 
 
 ## Relationships and engineering evidence
@@ -103,7 +104,7 @@ Datum choice, rib outline and land shapes, cross-joint slots, clamp position and
 
 ## Automation limits
 
-The single seat must be horizontal XY; seated ribs must have `v=+Z`; one thickness applies to all custom plates. The default single-sheet nest searches 0/90-degree rotations for the minimum-width strip within the configured usable zone, preserving a right-side rectangular remnant; it is a heuristic, not proof of a globally optimal nest. The default usable zone reserves the top 100 mm of 2400 x 1200 stock for clamping. Unsupported layouts need a separate explicit CAD/CAM implementation with the same records. Discrete fixture insertion samples are recorded as screening only; successful samples leave the continuous-motion check unknown.
+The single seat must be horizontal XY; seated ribs must have `v=+Z`; one thickness applies to all custom plates. The default single-sheet nest searches 0/90-degree rotations for the minimum-width strip within the configured usable zone, preserving a right-side rectangular remnant; it is a heuristic, not proof of a globally optimal nest. The default usable zone reserves the bottom 100 mm of 2400 x 1200 stock for clamping. Unsupported layouts need a separate explicit CAD/CAM implementation with the same records. Discrete fixture insertion samples are recorded as screening only; successful samples leave the continuous-motion check unknown.
 
 ## Assembly strategy and auxiliary supports
 

@@ -51,6 +51,17 @@ class DatumPreviewTests(unittest.TestCase):
         result = generate(self.spec, self.path / 'datum')
         self.assertEqual(result['off_surface'], ['A1'])
 
+    def test_primary_split_across_two_faces_is_red_and_blocks_the_datum_ack(self):
+        data = json.loads(self.spec.read_text())
+        data['contacts'][2].update(contact=[0.0, -50.0, 63.0], normal=[0.0, 1.0, 0.0],
+                                   face={'type': 'plane', 'point': [0.0, -50.0, 63.0], 'outward_normal': [0.0, -1.0, 0.0]})
+        self.spec.write_text(json.dumps(data))
+        record = wf.initialize(self.spec, 'weld')
+        result = generate(self.spec, self.path / 'datum')
+        self.assertEqual((result['primary_surface'], result['off_primary']), ('fail', ['A3']))
+        record['datum_preview'] = {**result, 'datum_digest': record['datum_digest']}
+        with self.assertRaisesRegex(ValueError, 'separate surfaces'): wf.datum_ok(record, 'Looks right')
+
     def test_concept_requires_a_current_datum_review(self):
         record = wf.initialize(self.spec, 'weld')
         self.assertFalse(wf.datum_reviewed(record))

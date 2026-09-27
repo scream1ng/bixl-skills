@@ -4,14 +4,14 @@
 
 1. Identify loose workpieces, already joined subassemblies, weld references and purchased parts. Choose the functional master part and drawing datums; record assumptions when no drawing is supplied.
 2. Describe the loading order. Determine which movements the fixture stops and which are stopped by a previously seated mating part. Common fixture ribs can carry different lands; their common construction does not itself make their contacts a common datum.
-3. Use three non-collinear primary datum contacts where suitable. Treat extra contacts as additional constraints unless an actual adjustable/floating/relieved support makes them non-competing.
+3. Use three non-collinear primary datum contacts where suitable, all on one trimmed face of that part (never split across a bend or two straights; two points spread along one face plus pins is acceptable). Treat extra contacts as additional constraints unless an actual adjustable/floating/relieved support makes them non-competing.
 4. Prefer suitable existing holes and slots for in-plane secondary/tertiary location using [hole and slot locating](hole-slot-locating.md). Remove edge stops that duplicate the selected pin constraints. Where edge stops supply remaining constraints, default each secondary pair to the same side with inward normals in a common direction; stepped edges may require different offsets. Explain how the part seats into those stops.
 5. Model the coupled assembly at each loading stage. Do not assume that six rows per part prove the assembly is neither overconstrained nor free to move. Mating contacts also constrain relative motion.
 6. Check stock thickness, form variation, thermal movement and clamp seating. Never remove real contacts from the calculation merely to obtain full rank. Review contact area, friction assumptions, stiffness and actual mechanism separately.
 
 The HUD failure pattern is a useful regression: three fixed primary supports on each of two overlapping sheets, plus their mating faces, can compete; opposing secondary stops can pass a per-part rank check yet have no common seating direction. The correction is a deliberate shared datum strategy, not a universal rule that all assemblies must have only three supports.
 
-A round pin normally supplies two in-plane bearing directions, and a correctly oriented relieved pin supplies one. Do not count each pin as a single constraint or add a full edge-stop scheme alongside it. Verify these directions in the coupled loading-stage model; primary support and mating contacts still supply the remaining constraints.
+A round pin normally supplies two in-plane bearing directions, and a correctly oriented relieved pin supplies one. Do not count each pin as a single constraint or add a full edge-stop scheme alongside it. Declare them as `pin_bearings` and list the pin ids in each stage's `pins` (see spec-format) so the coupled loading-stage model counts them; primary support and mating contacts still supply the remaining constraints.
 
 ## Spec fields
 

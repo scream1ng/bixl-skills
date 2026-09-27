@@ -170,9 +170,15 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('HW_T1', ids)  # one coarse clamp mesh; the full mechanism stays in concept.step
         self.assertEqual(result['components'], len(ids))
         self.assertEqual(result['blocking'], [])
-        self.assertEqual(set(result['checks']), {'cap_joints', 'material_width', 'cross_support', 'mount_compactness', 'unload', 'pin_clearance',
-                                                    'flange_coverage', 'brace_merge'})
+        self.assertEqual(set(result['checks']), {'primary_surface', 'cap_joints', 'material_width', 'cross_support', 'mount_compactness', 'unload', 'pin_clearance',
+                                                    'flange_coverage', 'brace_merge', 'interference'})
         self.assertEqual(result['checks']['unload'], 'unknown')
+        self.assertEqual(result['checks']['interference'], 'pass')
+        # A plate driven into another (as a cheek run through its cap) blocks the concept, not only finalization.
+        from verify import interference, moved
+        shapes = read_step(out / 'concept.step'); shapes['X2'] = moved(shapes['X1'], (0.0, 3.0, 0.0))
+        r = interference(evaluated, shapes)
+        self.assertEqual(r['status'], 'fail'); self.assertIn('X1 and X2 overlap', r['next_action'])
         self.assertTrue(result['soft_target_met'])
         self.assertLessEqual(result['bytes'], INLINE_HTML_TARGET)
         html = (out / 'preview.html').read_text()

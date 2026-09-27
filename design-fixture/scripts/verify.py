@@ -54,6 +54,31 @@ def interferes(a, b, ba, bb, limit):
     v = common_volume(a, b)
     return v if v > limit else 0.0
 
+def intersections(plates, parts, bounds):
+    """(plate-into-workpiece rows, plate-into-plate rows) above the volume limits."""
+    part_rows, plate_rows = [], []
+    for k,s in plates.items():
+        for pn,ps in parts.items():
+            v = interferes(s,ps,bounds[k],bounds[pn],PART_VOL)
+            if v: part_rows.append({'plate':k,'part':pn,'volume_mm3':v})
+    for (a,sa),(b,sb) in itertools.combinations(plates.items(),2):
+        v = interferes(sa,sb,bounds[a],bounds[b],PLATE_VOL)
+        if v: plate_rows.append({'a':a,'b':b,'volume_mm3':v})
+    return part_rows, plate_rows
+
+def interference(spec, shapes):
+    """Concept gate: the same plate/plate and plate/workpiece overlaps verify fails at finalization."""
+    leaf = lambda k: k.split('/')[-1]
+    names = {d['name'] for d in spec['plates']}
+    plates = {leaf(k):s for k,s in shapes.items() if leaf(k) in names}
+    parts = {k:s for k,s in shapes.items() if leaf(k).startswith('Part_')}
+    part_rows, plate_rows = intersections(plates, parts, {k:bbox(s) for k,s in {**plates, **parts}.items()})
+    bad = [f"{r['a']} and {r['b']} overlap {r['volume_mm3']:.2f} mm3" for r in plate_rows]
+    bad += [f"{r['plate']} cuts into {r['part']} {r['volume_mm3']:.2f} mm3" for r in part_rows]
+    return {'status':'fail' if bad else 'pass' if parts else 'unknown', 'plate_intersections':plate_rows,
+            'part_intersections':part_rows, 'scope':'nominal concept CAD; slots and tabs as generated',
+            'next_action':('Trim or move the plates so no solid overlaps: ' + '; '.join(bad) + '.') if bad else None}
+
 def moved(sh, vec):
     t = gp_Trsf(); t.SetTranslation(gp_Vec(*vec))
     return BRepBuilderAPI_Transform(sh, t, True).Shape()
@@ -67,11 +92,42 @@ def resolve_part(parts, key):
 FLAT_FACE_TOL_MM = 0.001                        # non-analytic face counts as planar only within this fit
 
 
+def edge_contact(c, target):
+    """A plate edge bearing on a plane: the edge's flat face (inward normal = contact normal) through the contact,
+    or a straight edge through it lying in the contact plane with the body on the pushed side."""
+    face = face_contact({k: v for k, v in c.items() if k != 'face'}, target)
+    if face.get('inward_alignment', 0) >= .9999:
+        return {**face, 'status': 'pass', 'surface': 'edge_on_plane', 'reason': 'plate edge face in the contact plane'}
+    from OCP.BRepAdaptor import BRepAdaptor_Curve
+    from OCP.BRepClass3d import BRepClass3d_SolidClassifier
+    from OCP.GeomAbs import GeomAbs_Line
+    from OCP.TopAbs import TopAbs_EDGE, TopAbs_IN, TopAbs_OUT
+    point, n = np.array(c['contact'], float), np.array(c['normal'], float)
+    vertex = BRepBuilderAPI_MakeVertex(gp_Pnt(*point)).Vertex()
+    edges, exp = [], TopExp_Explorer(target, TopAbs_EDGE)
+    while exp.More():
+        edge = TopoDS.Edge_s(exp.Current()); exp.Next()
+        if gap(vertex, edge) > .01: continue
+        curve = BRepAdaptor_Curve(edge)
+        if curve.GetType() == GeomAbs_Line and abs(np.array(curve.Line().Direction().Coord()) @ n) < 1e-4:
+            edges.append(edge)
+    def state(offset):
+        classifier = BRepClass3d_SolidClassifier(target, gp_Pnt(*(point + n * offset)), 1e-4)
+        return classifier.State()
+    if not edges:
+        return {'status': 'fail', 'reason': 'no straight edge of the part through the contact lies in the contact plane'}
+    seated = state(.05) == TopAbs_IN and state(-.05) == TopAbs_OUT
+    return {'status': 'pass' if seated else 'fail', 'surface': 'edge_on_plane', 'edge_count': len(edges),
+            'reason': 'straight edge in the contact plane, body on the pushed side' if seated else
+                      'edge found but the body is not on the pushed side of the contact plane'}
+
+
 def face_contact(c, target):
     """Planar descriptors + actual trimmed face + actual outward normal, scoped to this source revision."""
     point = np.array(c['contact'], float)
     vertex = BRepBuilderAPI_MakeVertex(gp_Pnt(*point)).Vertex()
     desc = c.get('face')
+    if desc and desc.get('type') == 'edge_on_plane': return edge_contact(c, target)
     candidates = []
     exp = TopExp_Explorer(target, TopAbs_FACE)
     index = 0
@@ -106,10 +162,13 @@ def face_contact(c, target):
 
 def constraint_rank(spec):
     contacts = {c['name']: c for c in spec['contacts']}
-    from assembly_locating import fixed
+    from assembly_locating import fixed, pin_rows
     out = {}
     for group, keys in spec.get('locating_groups', {}).items():
-        keys=[k for k in keys if fixed(contacts[k])]
+        pins = {p['id'] for p in spec.get('pin_locators', [])}
+        for k in keys:
+            if k in pins: contacts.update({r['name']: {**r, 'constraint_role': 'fixed_datum'} for r in pin_rows(spec, k)})
+        keys=[r for k in keys for r in ([f'{k}.{i}' for i in (1, 2) if f'{k}.{i}' in contacts] if k in pins else [k]) if fixed(contacts[r])]
         if not keys:
             out[group] = {'rank':0,'status':'unknown','contacts':[]}; continue
         points = np.array([contacts[k]['contact'] for k in keys],float)
@@ -118,7 +177,7 @@ def constraint_rank(spec):
         sv = np.linalg.svd(rows, compute_uv=False)
         rank = int(np.linalg.matrix_rank(rows))
         ratio = float(sv[-1]/sv[0]) if len(sv) == 6 and sv[0] else 0.0
-        out[group] = {'contacts':keys,'rank':rank,'scaled_singular_values':sv.tolist(),'reference_origin':origin.tolist(),
+        out[group] = {'contacts':keys,'parts':sorted({contacts[k]['part'] for k in keys}),'rank':rank,'scaled_singular_values':sv.tolist(),'reference_origin':origin.tolist(),
                       'characteristic_length_mm':length,'conditioning_ratio':ratio,
                       'status':'fail' if rank < 6 else 'unknown' if ratio < 1e-4 else 'pass',
                       'scope':'local independence only; unilateral seating and force closure are separate'}
@@ -145,13 +204,7 @@ def verify(spec, step_path, insertion=True, log=print):
         row['face_check'] = face_contact(c,target) if target is not None else {'status':'fail','reason':'missing target'}
         row['status'] = aggregate(['pass' if near else 'fail', row['face_check']['status']])
         rep['contacts'].append(row)
-    for k,s in plates.items():
-        for pn,ps in parts.items():
-            v = interferes(s,ps,bounds[k],bounds[pn],PART_VOL)
-            if v: rep['part_intersections'].append({'plate':k,'part':pn,'volume_mm3':v})
-    for (a,sa),(b,sb) in itertools.combinations(plates.items(),2):
-        v = interferes(sa,sb,bounds[a],bounds[b],PLATE_VOL)
-        if v: rep['plate_intersections'].append({'a':a,'b':b,'volume_mm3':v})
+    rep['part_intersections'], rep['plate_intersections'] = intersections(plates, parts, bounds)
     # Compare reopened STEP solids against the final spec, not just names/file existence.
     rep['export_comparison'] = []
     for d in spec['plates']:
@@ -163,6 +216,8 @@ def verify(spec, step_path, insertion=True, log=print):
     import assembly_locating
     from hardware_geometry import verify_export
     rep['assembly_locating'] = assembly_locating.audit(spec)
+    from primary_surface import audit as primary_surface
+    rep['primary_surface'] = primary_surface(spec, shapes)
     rep['secondary_sides'] = assembly_locating.secondary_sides(spec)
     rep['mating_geometry'] = assembly_locating.mating_geometry(spec,resolved)
     rep['hardware_geometry'] = verify_export(spec,shapes)
@@ -171,9 +226,8 @@ def verify(spec, step_path, insertion=True, log=print):
     from mount_height import audit as height_audit
     rep['mounting_height'] = height_audit(spec,shapes,resolved)
     covered = set()
-    by_contact = {c['name']:c for c in spec['contacts']}
     for g in rep['constraints'].values():
-        targets = {by_contact[k]['part'] for k in g['contacts']}
+        targets = set(g.get('parts', []))
         if len(targets) == 1 and g['status'] == 'pass': covered |= targets
     rep['unlocated_workpieces'] = sorted(set(resolved)-covered)
     if spec.get('assembly_locating') and rep['assembly_locating']['status']=='pass':
@@ -216,6 +270,7 @@ def verify(spec, step_path, insertion=True, log=print):
     rep['check_statuses']['hardware_geometry'] = rep['hardware_geometry']['status']
     rep['check_statuses']['mounting_height'] = rep['mounting_height']['status']
     rep['check_statuses']['cap_joints'] = rep['cap_joints']['status']
+    rep['check_statuses']['primary_surface'] = {'not_applicable': 'unknown'}.get(rep['primary_surface']['status'], rep['primary_surface']['status'])
     if spec.get('assembly_locating'):
         rep['check_statuses']['constraint_independence'] = aggregate([rep['check_statuses']['assembly_locating'], 'unknown' if rep['unmapped_workpieces'] else 'pass'])
     rep['status'] = aggregate(rep['check_statuses'].values())

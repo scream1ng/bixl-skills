@@ -97,6 +97,31 @@ class TabSlotDiagnosticTests(unittest.TestCase):
         r = cap_joints.design(self.spec, lambda *a: None)
         self.assertEqual(r['status'], 'fail'); self.assertIn('nearest feasible K1 tab is', r['caps'][0]['reason'])
 
+    def cheek_tops(self, top):
+        for d in self.spec['plates']:
+            if d['name'] in ('K1', 'K2'):
+                d['outer'] = [[x, top if y == 61.0 else y] for x, y in d['outer']]
+
+    def test_cheek_through_cap_to_its_far_face_fails(self):
+        self.cheek_tops(66.0)                   # P_T1 spans z 61..66; the clamp mounts on 66
+        r = cap_joints.design(self.spec, lambda *a: None)
+        self.assertEqual(r['status'], 'fail'); self.assertRegex(r['caps'][0]['reason'], 'K1, K2 run.*through P_T1 to its far face')
+
+    def test_cheek_top_rounding_still_takes_tabs(self):
+        self.cheek_tops(61.0 + 3e-6)            # 6-decimal frame rounding, as in a rotated cap
+        r = cap_joints.design(self.spec, lambda *a: None)
+        self.assertEqual(r['status'], 'pass'); self.assertEqual(sorted(r['caps'][0]['cheeks']), ['K1', 'K2'])
+
+    def test_tabs_of_one_cap_are_not_a_run_through_of_a_coplanar_cap(self):
+        import copy
+        cap = next(d for d in self.spec['plates'] if d['name'] == 'P_T1')
+        far = copy.deepcopy(cap); far['name'], far['part_number'] = 'P_X', 'FP99'; far['outer'] = [[x + 500, y] for x, y in cap['outer']]; far['holes'] = []
+        self.spec['plates'].append(far); self.spec['cap_joints'] = {'extra_caps': ['P_X']}
+        r = cap_joints.design(self.spec, lambda *a: None)
+        rows = {c['cap']: c for c in r['caps']}
+        self.assertEqual(rows['P_T1']['status'], 'pass')
+        self.assertNotIn('through', rows['P_X'].get('reason') or '')
+
 
 class SourceRebaseTests(unittest.TestCase):
     def setUp(self):

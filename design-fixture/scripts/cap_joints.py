@@ -28,6 +28,7 @@ class Infeasible(Exception):
     """No tab layout satisfies the min-width rule for this cap; reported, not raised out of design()."""
 
 
+FACE_TOL_MM = 1e-5  # cheek top on cap face; absorbs 6-decimal rounding of plate frames
 DEFAULTS = {"tab_length_mm": 12.0, "slot_clearance_mm": 0.2, "search_step_mm": 1.0,
             "pinned": {}, "skip": [], "extra_caps": []}
 
@@ -45,14 +46,44 @@ def cap_local(cap, p):
     return float((p - o) @ U), float((p - o) @ V)
 
 
-def cheek_top(cap, d, T):
-    """Cheek-local v of the cap face the cheek meets, or None if the cheek does not reach it."""
+def cap_faces(cap, d, T):
+    """Cheek-local v of the cap's (near, far) faces, and the cheek's top edge."""
     o, _, V, W = axes(cap)
     do, _, dv, _ = axes(d)
-    tops = [float((o + W * s * T / 2 - do) @ dv) for s in (-1, 1)]
-    high = max(y for _, y in d["outer"])
-    near = min(tops, key=lambda t: abs(t - high))
-    return near if abs(near - high) < 1e-6 else None
+    tops = sorted(float((o + W * s * T / 2 - do) @ dv) for s in (-1, 1))
+    return tops[0], tops[1], max(y for _, y in d["outer"])
+
+
+def cheek_top(cap, d, T):
+    """Cheek-local v of the near cap face the cheek stops on, or None if it does not stop there."""
+    near, _, high = cap_faces(cap, d, T)
+    return near if abs(near - high) < FACE_TOL_MM else None
+
+
+def through_cap(cap, plates, T):
+    """Cheeks whose top edge sits on the cap's far face under the cap: their body runs through it.
+
+    Call before any cap tabs are cut: a tab legitimately reaches the far face."""
+    _, _, _, W = axes(cap)
+    outer = Polygon(cap["outer"])
+    out = []
+    for d in plates:
+        if d["name"] == cap["name"]:
+            continue
+        do, du, dv, dw = axes(d)
+        if abs(dw @ W) > 1e-6 or abs(abs(dv @ W) - 1) > 1e-6:
+            continue
+        _, far, high = cap_faces(cap, d, T)
+        if abs(far - high) >= FACE_TOL_MM:
+            continue
+        top = poly(d).intersection(box(-1e4, far - FACE_TOL_MM, 1e4, far + FACE_TOL_MM))
+        if top.is_empty:
+            continue
+        lo, _, hi, _ = top.bounds
+        edge = LineString([cap_local(cap, do + du * u + dv * far) for u in (lo, hi)])
+        if edge.intersection(outer).length > FACE_TOL_MM:
+            out.append(d["name"])
+    return out
 
 
 def cheeks_of(cap, plates, T):
@@ -103,7 +134,7 @@ def spans(cap, d, top, L, T, P, min_width, obs, keep, placed):
     a = lo
     while a + L <= hi + 1e-9:
         b = a + L
-        if p.buffer(1e-7).covers(box(a, top - min(3.0, L), b, top)) and p.intersection(box(a, top + 1e-6, b, 1e4)).area < 1e-9:
+        if p.buffer(FACE_TOL_MM).covers(box(a, top - min(3.0, L), b, top)) and p.intersection(box(a, top + FACE_TOL_MM, b, 1e4)).area < 1e-9:
             q = slot_poly(cap, d, top, a, b, T, P["slot_clearance_mm"])
             if outer.covers(q):
                 gaps = [outer.exterior.distance(q)] + [q.distance(o) for o in obs + placed]
@@ -178,6 +209,7 @@ def design(spec, log=print):
     names = [c["mount_plate"] for c in spec.get("clamps", [])] + sorted(clamp_mount.pin_pads(spec)) + list(P["extra_caps"])
     joints = spec.setdefault("joints", [])
     rows, family_span = [], {}
+    through_of = {n: through_cap(by[n], plates, T) for n in dict.fromkeys(names) if n not in P["skip"]}
     for name in dict.fromkeys(names):
         if name in P["skip"]:
             rows.append({"cap": name, "mode": "skipped", "cheeks": [], "tabs_mm": [], "status": "unknown",
@@ -188,6 +220,14 @@ def design(spec, log=print):
         from clamp_mount import min_width_for
         min_width = min_width_for(spec, name)
         avail = cheeks_of(cap, plates, T)
+        through = through_of[name]
+        if through:
+            reason = (f"{', '.join(through)} run(s) through {name} to its far face: stop the cheek top edge on the "
+                      f"cap face nearer the cheek (one plate thickness lower)")
+            rows.append({"cap": name, "mode": "none", "cheeks": [], "tabs_mm": [], "cheeks_available": len(avail),
+                         "status": "fail", "reason": reason})
+            log(f"  {name}: NO CAP JOINT - {reason}")
+            continue
         obs, keep = obstacles(spec, cap, min_width)
         try:
             chosen, placed, mode = select(cap, avail, obs, keep, P, T, min_width, family_span)

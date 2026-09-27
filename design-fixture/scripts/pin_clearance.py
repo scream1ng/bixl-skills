@@ -19,6 +19,7 @@ from unload_path import direction
 from verify import PLATE_VOL, bbox, common_volume, gap, moved
 
 MIN_GAP_MM, SINK_MM, FIT_MM = 5.0, 0.05, 0.5
+PRESS_MM = 0.05     # radial interference taken as the press fit: a faceted laser hole cut at nominal pin size sits inside the circle
 MIN_CARRIERS = 2    # an elevated pad rocks on one rib; it stands on a cheek pair
 
 
@@ -32,6 +33,13 @@ def face_square_to(b, d):
     """True when the plate's thin axis (its face normal) lies along d."""
     sizes = [b[i + 3] - b[i] for i in range(3)]
     return abs(d[sizes.index(min(sizes))]) > 0.999
+
+
+def press_allowance(pb, plate_box, d):
+    """Overlap volume a pressed pin may share with its pad: PRESS_MM over the bore wall."""
+    r = min(pb[i + 3] - pb[i] for i in range(3) if abs(d[i]) < 0.999) / 2
+    lo, hi = span(plate_box, d)
+    return max(PLATE_VOL, 2 * np.pi * r * (hi - lo) * PRESS_MM)
 
 
 def near(a, b, pad):
@@ -64,7 +72,7 @@ def audit(spec, shapes):
         # pressed through: no overlap, a fit gap, and the pin spanning the pad's whole thickness
         pressed, edge_seat = {}, None
         for name, plate in close.items():
-            if name in supports or common_volume(pin, plate) > PLATE_VOL or gap(pin, plate) >= FIT_MM: continue
+            if name in supports or common_volume(pin, plate) > press_allowance(pb, bbox(plate), d) or gap(pin, plate) >= FIT_MM: continue
             plo, phi = span(pb, d); qlo, qhi = span(bbox(plate), d)
             if plo <= qlo + SINK_MM and phi >= qhi - SINK_MM: pressed[name] = round(qhi - qlo, 2)
         host = max(pressed, key=pressed.get) if pressed else None
@@ -87,7 +95,7 @@ def audit(spec, shapes):
         if host and mode != 'bush' and span(bbox(seats[host]), d)[0] > floor + SINK_MM and len(carriers) < MIN_CARRIERS:
             weak[pid] = (host, carriers)
         v = common_volume(pin, seats[host]) if host else 0.0
-        if v > PLATE_VOL: bad.append({'pin': pid, 'plate': host, 'gap_mm': 0.0, 'overlap_mm3': round(v, 3)})
+        if v > (press_allowance(pb, bbox(seats[host]), d) if mode == 'pressed' else PLATE_VOL): bad.append({'pin': pid, 'plate': host, 'gap_mm': 0.0, 'overlap_mm3': round(v, 3)})
         rows.append({'pin': pid, 'host': hosts, 'mode': mode, 'bearing_mm': bearing, 'edge_seat': edge_seat,
                      'carriers': carriers, 'closest': closest,
                      'status': 'fail' if any(b['pin'] == pid for b in bad) or not hosts or pid in weak else 'pass'})
