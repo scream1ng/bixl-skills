@@ -13,8 +13,8 @@
   "sheet_edge_margin_mm": 10,
   "part_spacing_mm": 5,
   "bend_cycle_seconds": {
-    "handling": 12,
-    "per_bend": 12
+    "handling": 0,
+    "per_bend": 10
   },
   "laser_finished_parts_per_hour_fallback": {
     "small_simple": 250,
@@ -22,8 +22,6 @@
     "complex_many_internal_cuts": 120
   },
   "weld_finished_assemblies_per_hour_fallback": 20,
-  "routine_inspection_packing_finished_assemblies_per_hour_default": 120,
-  "routine_inspection_packing_basis": "Provisional combined 30 seconds/assembly or faster when justified. Commercially absorb routine labour equivalent in pricing margin and disclose effective margin after absorption; price special inspection or packaging explicitly.",
   "fallback_cycle_basis": "Uncalibrated planning assumptions; replace with measured rates or an explicit time build-up. Do not apply uniformly to large or unusually complex work.",
   "resources": {
     "laser": {
@@ -110,5 +108,16 @@
     "historical_example_per_assembly": 1.25,
     "status": "Historical example only; not an automatic default",
     "applicability": "No validated size, weight, batch or performance envelope has been supplied. Do not reuse without explicit user confirmation for this job or a documented comparable supplier quote. Otherwise use a justified scenario range or mark unpriced."
-  }
+  },
+  "packing_finished_assemblies_per_hour_default": 240,
+  "packing_setup_hours_default": 0.1,
+  "routine_inspection_finished_assemblies_per_hour_default": 240,
+  "routine_inspection_basis": "Provisional 15 s/assembly, zero setup; separate from priced packing; absorb routine inspection in margin and disclose total cost and effective margin.",
+  "packing_basis": "Price B54 manual packing separately with 0.1 h setup once per batch; avoid production-cycle overlap.",
+  "pallet_price_default": 30,
+  "dispatch_basis": "One AUD 30 pallet and AUD 60 freight charge per batch by default; exclude cartons. Disclose these budget assumptions and use current user overrides or confirmed dispatch requirements when supplied.",
+  "freight_batch_price_default": 60,
+  "cartons_included_default": false,
+  "laser_sheet_handling_minutes_default": 10,
+  "laser_sheet_handling_basis": "User-approved total loading/unloading per sheet; allocate by actual sheet output, not fixed seconds per part. Job-specific overrides take precedence."
 }
