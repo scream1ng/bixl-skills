@@ -1,6 +1,6 @@
 ---
 name: "design-backbar"
-description: "For sheet-metal bends where the blank edge is not parallel to the bend line - from one STEP (formed part plus flat pattern) make the laser-cut backbar (backgauge) jig plate DXFs for the LVD press brake, and the folded part STEP with a gauge tab added for CADMAN-B, with a commentable, dimensioned HTML preview. Use when the user asks for a backbar, backgauge jig, bend gauge plate or gauge tab, or drops a STEP of such a part."
+description: "v1.1.1 · For sheet-metal bends where the blank edge is not parallel to the bend line - from one STEP (formed part plus flat pattern) make the laser-cut backbar (backgauge) jig plate DXFs for the LVD press brake, and the folded part STEP with a gauge tab added for CADMAN-B, with a commentable, dimensioned HTML preview. Use when the user asks for a backbar, backgauge jig, bend gauge plate or gauge tab, or drops a STEP of such a part."
 ---
 
 # Design Backbar
