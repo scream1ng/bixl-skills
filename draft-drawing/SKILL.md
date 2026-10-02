@@ -1,6 +1,6 @@
 ---
 name: draft-drawing
-description: Turn a STEP file (sheet-metal part or weldment) into a draft drawing — overall size, flanges, bends, hole/slot positions and total steel weight — with an interactive HTML review before an explicitly requested A3 PDF. Use when a user drops a STEP file and wants a drawing, dimensions, a supplier sketch or the part weight.
+description: v1.2.1 · Turn a STEP file (sheet-metal part or weldment) into a draft drawing — overall size, flanges, bends, hole/slot positions and total steel weight — with an interactive HTML review before an explicitly requested A3 PDF. Use when a user drops a STEP file and wants a drawing, dimensions, a supplier sketch or the part weight.
 ---
 
 # Draft Drawing
