@@ -7,6 +7,7 @@ Backwell IXL assistant skills. Each [release](../../releases) carries one skill 
 | [design-fixture](#design-fixture) | Weld and checking fixtures from a STEP file or dimensioned drawing |
 | [draft-drawing](#draft-drawing) | Draft A3 shop drawing of a sheet-metal part or weldment from a STEP file |
 | [costing](#costing) | Sheet-metal fabrication cost estimate from a drawing or STEP file |
+| [design-backbar](#design-backbar) | Laser-cut backgauge jig plates for bends where the blank edge is not parallel to the bend |
 
 ## design-fixture
 
@@ -41,3 +42,11 @@ STEP file in, measured numbers out: overall size, flanges, bends, hole and slot 
 **[Download costing-v1.2.zip](../../releases/download/costing-v1.2/costing-v1.2.zip)** — `SKILL.md` at the zip root; unzip into a folder named `costing`.
 
 Drawing in, internal budget estimate out: per-part laser, bend, weld and finish costs, IXL baseline material pricing, and a selling price at 28% gross margin. AUD ex GST. Every total comes from `calculate.py`; unknown costs stay Unpriced, never zero. It is a budget estimate, not a supplier quotation.
+
+## design-backbar
+
+[SKILL.md](design-backbar/SKILL.md) · the script is embedded in `SKILL.md`; it needs `cadquery-ocp` 7.8.x and `ezdxf` (installed by `uv run`, see the skill)
+
+**[Download design-backbar-v1.0.zip](../../releases/download/design-backbar-v1.0/design-backbar-v1.0.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-backbar`.
+
+STEP of the formed part plus its flat pattern in, one DXF per bend out: a 100 × 6 mm plate over the LVD backgauge finger with a pocket cut to the blank outline + 0.1 mm, so a slanted blank edge gauges square without gauge tabs. Every number comes from exact OCP geometry. Die, punch and flange collisions, backgauge reach and bend order are not checked. A part that does not fit the standard plate is an error, not a resized plate.
