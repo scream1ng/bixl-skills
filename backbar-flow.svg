@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="200" viewBox="0 0 760 200" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" font-size="13">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#8b949e"/></marker>
+  </defs>
+  <g fill="#f6f8fa" stroke="#57606a">
+    <rect x="10" y="40" width="140" height="44" rx="4"/>
+    <rect x="210" y="40" width="120" height="44" rx="4"/>
+    <rect x="400" y="40" width="130" height="44" rx="4"/>
+    <rect x="610" y="40" width="130" height="44" rx="4"/>
+    <rect x="210" y="146" width="120" height="44" rx="4"/>
+  </g>
+  <g fill="#24292f" text-anchor="middle">
+    <text x="80" y="67">STEP: part + flat</text>
+    <text x="270" y="67">backbar.py</text>
+    <text x="465" y="67">preview.html</text>
+    <text x="675" y="67">DXF per bend</text>
+    <text x="270" y="173">Error, no DXF</text>
+  </g>
+  <g stroke="#8b949e" stroke-width="1.5" fill="none" marker-end="url(#a)">
+    <path d="M150,62H210"/>
+    <path d="M330,62H400"/>
+    <path d="M530,62H610"/>
+  </g>
+  <g stroke="#8b949e" stroke-width="1.5" fill="none" stroke-dasharray="4 3" marker-end="url(#a)">
+    <path d="M270,84V146"/>
+    <path d="M465,40V18H290V40"/>
+  </g>
+  <g fill="#8b949e" font-size="12">
+    <text x="570" y="55" text-anchor="middle">plate checked</text>
+    <text x="378" y="13" text-anchor="middle">rerun with --side / --wrap / --die-clear</text>
+    <text x="280" y="120">too wide, bends both sides, no room</text>
+  </g>
+</svg>

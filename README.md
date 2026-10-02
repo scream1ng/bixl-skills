@@ -47,6 +47,8 @@ Drawing in, internal budget estimate out: per-part laser, bend, weld and finish 
 
 [SKILL.md](design-backbar/SKILL.md) · the script is embedded in `SKILL.md`; it needs `cadquery-ocp` 7.8.x and `ezdxf` (installed by `uv run`, see the skill)
 
+![Workflow](backbar-flow.svg)
+
 **[Download design-backbar-v1.0.zip](../../releases/download/design-backbar-v1.0/design-backbar-v1.0.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-backbar`.
 
 STEP of the formed part plus its flat pattern in, one DXF per bend out: a 100 × 6 mm plate over the LVD backgauge finger with a pocket cut to the blank outline + 0.1 mm, so a slanted blank edge gauges square without gauge tabs. Every number comes from exact OCP geometry. Die, punch and flange collisions, backgauge reach and bend order are not checked. A part that does not fit the standard plate is an error, not a resized plate.
