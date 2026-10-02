@@ -1,6 +1,6 @@
 ---
 name: costing
-description: Estimate sheet-metal fabrication cost from uploaded PDF drawings, drawing images or CAD, with per-component raw material, laser cutting, bending, setup hours, pieces per hour, welding, finishing and assembly totals. Use when a user drops a drawing for costing, requests a manufacturing estimate, wants process and material cost breakdowns, or asks to see the saved material list, laser cut technology list or hourly resource rates.
+description: v1.2.1 · Estimate sheet-metal fabrication cost from uploaded PDF drawings, drawing images or CAD, with per-component raw material, laser cutting, bending, setup hours, pieces per hour, welding, finishing and assembly totals. Use when a user drops a drawing for costing, requests a manufacturing estimate, wants process and material cost breakdowns, or asks to see the saved material list, laser cut technology list or hourly resource rates.
 ---
 
 # Costing

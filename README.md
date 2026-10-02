@@ -39,7 +39,7 @@ STEP file in, measured numbers out: overall size, flanges, bends, hole and slot 
 
 ![Workflow](costing-flow.svg)
 
-**[Download costing-v1.2.zip](../../releases/download/costing-v1.2/costing-v1.2.zip)** — `SKILL.md` at the zip root; unzip into a folder named `costing`.
+**[Download costing-v1.2.1.zip](../../releases/download/costing-v1.2.1/costing-v1.2.1.zip)** — `SKILL.md` at the zip root; unzip into a folder named `costing`.
 
 Drawing in, internal budget estimate out: per-part laser, bend, weld and finish costs, IXL baseline material pricing, and a selling price at 28% gross margin. AUD ex GST. Every total comes from `calculate.py`; unknown costs stay Unpriced, never zero. It is a budget estimate, not a supplier quotation.
 
