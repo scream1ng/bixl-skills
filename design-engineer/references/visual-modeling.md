@@ -26,7 +26,7 @@ Render a cheap draft early. Compare silhouette and a few stable landmarks at the
 
 Correct the largest discrepancy first. If all features shift together, inspect camera and framing before changing the object. If only a local region differs, inspect its geometry. Do not distort verified CAD interfaces to improve a single projected view.
 
-Then review surface quality, material separation, shadows and small details. Use neutral views and additional angles to expose defects hidden by glare, darkness or blur. Aim for the specified visual fidelity; do not promise reconstruction of hidden geometry from one image.
+Then review surface quality, material separation, shadows and small details. Use neutral views and additional angles to expose defects hidden by glare, darkness or blur. Aim for the specified visual fidelity.
 
 For tracking motion, moving the camera and subject together can keep the subject sharp while the static environment blurs. Verify the actual render rather than relying on animation settings alone. Use compositor effects when appropriate and disclose material departures from the reference.
 

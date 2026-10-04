@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="190" viewBox="0 0 760 190" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" font-size="13">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#8b949e"/></marker>
+  </defs>
+  <g fill="#f6f8fa" stroke="#57606a">
+    <rect x="10" y="20" width="120" height="44" rx="4"/>
+    <rect x="180" y="20" width="130" height="44" rx="4"/>
+    <rect x="360" y="20" width="170" height="44" rx="4"/>
+    <rect x="630" y="20" width="110" height="44" rx="4"/>
+    <rect x="345" y="130" width="200" height="44" rx="4"/>
+  </g>
+  <g fill="#24292f" text-anchor="middle">
+    <text x="70" y="47">Images / STEP</text>
+    <text x="245" y="47">design-spec.md</text>
+    <text x="445" y="47">Build (CAD / Blender)</text>
+    <text x="685" y="47">Deliver files</text>
+    <text x="445" y="157">Review geometry + look</text>
+  </g>
+  <g stroke="#8b949e" stroke-width="1.5" fill="none" marker-end="url(#a)">
+    <path d="M130,42H180"/>
+    <path d="M310,42H360"/>
+    <path d="M530,42H630"/>
+  </g>
+  <g stroke="#8b949e" stroke-width="1.5" fill="none" stroke-dasharray="4 3" marker-end="url(#a)">
+    <path d="M425,64V130"/>
+    <path d="M465,130V64"/>
+  </g>
+  <g fill="#8b949e" font-size="12">
+    <text x="580" y="35" text-anchor="middle">criteria met</text>
+    <text x="418" y="101" text-anchor="end">render + measure</text>
+    <text x="472" y="101">refine</text>
+  </g>
+</svg>

@@ -30,7 +30,7 @@ Choose a few stable landmarks before detailed modeling. Compare projected landma
 
 For image-led surface styling, explicitly compare crest/valley continuity, feature endings, spacing and transitions into openings and borders. Separate measured source-geometry conflicts from limitations of the attempted construction; do not blame protected interfaces without evidence. A failed construction does not establish that the shape is impossible.
 
-For progression trials, retain the baseline and compare actual CAD at matching camera, material and lighting settings. Report specific improvements and regressions alongside protected-interface and envelope checks. Geometry validity and visual fidelity remain separate outcomes; label a visually incomplete result as a draft even when its STEP is valid. Do not invent similarity percentages.
+For progression trials, retain the baseline and compare actual CAD at matching camera, material and lighting settings. Report specific improvements and regressions alongside protected-interface and envelope checks. Label a visually incomplete result as a draft even when its STEP is valid.
 
 ## Refinement loop
 
@@ -40,7 +40,7 @@ For progression trials, retain the baseline and compare actual CAD at matching c
 4. Change the smallest relevant parameter set. Stay within existing authorization; ask about a changed functional constraint or scope before depending on it.
 5. Repeat affected geometry checks and visual inspection. Correct new defects introduced by the revision.
 
-A clear request for a final result includes ordinary refinement. Avoid asking the user to approve every draft. If alternatives represent a genuine design preference, show the options together and ask a compact independent question round.
+If alternatives represent a genuine design preference, show the options together and ask a compact independent question round.
 
 Stop iterating when applicable acceptance criteria are met and no material issue remains, or explain the concrete unresolved limitation. Repeated unchanged failures call for a different construction or missing information, not indefinite retries or silently reduced requirements.
 
@@ -52,6 +52,4 @@ Stop iterating when applicable acceptance criteria are met and no material issue
 - Verify the preview was actually displayed if claiming it works interactively. Otherwise provide and inspect a static fallback and state the limitation.
 - Place requested artifacts in the agreed folder. Keep drafts and supporting scripts out of the main deliverable list, while retaining useful revision sources.
 
-Delivery follows the request. A preview-only request does not require a full production package. A request for STEP, native files or a final render does not need a second “handoff approval.”
-
-The final message should link the outputs, name the meaningful checks and results, and identify significant deviations or estimates. Distinguish a model built exactly to chosen parameters from a model measured to match a real object. Do not label unperformed checks as passed.
+In the final message, distinguish a model built exactly to chosen parameters from a model measured to match a real object. Do not label unperformed checks as passed.

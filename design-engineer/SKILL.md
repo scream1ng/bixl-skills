@@ -17,7 +17,7 @@ Use the available structured question tool when appropriate; otherwise send a co
 
 - Open the supplied images and geometry before describing or modeling them. Inventory usable local assets and their licenses when relevant.
 - CAD environment: reuse `~/.cache/design-engineer/venv` when it exists; otherwise create it from [requirements.txt](scripts/requirements.txt). Confirm it with `python -m unittest discover -s tests` from this skill's folder.
-- Check available tools and versions: CAD engine, Blender connection or executable, and export/preview support. A running desktop app is optional when its CLI or Python engine can do the job. Prefer an existing environment; isolate new dependencies. Do not install software merely to author a plan or this skill.
+- Check available tools and versions: CAD engine, Blender connection or executable, and export/preview support. A running desktop app is optional when its CLI or Python engine can do the job. Prefer an existing environment; isolate new dependencies.
 - Establish intended use, required output files, scale/units, important views, and the features that determine success. Derive these from the request before asking.
 - For a supplied STEP, measure its units, bounds, solids, relevant faces and datums with the CAD kernel. Keep the original file and coordinate frame intact; apply only requested edits to a working copy.
 - For an image, identify silhouette, part boundaries, symmetry, proportions, major surface transitions, and visible interfaces. A single view leaves depth and hidden geometry uncertain. Camera perspective can mimic a shape error.
@@ -33,7 +33,7 @@ Choose the reconstruction workflow from the evidence as well as the requested ou
 | Reference-matched appearance, sculpted form, scene, rendered image | Visual modeling, normally Blender | [visual-modeling.md](references/visual-modeling.md) |
 | Accurate interfaces plus a styled enclosure or presentation render | CAD for functional geometry; CAD surfaces or Blender for styling as appropriate | Read both; establish which body is authoritative |
 
-Do not replace a user's chosen application without explaining a concrete limitation. Do not require another desktop application when the available engine is sufficient. If a necessary tool is unavailable, try an appropriate supported alternative; identify any requested output that remains blocked.
+Do not replace a user's chosen application without explaining a concrete limitation. If a necessary tool is unavailable, try an appropriate supported alternative; identify any requested output that remains blocked.
 
 Images **may guide geometry**. They do not establish unseen dimensions, tolerances, material properties, or engineering validity. Freeform features are not automatically deferred: try suitable curves, section profiles, lofts, sweeps, or mesh modeling. Explain actual limitations when a requested surface cannot be constructed or verified.
 

@@ -1,6 +1,6 @@
 # Evaluate modeling reliability
 
-Use when the user requests skill testing or improvement. This procedure is not a claim that the skill has already demonstrated a given modeling quality.
+Use when the user requests skill testing or improvement.
 
 ## Small representative evaluation set
 
@@ -24,8 +24,8 @@ Start with one relevant case if that resolves the current uncertainty. Run all t
 
 Keep comparison settings consistent when assessing an improvement. More render samples, different lighting, or a new camera can conceal a geometry regression; include neutral views and CAD measurements where relevant.
 
-Independent evaluation is useful when available and authorized, but is not mandatory. Never claim independent evaluation if the same agent performed it. A table-top scenario review, a structural validator, and an executed modeling benchmark are different levels of evidence; report which actually occurred.
+Report which evidence actually occurred: table-top scenario review, structural validator, or executed modeling benchmark. Never claim independent evaluation if the same agent performed it.
 
 ## Report
 
-Link the actual artifacts and summarize the criteria that passed, failed or remain unverified. Explain any supported skill change and its retest outcome. A successful example demonstrates that case, not universal mastery of image-to-CAD reconstruction.
+Link the actual artifacts and summarize the criteria that passed, failed or remain unverified. Explain any supported skill change and its retest outcome.

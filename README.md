@@ -58,6 +58,8 @@ STEP of the formed part plus its flat pattern in, one DXF per plate out: a 100 �
 
 [SKILL.md](design-engineer/SKILL.md) · `surface_from_grid.py` needs [`scripts/requirements.txt`](design-engineer/scripts/requirements.txt) (build123d 0.13, OCP 8.0, scipy)
 
-Not released yet.
+![Workflow](engineer-flow.svg)
+
+**[Download design-engineer-v1.0.0.zip](../../releases/download/design-engineer-v1.0.0/design-engineer-v1.0.0.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-engineer`.
 
 References, ideas or an existing STEP in; an editable build123d model, a Blender visual model, or both, out. Geometry and appearance are reviewed as separate tracks, and estimated dimensions are labelled as estimates. A valid solid or a good render is not a manufacturability check.
