@@ -11,7 +11,7 @@ Do not infer applied clamping force from holding capacity. If the actual seating
 1. Choose a workpiece contact that drives the part into a nearby support without distorting a thin or unsupported region.
 2. Define the target clamp contact and force direction in the fixture work frame.
 3. Align the clamp record's closed spindle axis with the target force line.
-4. Position the spindle axis using the stored 56.9 mm reach from the base front. Set the mounting face level with the clamping surface using the shop rule below. Adjust the spindle within verified limits only; if limits are unknown, flag the selection for physical confirmation.
+4. Position the spindle axis using the stored 51.9 mm placement reach from the base front (`placement_reach_mm`: drawing 56.9 mm minus a 5 mm shop correction that moves the clamp body toward the part). Set the mounting face level with the clamping surface using the shop rule below. Adjust the spindle within verified limits only; if limits are unknown, flag the selection for physical confirmation.
 5. Transform the four mounting-hole centres from the clamp frame into the clamp-support plate frame.
 6. On the default 5 mm plate, create nominal diameter 4.2 mm pilot holes and identify them for M5 x 0.8 tapping after laser cutting.
 7. Ensure the complete base footprint lies on supported plate material with adequate edge distance and local stiffness.
@@ -35,7 +35,7 @@ Use the bundled original STEP through `hardware_geometry.py`; all 14 components 
 
 The measured slot centres are at canonical X=-5.15/-31.85 and Y=+/-11.020101 mm; slots are approximately 6.3 x 5.1 mm. The JSON retains the differing drawing dimensions as separately labelled evidence. Use the CAD-centre pattern for this asset; confirm the shop clamp variant before release.
 
-The nominal 56.9 mm reach and 25.1 mm underarm height remain planning dimensions. The imported saved pad position is reported separately and must not be asserted to equal the intended clamp contact. Complete a measured closed-pose CAD adjustment, including connected linkage parts and spindle/nuts, through the explicit CAD workflow if closed geometry is required. Preserve component identity and validate mounting, pivots, contact, intersections and intermediate motion. Do not infer a closed linkage from opening angles alone.
+The 51.9 mm placement reach (56.9 mm drawing reach less the 5 mm shop correction) and 25.1 mm underarm height remain planning dimensions. The imported saved pad position is reported separately and must not be asserted to equal the intended clamp contact. Complete a measured closed-pose CAD adjustment, including connected linkage parts and spindle/nuts, through the explicit CAD workflow if closed geometry is required. Preserve component identity and validate mounting, pivots, contact, intersections and intermediate motion. Do not infer a closed linkage from opening angles alone.
 
 ## Standard mount plate
 

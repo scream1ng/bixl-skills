@@ -478,35 +478,35 @@
       ],
       "outer": [
         [
-          84.0,
+          79.0,
           0.0
         ],
         [
-          84.0,
+          79.0,
           61.0
         ],
         [
-          127.0,
+          122.0,
           61.0
         ],
         [
-          127.0,
+          122.0,
           0.0
         ],
         [
-          102.6,
+          97.6,
           0.0
         ],
         [
-          102.6,
+          97.6,
           20.0
         ],
         [
-          97.4,
+          92.4,
           20.0
         ],
         [
-          97.4,
+          92.4,
           0.0
         ]
       ],
@@ -540,35 +540,35 @@
       ],
       "outer": [
         [
-          84.0,
+          79.0,
           0.0
         ],
         [
-          84.0,
+          79.0,
           61.0
         ],
         [
-          127.0,
+          122.0,
           61.0
         ],
         [
-          127.0,
+          122.0,
           0.0
         ],
         [
-          102.6,
+          97.6,
           0.0
         ],
         [
-          102.6,
+          97.6,
           20.0
         ],
         [
-          97.4,
+          92.4,
           20.0
         ],
         [
-          97.4,
+          92.4,
           0.0
         ]
       ],
@@ -603,19 +603,19 @@
       "outer": [
         [
           -30,
-          80.4
+          75.4
         ],
         [
           30,
-          80.4
+          75.4
         ],
         [
           30,
-          130.4
+          125.4
         ],
         [
           -30,
-          130.4
+          125.4
         ]
       ],
       "holes": [],
@@ -625,10 +625,6 @@
       "name": "X1",
       "part_number": "FP08",
       "role": "Cross brace",
-      "brace_merge_exception": {
-        "with": "X2",
-        "reason": "SYNTHETIC EXAMPLE, not a user decision: twin brace pair kept to exercise same-part-number (FP08 x2) tab families; a real fixture merges them"
-      },
       "origin": [
         -12.0,
         0.0,
@@ -701,7 +697,11 @@
       ],
       "holes": [],
       "contacts": [],
-      "seat": "BASE"
+      "seat": "BASE",
+      "brace_merge_exception": {
+        "with": "X2",
+        "reason": "SYNTHETIC EXAMPLE, not a user decision: twin brace pair kept to exercise same-part-number (FP08 x2) tab families; a real fixture merges them"
+      }
     },
     {
       "name": "X2",
@@ -927,7 +927,7 @@
       "role": "Cross brace",
       "origin": [
         0.0,
-        100.0,
+        95.0,
         0.0
       ],
       "u": [
@@ -1090,7 +1090,7 @@
       "b": "XK",
       "xy": [
         -22.0,
-        100.0
+        95.0
       ],
       "lap_height_mm": 40.0,
       "slot_width_mm": 5.2,
@@ -1102,7 +1102,7 @@
       "b": "XK",
       "xy": [
         22.0,
-        100.0
+        95.0
       ],
       "lap_height_mm": 40.0,
       "slot_width_mm": 5.2,

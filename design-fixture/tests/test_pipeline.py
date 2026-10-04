@@ -74,7 +74,7 @@ class FixtureTests(unittest.TestCase):
         mount(s);self.assertEqual(len(s['plates'][0]['holes']),8)
     def test_hole_conflict_rejected(self):
         s=load_spec(self.spec_file);p=next(p for p in s['plates'] if p['name']=='P_T1')
-        p['holes'].append([[-15,89],[-7,89],[-7,97],[-15,97]])
+        p['holes'].append([[-15,84],[-7,84],[-7,92],[-15,92]])
         with self.assertRaisesRegex(ValueError,'conflicts'):mount(s)
     def test_wrong_contact_direction_rejected(self):
         shapes=read_step(self.step);_,target=resolve_part(shapes,'Part_Plate')

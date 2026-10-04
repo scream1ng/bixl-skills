@@ -18,7 +18,7 @@ Measure bush ID/OD/length, required travel, engagement until the tip disengages,
 
 Read [hardware/gh-201-b.json](hardware/gh-201-b.json). Verify the bundled STEP SHA-256 before use. Preserve all 14 component occurrence placements and use one rigid mounting transform; do not replace the mechanism with blocks. Use the recorded `source_to_canonical` transform and measured CAD mounting-slot centres, not the differing nominal drawing pattern.
 
-The saved spindle is tilted about 24.5 degrees and is not a verified closed pose. Its 56.9 mm nominal reach is a planning value. Either derive and verify physically connected closed/open linkage poses or label the hardware as a saved-pose reference and keep operating checks unknown. Never rotate the entire mounted clamp or shift only its pad to fake closure. Preserve source geometry and record any legitimate mechanism articulation.
+The saved spindle is tilted about 24.5 degrees and is not a verified closed pose. Its 51.9 mm placement reach (56.9 mm drawing reach less a 5 mm shop correction) is a planning value. Either derive and verify physically connected closed/open linkage poses or label the hardware as a saved-pose reference and keep operating checks unknown. Never rotate the entire mounted clamp or shift only its pad to fake closure. Preserve source geometry and record any legitimate mechanism articulation.
 
 Default the mounting face to the level of the part's intended clamping surface, measured along the contact normal. For a horizontal 5 mm cap, cap centre is H-2.5 and supporting cheek tops H-5. Measure these on reopened CAD. A deliberate alternative requires explicit operating-geometry evidence. Equal levels do not prove toggle lock, pad seating or spindle range.
 

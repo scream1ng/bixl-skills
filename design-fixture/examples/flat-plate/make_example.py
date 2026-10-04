@@ -61,10 +61,10 @@ plates = [
     # Tertiary rib: edge at local x = -80 (world x = -80) touches the short edge.
     rib_xz("C1", "FP05", 0.0, rect(-115, 0, -80, 70), ["C1"]),
     # Clamp support: two identical cheeks under a horizontal mount plate.
-    rib_yz("K1", "FP06", -22.0, rect(84, 0, 127, 61), [], "Clamp support cheek"),
-    rib_yz("K2", "FP06", 22.0, rect(84, 0, 127, 61), [], "Clamp support cheek"),
+    rib_yz("K1", "FP06", -22.0, rect(79, 0, 122, 61), [], "Clamp support cheek"),
+    rib_yz("K2", "FP06", 22.0, rect(79, 0, 122, 61), [], "Clamp support cheek"),
     {"name": "P_T1", "part_number": "FP07", "role": "GH-201-B mount plate; M5 x 0.8 tap after laser",
-     "origin": [0.0, 0.0, 63.5], "u": X, "v": Y, "w": Z, "outer": rect(-30, 80.4, 30, 130.4), "holes": [], "contacts": []},
+     "origin": [0.0, 0.0, 63.5], "u": X, "v": Y, "w": Z, "outer": rect(-30, 75.4, 30, 125.4), "holes": [], "contacts": []},
 ]
 BRACE_H, SLOT_W = 40.0, 5.2  # brace height = lap height; slot = 5 mm stock + 0.2 mm clearance
 plates += [
@@ -73,7 +73,7 @@ plates += [
     rib_yz("X2", "FP08", 12.0, rect(-45, 0, 45, BRACE_H), [], "Cross brace"),
     rib_xz("XS", "FP09", -70.0, rect(-55, 0, 55, BRACE_H), [], "Cross brace"),
     rib_yz("XC", "FP10", -100.0, rect(-30, 0, 30, BRACE_H), [], "Cross brace"),
-    rib_xz("XK", "FP11", 100.0, rect(-35, 0, 35, BRACE_H), [], "Cross brace"),
+    rib_xz("XK", "FP11", 95.0, rect(-35, 0, 35, BRACE_H), [], "Cross brace"),
 ]
 joints = []
 
@@ -93,7 +93,7 @@ def cross(upright, brace, xy):
 
 for upright, brace, xy in [("R1", "X1", [-12.0, -30.0]), ("R1", "X2", [12.0, -30.0]), ("R2", "X1", [-12.0, 30.0]),
                            ("R2", "X2", [12.0, 30.0]), ("S1", "XS", [-40.0, -70.0]), ("S2", "XS", [40.0, -70.0]),
-                           ("C1", "XC", [-100.0, 0.0]), ("K1", "XK", [-22.0, 100.0]), ("K2", "XK", [22.0, 100.0])]:
+                           ("C1", "XC", [-100.0, 0.0]), ("K1", "XK", [-22.0, 95.0]), ("K2", "XK", [22.0, 95.0])]:
     cross(upright, brace, xy)
 
 
