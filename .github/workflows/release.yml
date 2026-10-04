@@ -1,11 +1,11 @@
-# Manual release: same zip and tag as release.sh, run on GitHub.
+# Release without local gh: push .github/release-requests/<skill>-<version>.md (contents = notes),
+# or run manually. Builds the same zip and tag as release.sh; existing releases are skipped.
 name: release
 on:
+  push:
+    branches: [main]
+    paths: ['.github/release-requests/*.md']
   workflow_dispatch:
-    inputs:
-      skill: {description: "Skill folder", required: true}
-      version: {description: "Version, e.g. v1.5.2", required: true}
-      notes: {description: "Release notes", required: true}
 permissions:
   contents: write
 jobs:
@@ -15,10 +15,11 @@ jobs:
       - uses: actions/checkout@v4
       - env:
           GH_TOKEN: ${{ github.token }}
-          SKILL: ${{ inputs.skill }}
-          VERSION: ${{ inputs.version }}
-          NOTES: ${{ inputs.notes }}
         run: |
-          tag="$SKILL-$VERSION"
-          (cd "$SKILL" && zip -qr "$RUNNER_TEMP/$tag.zip" . -x '*__pycache__*' '*.pyc' '*.DS_Store' '*.fixture-cache*')
-          gh release create "$tag" "$RUNNER_TEMP/$tag.zip" --target "$GITHUB_SHA" --title "$SKILL $VERSION" --notes "$NOTES"
+          for f in .github/release-requests/*.md; do
+            tag=$(basename "$f" .md); skill=${tag%-v*}; version=${tag##*-}
+            gh release view "$tag" >/dev/null 2>&1 && continue
+            [ -f "$skill/SKILL.md" ] || { echo "no skill folder for $tag" >&2; exit 1; }
+            (cd "$skill" && zip -qr "$RUNNER_TEMP/$tag.zip" . -x '*__pycache__*' '*.pyc' '*.DS_Store' '*.fixture-cache*')
+            gh release create "$tag" "$RUNNER_TEMP/$tag.zip" --target "$GITHUB_SHA" --title "$skill $version" --notes-file "$f"
+          done

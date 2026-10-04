@@ -1,0 +1,1 @@
+- GH-201-B clamp body placed 5 mm closer to the part (placement reach 51.9 mm)
