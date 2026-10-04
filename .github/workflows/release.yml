@@ -1,0 +1,24 @@
+# Manual release: same zip and tag as release.sh, run on GitHub.
+name: release
+on:
+  workflow_dispatch:
+    inputs:
+      skill: {description: "Skill folder", required: true}
+      version: {description: "Version, e.g. v1.5.2", required: true}
+      notes: {description: "Release notes", required: true}
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          SKILL: ${{ inputs.skill }}
+          VERSION: ${{ inputs.version }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          tag="$SKILL-$VERSION"
+          (cd "$SKILL" && zip -qr "$RUNNER_TEMP/$tag.zip" . -x '*__pycache__*' '*.pyc' '*.DS_Store' '*.fixture-cache*')
+          gh release create "$tag" "$RUNNER_TEMP/$tag.zip" --target "$GITHUB_SHA" --title "$SKILL $VERSION" --notes "$NOTES"
