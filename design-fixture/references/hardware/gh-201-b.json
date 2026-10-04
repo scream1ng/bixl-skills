@@ -112,6 +112,8 @@
   "closed_geometry": {
     "underarm_height_mm": 25.1,
     "reach_base_front_to_spindle_axis_mm": 56.9,
+    "placement_reach_mm": 51.9,
+    "placement_reach_basis": "Shop correction from a built fixture: drawing reach minus 5 mm, so the clamp body sits 5 mm closer to the workpiece. clamp_mount.py places the base from this value; the drawing reach is kept as source evidence.",
     "arm_pivot_canonical_mm": [
       0.0,
       0.0,

@@ -132,10 +132,10 @@ class HardwareTests(unittest.TestCase):
         p['mount_design']={'layout_reason':'test','compact_alternative_considered':'test'}
         self.assertEqual(mount_audit(s)['status'],'unknown')
     def test_standard_plate_passes_size_screen(self):
-        s=copy.deepcopy(self.spec);p=next(p for p in s['plates'] if p['name']=='P_T1');p['outer']=[[-30,80.4],[30,80.4],[30,130.4],[-30,130.4]]
+        s=copy.deepcopy(self.spec);p=next(p for p in s['plates'] if p['name']=='P_T1');p['outer']=[[-30,75.4],[30,75.4],[30,125.4],[-30,125.4]]
         self.assertEqual(mount_audit(s)['status'],'pass')
     def test_non_standard_small_plate_needs_reason(self):
-        s=copy.deepcopy(self.spec);p=next(p for p in s['plates'] if p['name']=='P_T1');p.pop('mount_design',None);p['outer']=[[-26,78],[26,78],[26,132],[-26,132]];p['holes']=[]
+        s=copy.deepcopy(self.spec);p=next(p for p in s['plates'] if p['name']=='P_T1');p.pop('mount_design',None);p['outer']=[[-26,73],[26,73],[26,127],[-26,127]];p['holes']=[]
         self.assertEqual(mount_audit(s)['status'],'fail')
     def test_standard_cap_uses_hardware_ligament(self):
         from clamp_mount import min_width_for

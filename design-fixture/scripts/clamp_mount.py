@@ -2,7 +2,8 @@
 """Place a toggle-clamp mounting pattern on its mount plate from the clamp contact and force direction.
 
 Hardware canonical frame (references/hardware/<id>.json): origin at base front edge on the mounting
-plane, +x toward the pad, +z away from the mounting plane; spindle axis at x = reach.
+plane, +x toward the pad, +z away from the mounting plane; spindle axis at x = reach
+(closed_geometry.placement_reach_mm when present, else the drawing reach).
 Given contact c, surface normal n (force = -n) and arm direction a:
   z = n, x = a projected normal to z, y = z x x; mounting face F = mount-plate face on the +z side;
   origin O = c - x*reach + z*((F - c).z). Holes = O + x*hx + y*hy, mapped to plate-local coordinates.
@@ -56,7 +57,8 @@ def place(clamp, plate, T, min_width, segments=32):
     assert abs(abs(W @ z) - 1) < 1e-6, f"{plate['name']}: mount plate is not normal to the clamp axis"
     face = o + W * (T / 2) * np.sign(W @ z)
     c = np.array(clamp["contact"], float)
-    reach = hw["closed_geometry"]["reach_base_front_to_spindle_axis_mm"]
+    cg = hw["closed_geometry"]
+    reach = cg.get("placement_reach_mm", cg["reach_base_front_to_spindle_axis_mm"])
     underarm = hw["closed_geometry"]["underarm_height_mm"]
     O = c - x * reach + z * ((face - c) @ z)
     local = lambda p: [float((p - o) @ U), float((p - o) @ V)]
