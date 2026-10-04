@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design Engineer"
+  short_description: "Develop image references and ideas into reviewed CAD"
+  default_prompt: "Use $design-engineer to develop my reference or idea into a detailed model, verify it, and refine the preview."

@@ -8,6 +8,7 @@ Backwell IXL assistant skills. Each [release](../../releases) carries one skill 
 | [draft-drawing](#draft-drawing) | Draft A3 shop drawing of a sheet-metal part or weldment from a STEP file |
 | [costing](#costing) | Sheet-metal fabrication cost estimate from a drawing or STEP file |
 | [design-backbar](#design-backbar) | Laser-cut backgauge jig plates for bends where the blank edge is not parallel to the bend |
+| [design-engineer](#design-engineer) | Product ideas, photos, sketches or STEP parts into visual models or dimensioned CAD |
 
 ## design-fixture
 
@@ -52,3 +53,11 @@ Drawing in, internal budget estimate out: per-part laser, bend, weld and finish 
 **[Download design-backbar-v1.1.1.zip](../../releases/download/design-backbar-v1.1.1/design-backbar-v1.1.1.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-backbar`.
 
 STEP of the formed part plus its flat pattern in, one DXF per plate out: a 100 × 6 mm plate over the LVD backgauge finger with a pocket cut to the blank outline + 0.1 mm, so a slanted blank edge gauges square on a blank cut without tabs. Parallel bends gauged from the same end share one plate. For CADMAN-B it also writes the folded part as a STEP with a 5 mm gauge tab whose edge lies on the blank-tip line; the tab exists only in that STEP. The preview takes pinned review comments. Every number comes from exact OCP geometry. Die, punch and flange collisions, backgauge reach and bend order are not checked. A part that does not fit the standard plate is an error, not a resized plate.
+
+## design-engineer
+
+[SKILL.md](design-engineer/SKILL.md) · `surface_from_grid.py` needs [`scripts/requirements.txt`](design-engineer/scripts/requirements.txt) (build123d 0.13, OCP 8.0, scipy)
+
+Not released yet.
+
+References, ideas or an existing STEP in; an editable build123d model, a Blender visual model, or both, out. Geometry and appearance are reviewed as separate tracks, and estimated dimensions are labelled as estimates. A valid solid or a good render is not a manufacturability check.
