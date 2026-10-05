@@ -1,13 +1,15 @@
 interface:
-  display_name: "design backbar"
-  short_description: "v1.2 · STEP to backbar DXFs and gauge-tab STEP"
-  default_prompt: "Use $design-backbar to create the required backbar DXFs, formed STEP with gauge tabs, and a commentable preview from this STEP; trim only when I request it."
-  icon_small: "./assets/icon.svg"
-  icon_large: "./assets/icon.svg"
+  display_name: design backbar
+  short_description: v1.4 · STEP to backbar DXFs and gauge-tab STEP
+  default_prompt: Use $design-backbar to create the required backbar DXFs, formed
+    STEP with gauge tabs, and a commentable preview from this STEP; trim only when
+    I request it.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
 policy:
   products:
-  - "chatgpt"
-  - "codex"
-  - "api"
-  - "atlas"
+  - chatgpt
+  - codex
+  - api
+  - atlas
   allow_implicit_invocation: true

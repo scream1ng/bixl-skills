@@ -3,6 +3,7 @@
 import argparse,json,math,os,re,sys
 from pathlib import Path
 import geometry as g
+from OCP.ShapeUpgrade import ShapeUpgrade_UnifySameDomain
 from unfold import unfold,straight_endpoints
 
 def gauge_check(o):
@@ -22,11 +23,31 @@ def gauge_check(o):
 def select(blank,bends,i,sides):
     if i in sides:o=g.choose_end(blank,bends,i,sides[i])
     else:
-        # Prefer an unobstructed end; otherwise use the nearest with an explicit
-        # requirement to keep the intervening bends flat. This is not a bend simulation.
+        # Prefer an unobstructed end; otherwise prefer direct gauging, then distance.
         o=g.choose_end(blank,bends,i,None)
-        if o is None:o=min([g.choose_end(blank,bends,i,s) for s in [1,-1]],key=lambda v:v['tip'])
+        if o is None:o=min([g.choose_end(blank,bends,i,s) for s in [1,-1]],key=lambda v:(not gauge_check(v)['direct'],v['tip']))
     bends[i]['T']=o['T'];return o
+
+def gauge_order(ends):
+    """Order only the requirements that intervening regions stay flat."""
+    remaining={i+1:set(o['between']) for i,o in enumerate(ends)};order=[]
+    while remaining:
+        ready=[i for i in remaining if not any(i in deps for deps in remaining.values())]
+        if not ready:raise ValueError('Conflicting gauge dependencies for bend(s) '+', '.join(map(str,remaining))+'; choose another gauging end with --side.')
+        i=min(ready);order.append(i);del remaining[i]
+    return order
+
+def join_tab(o,tab,carriers,formed,t):
+    pc=g.moved(tab['piece'],o['T'].Inverted());touch=[]
+    for c in carriers:
+        d=g.BRepExtrema_DistShapeShape(c['flat'],pc);d.Perform()
+        if d.Value()<.002:touch.append(c)
+    if len(touch)!=1 or touch[0]['to_formed'] is None:raise ValueError('Tab cannot be mapped unambiguously to one formed flange.')
+    solid=g.BRepPrimAPI_MakePrism(pc,g.gp_Vec(0,0,-t)).Shape();solid=g.moved(solid,touch[0]['to_formed'])
+    joined=g.BRepAlgoAPI_Fuse(formed,solid).Shape()
+    if not g.BRepCheck_Analyzer(joined).IsValid() or len(g.sub(joined,g.TopAbs_SOLID,g.TopoDS.Solid_s))!=1:
+        raise ValueError('Tab did not join the formed part as one valid solid.')
+    return joined,solid,pc
 
 def read_input(path,flat_index):
     r=g.STEPControl_Reader()
@@ -92,7 +113,20 @@ def apply_trim(blank,part,bends,carriers,index,sides):
     if not gauge_check(select(revised,bends,index,sides))['direct']:raise ValueError('Trim did not establish a usable parallel gauge edge.')
     return revised,part,dict(bend=index+1,max_trim_mm=round(depth,4),removed_area_mm2=round(g.area(blank)-g.area(revised),4))
 
-def checked_step(shape,path):
+def merge_step_faces(shape):
+    """Remove coplanar tab/flange divisions without relaxing geometry tolerances."""
+    before=g.volume(shape);count=len(g.faces(shape))
+    merge=ShapeUpgrade_UnifySameDomain(shape,True,True,False)
+    merge.SetLinearTolerance(1e-7);merge.SetAngularTolerance(1e-7);merge.Build()
+    result=merge.Shape();delta=abs(g.volume(result)-before);limit=max(.1,.001*abs(before))
+    if not g.BRepCheck_Analyzer(result).IsValid() or len(g.sub(result,g.TopAbs_SOLID,g.TopoDS.Solid_s))!=1 or delta>min(.5,limit):
+        raise ValueError('Coplanar face merging did not preserve one valid solid and its volume.')
+    if max(abs(a-b) for a,b in zip(g.bbox(shape),g.bbox(result)))>.001:
+        raise ValueError('Coplanar face merging changed the part bounds.')
+    return result,dict(faces_before_merge=count,faces_after_merge=len(g.faces(result)),merge_volume_difference_mm3=round(delta,6))
+
+
+def checked_step(shape,path,tabs=()):
     """Documented engineering tolerance, unchanged by task results."""
     valid=g.BRepCheck_Analyzer(shape).IsValid();solids=g.sub(shape,g.TopAbs_SOLID,g.TopoDS.Solid_s)
     if not valid or len(solids)!=1:raise ValueError('Programming STEP is not one valid solid.')
@@ -102,7 +136,12 @@ def checked_step(shape,path):
     back=r.OneShape();delta=abs(g.volume(back)-g.volume(shape));limit=max(.5,1e-5*abs(g.volume(shape)))
     if len(g.sub(back,g.TopAbs_SOLID,g.TopoDS.Solid_s))!=1 or not g.BRepCheck_Analyzer(back).IsValid() or delta>limit:
         path.unlink(missing_ok=True);raise ValueError('STEP readback did not preserve valid geometry within the documented volume tolerance.')
-    return dict(volume_difference_mm3=round(delta,6),volume_tolerance_mm3=round(limit,6))
+    for tab in tabs:
+        retained=g.BRepAlgoAPI_Common(back,tab).Shape();volume=g.volume(tab)
+        if abs(g.volume(retained)-volume)>max(.1,.001*volume):
+            path.unlink(missing_ok=True);raise ValueError('STEP readback did not preserve a programming tab.')
+    return dict(volume_difference_mm3=round(delta,6),volume_tolerance_mm3=round(limit,6),
+                strict_geometry_valid=g.BRepCheck_Analyzer(back,True,False,True).IsValid(),tabs_verified=len(tabs))
 
 def main():
     global T_THICKNESS
@@ -121,14 +160,19 @@ def main():
         at[int(k)-1]=float(x)
     if not 10<=a.wrap<=20 or not 2<=a.tab_width<=20 or a.die_clear<0:raise ValueError('Use wrap 10–20 mm, tab width 2–20 mm and non-negative die clearance.')
     part,blank,bends,t,carriers,estimated=read_input(a.step,a.flat);T_THICKNESS=t
+    source_strict=g.BRepCheck_Analyzer(part,True,False,True).IsValid()
     if any(i<0 or i>=len(bends) for i in [*sides,*at,*[j-1 for j in a.trim_for]]):raise ValueError('An option names a bend that is not present.')
     trims=[]
     for i in a.trim_for:
         blank,part,change=apply_trim(blank,part,bends,carriers,i-1,sides);trims.append(change)
+    order=gauge_order([select(blank,bends,i,sides) for i in range(len(bends))])
     outdir=Path(a.out);outdir.mkdir(parents=True,exist_ok=True)
     title=re.sub(r'[^A-Za-z0-9_.-]+','_',Path(a.step).stem).strip('_');rows=[];tabbed=blank;prisms=[];formed=part;expected=0.;notes=[]
     if estimated:notes.append('ESTIMATED unfolding from formed geometry; K=0.50 neutral-axis assumption. Bend-transition edges are approximated. Verify the jig against a production blank.')
     else:notes.append('Flat pattern supplied in the STEP; original bend regions are used.')
+    notes.append('Gauge-dependency order: '+', '.join(f'B{i}' for i in order)+'. This orders flat-region requirements only; tooling collisions and backgauge travel are unverified.')
+    if not source_strict:
+        notes.append('The source formed STEP already has strict surface/edge warnings. Assess source and output warnings separately; software import remains unconfirmed.')
     for change in trims:notes.append(f"User-requested trim for B{change['bend']}: maximum {change['max_trim_mm']:.4f} mm. Applied to the real blank, jig pockets and programming STEP.")
     for i,bend in enumerate(bends):
         o=select(blank,bends,i,sides);check=gauge_check(o)
@@ -153,14 +197,22 @@ def main():
                         p['tab']=dict(skipped=f"Uses the programming tab already added for B{previous['bend']}.")
                         break
             if 'piece' in p['tab']:
-                pc=g.moved(p['tab']['piece'],o['T'].Inverted())
-                touch=[]
-                for c in carriers:
-                    d=g.BRepExtrema_DistShapeShape(c['flat'],pc);d.Perform()
-                    if d.Value()<.002:touch.append(c)
-                if len(touch)!=1 or touch[0]['to_formed'] is None:raise ValueError(f'B{i+1}: tab cannot be mapped unambiguously to one formed flange.')
-                solid=g.BRepPrimAPI_MakePrism(pc,g.gp_Vec(0,0,-t)).Shape();solid=g.moved(solid,touch[0]['to_formed'])
-                formed=g.BRepAlgoAPI_Fuse(formed,solid).Shape();prisms.append(solid);expected+=g.area(pc)*t
+                try:joined,solid,pc=join_tab(o,p['tab'],carriers,formed,t)
+                except ValueError as error:
+                    if i in at:raise ValueError(f'B{i+1}: {error} Explicit tab position was not moved.')
+                    distance=p['tab']['x_out']-p['tab']['t0'];sign=1 if distance>0 else -1
+                    distance=abs(distance)-a.tab_width/2
+                    while distance>=a.tab_width+.5:
+                        retry=g.build_tab(o,bend['half']+.01,blank,sign*distance,a.tab_width,[])
+                        distance-=a.tab_width/2
+                        if 'piece' not in retry or max(retry['heights_mm'])>g.TAB_H_MAX:continue
+                        try:joined,solid,pc=join_tab(o,retry,carriers,formed,t)
+                        except ValueError:continue
+                        retry['placed']='join retry';p['tab']=retry
+                        p['warnings'].append('Automatic tab moved toward the blank tip to join one valid formed solid.')
+                        break
+                    else:raise ValueError(f'B{i+1}: {error} No valid automatic tab position was found.')
+                formed=joined;prisms.append(solid);expected+=g.area(pc)*t
                 tabbed=g.one_face(g.BRepAlgoAPI_Fuse(tabbed,pc).Shape())
                 if tabbed is None:raise ValueError('Tab did not join the flat outline.')
                 expected=(g.area(tabbed)-g.area(blank))*t
@@ -181,7 +233,9 @@ def main():
             if g.bbox(pc)[4]>p['tip']+.001:
                 p['warnings'].append(f"The programming tab for B{q['bend']} projects beyond this bend's gauge line; select the intended B{p['bend']} gauge edge in CADMAN-B.")
     if abs(g.volume(formed)-g.volume(part)-expected)>max(.1,.001*expected):raise ValueError('Added tab volume does not agree with tab area × thickness.')
-    step=f'{title}_with_tabs.step';verification=checked_step(formed,outdir/step)
+    formed,merge=merge_step_faces(formed)
+    step=f'{title}_with_tabs.step';verification=checked_step(formed,outdir/step,prisms);verification.update(merge)
+    if not verification['strict_geometry_valid']:notes.append('Strict surface/edge analysis reports residual geometry warnings. Basic solid and tab-retention checks passed; SolidWorks/CADMAN-B compatibility is not confirmed by these checks.')
     for p in rows:
         if 'plate' in p and 'same_plate_as' not in p:
             g.write_dxf(p['plate'],str(outdir/p['dxf']))
@@ -190,7 +244,7 @@ def main():
     notes += ['Real blanks are manufactured without the programming tabs. Pocket geometry follows the real blank.',
               'Jig plates: 100 mm wide × 6 mm thick, 50.2 × 20 mm finger slot, 20 mm nominal wrap and 0.1 mm contour clearance.',
               'For jig-assisted bends only, finger tip sits 50 mm behind the programmed gauge line. Direct-gauge bends have no jig offset.',
-              'Check each plate-front distance against the actual die. The default 8 mm minimum is an assumption. Tooling collisions, backgauge travel, finger height and complete bend sequence have not been simulated.',
+              f'Check each plate-front distance against the actual die. The {a.die_clear:g} mm minimum is an assumption. Tooling collisions, backgauge travel, finger height and complete bend sequence have not been simulated.',
               f"STEP readback: one valid solid; volume difference {verification['volume_difference_mm3']:.6f} mm³ (limit {verification['volume_tolerance_mm3']:.6f} mm³)."]
     iso=g.iso_svg(formed,prisms,g.gp_Trsf())
     preview=f'{title}_preview.html';g.preview(str(outdir/preview),title,blank,tabbed,bends,rows,t,notes,iso,step)

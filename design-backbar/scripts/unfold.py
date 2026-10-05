@@ -5,6 +5,8 @@ are estimated from paired skin areas and tangent-edge lengths (K=0.5).
 import math
 import numpy as np
 import geometry as g
+from OCP.BRepClass import BRepClass_FaceClassifier
+from OCP.TopAbs import TopAbs_IN
 
 V=lambda p:np.asarray(p,dtype=float)
 def unit(v):
@@ -44,6 +46,16 @@ def straight_endpoints(edge):
 def strip_width(face,e1,e2):
     a,z=straight_endpoints(e1);c,d=straight_endpoints(e2)
     return g.area(face)/((np.linalg.norm(z-a)+np.linalg.norm(d-c))/2)
+
+def interior_direction(face,edge):
+    """Find material beside the tangent, including edges inside concave notches."""
+    a,z=straight_endpoints(edge);mid=(a+z)/2
+    direction=unit(np.cross(V(g.outward(face)),unit(z-a)))
+    for distance in (.001,.01,.1):
+        inside=[sign for sign in (1,-1) if BRepClass_FaceClassifier(
+            face,g.gp_Pnt(*map(float,mid+sign*distance*direction)),1e-7).State()==TopAbs_IN]
+        if len(inside)==1:return inside[0]*direction
+    raise ValueError('Cannot identify material beside a bend tangent.')
 
 def unfold(formed):
     fs=g.faces(formed)
@@ -96,11 +108,11 @@ def unfold(formed):
             if abs(np.dot(unit(c1-c0),d))<.99999:raise ValueError('Nonparallel bend tangents are unsupported.')
             if np.dot(c1-c0,d)<0:c0,c1=c1,c0
             mp=maps[parent];q0,q1=mp(p0),mp(p1);D=unit(q1-q0);N=V([-D[1],D[0]])
-            if np.dot(mp(g.centroid(fs[parent]))-q0,N)>0:N=-N
+            inside=interior_direction(fs[parent],ep)
+            if np.dot(mp((p0+p1)/2+inside)-mp((p0+p1)/2),N)>0:N=-N
             lowe1=shared(fs[pairs[parent]],fs[lower]);lowe2=shared(fs[pairs[child]],fs[lower])
             ba=(strip_width(fs[strip],ep,ec)+strip_width(fs[lower],lowe1,lowe2))/2
-            cn=V(g.outward(fs[child]));out=unit(np.cross(cn,d))
-            if np.dot(V(g.centroid(fs[child]))-c0,out)<0:out=-out
+            cn=V(g.outward(fs[child]));out=interior_direction(fs[child],ec)
             cq=q0+D*np.dot(c0-p0,d)+N*ba
             def mapping(p,c0=c0.copy(),cq=cq.copy(),d=d.copy(),out=out.copy(),D=D.copy(),N=N.copy()):
                 return cq+D*np.dot(V(p)-c0,d)+N*np.dot(V(p)-c0,out)

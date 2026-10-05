@@ -42,8 +42,43 @@ class Workflow(unittest.TestCase):
     def test_nearly_parallel_does_not_trim(self):
         r,out=self.run_case('nearly_parallel');self.check_files(r,out)
         self.assertFalse(r['plates'][0]['gauging']['direct']);self.assertEqual(len(list(out.glob('*.dxf'))),1)
+    def test_export_merges_coplanar_faces_and_retains_tab(self):
+        from backbar import merge_step_faces,checked_step
+        base=g.BRepPrimAPI_MakePrism(g.rect(0,0,20,20),g.gp_Vec(0,0,2)).Shape()
+        tab=g.BRepPrimAPI_MakePrism(g.rect(5,20,10,25),g.gp_Vec(0,0,2)).Shape()
+        raw=g.BRepAlgoAPI_Fuse(base,tab).Shape()
+        merged,info=merge_step_faces(raw)
+        self.assertEqual(info['faces_before_merge']-info['faces_after_merge'],2)
+        self.assertAlmostEqual(g.volume(merged),g.volume(raw),places=6)
+        path=self.root/'merged_tab.step';verified=checked_step(merged,path,[tab])
+        self.assertEqual(verified['tabs_verified'],1)
+        reader=g.STEPControl_Reader();reader.ReadFile(str(path));reader.TransferRoots()
+        self.assertEqual(len(g.faces(reader.OneShape())),info['faces_after_merge'])
+    def test_export_rejects_missing_tab(self):
+        from backbar import checked_step
+        base=g.BRepPrimAPI_MakePrism(g.rect(0,0,20,20),g.gp_Vec(0,0,2)).Shape()
+        tab=g.BRepPrimAPI_MakePrism(g.rect(5,20,10,25),g.gp_Vec(0,0,2)).Shape()
+        path=self.root/'missing_tab.step'
+        with self.assertRaisesRegex(ValueError,'programming tab'):
+            checked_step(base,path,[tab])
+        self.assertFalse(path.exists())
     def test_invalid_option_no_deliverables(self):
         out=self.root/'invalid';r=subprocess.run([sys.executable,str(SCRIPT),str(self.root/'angled.step'),str(out),'--trim-for','99'],capture_output=True,text=True)
         self.assertNotEqual(r.returncode,0);self.assertFalse(out.exists())
+    def test_point_contact_tab_is_rejected_before_export(self):
+        from backbar import join_tab
+        face=g.rect(0,0,20,20);formed=g.BRepPrimAPI_MakePrism(face,g.gp_Vec(0,0,-2)).Shape()
+        carriers=[dict(flat=face,to_formed=g.gp_Trsf())];o=dict(T=g.gp_Trsf())
+        with self.assertRaisesRegex(ValueError,'one valid solid'):
+            join_tab(o,dict(piece=g.rect(20,20,25,25)),carriers,formed,2)
+        joined,solid,pc=join_tab(o,dict(piece=g.rect(5,20,10,25)),carriers,formed,2)
+        self.assertEqual(len(g.sub(joined,g.TopAbs_SOLID,g.TopoDS.Solid_s)),1)
+        self.assertAlmostEqual(g.volume(joined)-g.volume(formed),g.area(pc)*2)
+    def test_gauge_dependency_order_and_cycle_refusal(self):
+        from backbar import gauge_order
+        ends=[dict(between=[]),dict(between=[1]),dict(between=[1,2])]
+        self.assertEqual(gauge_order(ends),[3,2,1])
+        with self.assertRaisesRegex(ValueError,'Conflicting gauge dependencies'):
+            gauge_order([dict(between=[2]),dict(between=[1])])
 
 if __name__=='__main__':unittest.main()

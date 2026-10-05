@@ -1,6 +1,6 @@
 ---
 name: design-backbar
-description: "v1.2 · Design LVD press-brake backbar jigs from one STEP file. Use a supplied flat pattern or estimate unfolding from the formed part; check direct gauging first, then deliver only required backbar DXFs and a formed STEP with programming gauge tabs, plus a commentable HTML preview. Trimming is only applied when explicitly requested in a user message or preview comment."
+description: "v1.4 · Design LVD press-brake backbar jigs from one STEP file. Use a supplied flat pattern or estimate unfolding from the formed part; check direct gauging first, then deliver only required backbar DXFs and a formed STEP with programming gauge tabs, plus a commentable HTML preview. Trimming is only applied when explicitly requested in a user message or preview comment."
 ---
 
 # Design Backbar
@@ -31,6 +31,7 @@ Use trimming only when explicitly requested in the user's message or a pasted pr
 1. Run the bundled script on the STEP. Inspect every bend's direct-gauge classification before discussing plates.
 2. If a genuine parallel contact edge at least 10 mm long exists at the chosen end, use direct gauging: no plate, no tab and no +50 mm offset. Do not silently treat a nearly parallel edge as parallel.
 3. For other bends, generate the contour pocket and the programming tab together. Reuse identical plates when their shape and position agree.
+   If an automatic tab does not join one valid formed solid, retry positions toward the same blank tip within the 10 mm automatic height limit. Preserve the gauge line and tab width. Never move an explicitly positioned tab automatically; report its failure.
 4. If the user requests a trim or provides pinned comments, rerun with the appropriate option. Trimming must not be inferred from a near-parallel result.
 5. Check the report, STEP validation and preview. Render the preview or extract its SVGs for visual inspection. Highlight tabs clearly; never call an unvalidated result production-ready.
 6. Save and deliver the DXFs, formed STEP and HTML preview. State estimated unfolding assumptions and any bend-order or tooling constraints.
@@ -88,6 +89,7 @@ For formed-only input, `scripts/unfold.py`:
 - Infers thickness from paired planar faces.
 - Finds connected planar flanges and paired curved bend strips, including supported imported spline surfaces.
 - Unfolds flange geometry by rigid transformations, preserving flange holes and contours.
+- Determine the material side locally beside each tangent edge; a concave flange's centroid can lie on the wrong side of a notch.
 - Estimates neutral bend widths from paired surface areas and tangent lengths with **K=0.50**; this is an estimate, not a material-specific calibrated allowance.
 - Retains flange transforms so tabs and explicitly requested trims map back to the original folded geometry.
 - Rejects curved tangent lines, incomplete/ambiguous topology, cyclic connections, overlaps and invalid blanks instead of fabricating a result.
@@ -98,7 +100,9 @@ For a supplied flat, tab mapping must identify one unique formed flange. A symme
 
 ## Gauging and sequence
 
-Prefer a free gauging end with no intervening bend; when both are free choose the nearer end. If neither end is free, use the nearer end only with an explicit report of which intervening bends must remain flat. This is a conditional gauge setup, not a complete collision-checked bending sequence. Honor user-selected ends through `--side`.
+Prefer a free gauging end with no intervening bend; when both are free choose the nearer end. If neither end is free, prefer a genuine parallel contact edge, then the nearer end. Report which intervening bends must remain flat. Honor user-selected ends through `--side`.
+
+Reject cyclic flat-region requirements and ask for different gauging ends. Report a dependency order for valid choices, clearly distinguished from a complete collision-checked bending sequence.
 
 Design every tab against the real blank contour. Check each tab's own gauge edge independently. If a programming tab for another bend projects beyond that gauge line, report the conflict and tell the user to select the intended edge in CADMAN-B; do not shift the gauge distance to the other tab.
 
@@ -120,7 +124,12 @@ For direct-gauge bends, report contact length and gauge distance with **no jig o
 - Measure 0.1 mm clearance against the actual working contour (estimated if unfolded).
 - Reject split or invalid plates; do not silently export only the largest piece.
 - Require each tab to join one unambiguous flange and its edge to agree with the gauge line within 0.001 mm.
+- Check that each tab fusion leaves one valid solid before adding the next tab or merging faces. A zero-distance contact alone does not establish a solid join.
 - Require final formed STEP to contain one valid solid, with tab-added volume agreeing with tab area × thickness within max(0.1 mm³, 0.1% of tab volume).
+- Merge coplanar tab/flange faces and collinear edges before STEP export, using 0.0000001 mm linear and 0.0000001 rad angular tolerances. Preserve bounds within 0.001 mm and volume within max(0.1 mm³, 0.1%) capped at 0.5 mm³; reject a split or invalid result. Record face counts before and after merging.
+- Verify every tab is retained after STEP readback by intersecting its reference solid with the exported part. Require its volume within max(0.1 mm³, 0.1% of tab volume). Report strict surface/edge analysis warnings separately: a basic valid-solid result does not prove SolidWorks/CADMAN-B import compatibility. Do not dismiss residual warnings or claim application validation without a confirmed import.
+- Construct `BRepCheck_Analyzer(shape, True, False, True)` for strict checks on both the unmodified source and exported result. State source warnings separately; do not misattribute them to unfolding or tab addition. Do not claim a STEP repair fixes an unfolding-direction error.
+- If the user supplies a repaired file confirmed to import, preserve its exact bytes; re-export only as a separate, explicitly unconfirmed candidate.
 - Read the exported STEP back; require one valid solid and volume difference within **max(0.5 mm³, 0.001% of part volume)**. Report the actual difference and limit. This accounts for STEP surface-integration precision; never loosen the threshold to rescue a failed run.
 - Audit DXFs and inspect the rendered preview, including dimension labels and visible tab placement.
 
@@ -138,6 +147,8 @@ The user enables **Comment mode**, clicks a drawing, types notes, then uses **Co
 ## Limits to state when relevant
 
 The script does not simulate punch/die collisions, backgauge reach or finger height, complete bending sequence, operator handling, or CADMAN-B's automatic choice of gauge edge. The 8 mm die clearance is an assumption. Verify estimated jig fit on a real blank.
+
+Confirm tooling for each new part; do not inherit another part's die, punch or tab coordinates. For a V die, half the nominal opening is only an opening-edge reference, not the complete die-body envelope. Use an explicitly stated clearance assumption and retain at least 10 mm pocket wrap; report when both cannot be achieved. Import confirmation and tool-body clearance remain prerequisites to calling a package manufacturing-verified, even when the user requests a final ZIP.
 
 ## Maintenance
 
