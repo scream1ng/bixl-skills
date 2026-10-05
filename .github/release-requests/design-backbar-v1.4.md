@@ -1,0 +1,3 @@
+- Automatic tabs retry positions toward the blank tip to join one valid solid; explicit tabs never move
+- Bend dependency order reported; cyclic flat-region requirements rejected
+- Stricter STEP export checks: merged tab faces, tab retention on readback, source vs output warnings

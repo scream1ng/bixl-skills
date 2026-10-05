@@ -50,7 +50,7 @@ Drawing in, internal budget estimate out: per-part laser, bend, weld and finish 
 
 ![Workflow](backbar-flow.svg)
 
-**[Download design-backbar-v1.2.zip](../../releases/download/design-backbar-v1.2/design-backbar-v1.2.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-backbar`.
+**[Download design-backbar-v1.4.zip](../../releases/download/design-backbar-v1.4/design-backbar-v1.4.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-backbar`.
 
 STEP of the formed part in (a supplied flat pattern is used if present, otherwise the flat is estimated by unfolding at K=0.50), one DXF per plate out. Bends with a genuinely parallel edge are gauged directly with no plate. Otherwise a 100 × 6 mm plate over the LVD backgauge finger with a pocket cut to the blank outline + 0.1 mm, so a slanted blank edge gauges square on a blank cut without tabs. Parallel bends gauged from the same end share one plate. For CADMAN-B it also writes the folded part as a STEP with a 5 mm gauge tab whose edge lies on the blank-tip line; the tab exists only in that STEP. The preview takes pinned review comments. Numbers come from exact OCP geometry, except an estimated unfold. Die, punch and flange collisions, backgauge reach and the full bend sequence are not checked. A part that does not fit the standard plate is an error, not a resized plate. Edges are trimmed only on explicit request.
 
