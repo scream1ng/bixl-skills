@@ -1,6 +1,6 @@
 ---
 name: design-engineer
-description: v1.0.0 · Develop product ideas, photographs, sketches, drawings, or existing STEP parts into detailed visual models or dimensioned CAD. Use for reference-based modeling, product form development, parts and assemblies, and iterative CAD previews. Supports build123d for solid CAD and Blender for visual modeling and rendering. Not for weld or checking fixtures (use design-fixture) or shop drawings of existing sheet-metal parts (use draft-drawing).
+description: v1.1 · Develop product ideas, photographs, sketches, drawings, or existing STEP parts into detailed visual models or dimensioned CAD. Use for reference-based modeling, product form development, parts and assemblies, and iterative CAD previews. Supports build123d for solid CAD and Blender for visual modeling and rendering. Not for weld or checking fixtures (use design-fixture) or shop drawings of existing sheet-metal parts (use draft-drawing).
 ---
 
 # Design Engineer

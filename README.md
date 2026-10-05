@@ -16,7 +16,7 @@ Backwell IXL assistant skills. Each [release](../../releases) carries one skill 
 
 ![Stage gates](flow.svg)
 
-**[Download design-fixture-v1.5.2.zip](../../releases/download/design-fixture-v1.5.2/design-fixture-v1.5.2.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-fixture`.
+**[Download design-fixture-v1.6.zip](../../releases/download/design-fixture-v1.6/design-fixture-v1.6.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-fixture`.
 
 The checks: cap tabs, rib width, cross ribs, clamp plate size, straight unload, pin clearance, brace merge, flange coverage (checking fixtures). A failed check stops the concept with no preview.
 
@@ -28,7 +28,7 @@ Default construction is 5 mm laser-cut tab-and-slot ribs. Blocks (weld) and prin
 
 ![Workflow](draft-flow.svg)
 
-**[Download draft-drawing-v1.2.1.zip](../../releases/download/draft-drawing-v1.2.1/draft-drawing-v1.2.1.zip)** — `SKILL.md` at the zip root; unzip into a folder named `draft-drawing`.
+**[Download draft-drawing-v1.3.zip](../../releases/download/draft-drawing-v1.3/draft-drawing-v1.3.zip)** — `SKILL.md` at the zip root; unzip into a folder named `draft-drawing`.
 
 STEP file in, measured numbers out: overall size, flanges, bends, hole and slot positions, and total steel weight. Every number comes from exact OCP geometry, never a picture.
 
@@ -40,17 +40,17 @@ STEP file in, measured numbers out: overall size, flanges, bends, hole and slot 
 
 ![Workflow](costing-flow.svg)
 
-**[Download costing-v1.2.1.zip](../../releases/download/costing-v1.2.1/costing-v1.2.1.zip)** — `SKILL.md` at the zip root; unzip into a folder named `costing`.
+**[Download costing-v1.3.zip](../../releases/download/costing-v1.3/costing-v1.3.zip)** — `SKILL.md` at the zip root; unzip into a folder named `costing`.
 
 Drawing in, internal budget estimate out: per-part laser, bend, weld and finish costs, IXL baseline material pricing, and a selling price at 28% gross margin. AUD ex GST. Every total comes from `calculate.py`; unknown costs stay Unpriced, never zero. It is a budget estimate, not a supplier quotation.
 
 ## design-backbar
 
-[SKILL.md](design-backbar/SKILL.md) · the script is embedded in `SKILL.md`; it needs `cadquery-ocp` 7.8.x and `ezdxf` (installed by `uv run`, see the skill)
+[SKILL.md](design-backbar/SKILL.md) · scripts in `scripts/`; they need `cadquery-ocp` 7.8.x, `ezdxf` and `numpy` (installed by `uv run`, see the skill)
 
 ![Workflow](backbar-flow.svg)
 
-**[Download design-backbar-v1.1.1.zip](../../releases/download/design-backbar-v1.1.1/design-backbar-v1.1.1.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-backbar`.
+**[Download design-backbar-v1.2.zip](../../releases/download/design-backbar-v1.2/design-backbar-v1.2.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-backbar`.
 
 STEP of the formed part plus its flat pattern in, one DXF per plate out: a 100 × 6 mm plate over the LVD backgauge finger with a pocket cut to the blank outline + 0.1 mm, so a slanted blank edge gauges square on a blank cut without tabs. Parallel bends gauged from the same end share one plate. For CADMAN-B it also writes the folded part as a STEP with a 5 mm gauge tab whose edge lies on the blank-tip line; the tab exists only in that STEP. The preview takes pinned review comments. Every number comes from exact OCP geometry. Die, punch and flange collisions, backgauge reach and bend order are not checked. A part that does not fit the standard plate is an error, not a resized plate.
 
@@ -60,6 +60,6 @@ STEP of the formed part plus its flat pattern in, one DXF per plate out: a 100 �
 
 ![Workflow](engineer-flow.svg)
 
-**[Download design-engineer-v1.0.0.zip](../../releases/download/design-engineer-v1.0.0/design-engineer-v1.0.0.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-engineer`.
+**[Download design-engineer-v1.1.zip](../../releases/download/design-engineer-v1.1/design-engineer-v1.1.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-engineer`.
 
 References, ideas or an existing STEP in; an editable build123d model, a Blender visual model, or both, out. Geometry and appearance are reviewed as separate tracks, and estimated dimensions are labelled as estimates. A valid solid or a good render is not a manufacturability check.

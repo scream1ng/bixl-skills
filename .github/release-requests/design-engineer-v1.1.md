@@ -1,0 +1,1 @@
+- Version shown on the installed-skill card; versions now vMAJOR.MINOR

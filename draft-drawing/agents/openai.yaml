@@ -1,6 +1,6 @@
 interface:
   display_name: "Draft Drawing"
-  short_description: "STEP to draft A3 drawing with sizes and weight"
+  short_description: "v1.3 · STEP to draft A3 drawing with sizes and weight"
   default_prompt: "Use $draft-drawing to make a draft drawing from this STEP file, starting with the interactive review."
   icon_small: "./assets/icon.svg"
   icon_large: "./assets/icon.svg"

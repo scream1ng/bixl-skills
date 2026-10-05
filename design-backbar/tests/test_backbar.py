@@ -53,10 +53,10 @@ def write(path, *shapes):
     wr = STEPControl_Writer(); wr.Transfer(c, STEPControl_AsIs); wr.Write(str(path))
 
 
-def bent(path, w=60.0, sym=False):
+def bent(path, w=60.0, sym=False, drop=15.0):
     """Flat pattern plus a truly folded L (2 mm inner radius, 90 deg) so the tab can be carried onto the folded part.
     Flange A ends on a slant (40 deep at x=0, 25 at x=w) unless sym, then it is square (40 deep)."""
-    a = [(0, -40), (w, -40 if sym else -25), (w, 0), (0, 0)]
+    a = [(0, -40), (w, -40 if sym else -40 + drop), (w, 0), (0, 0)]
     flat = fuse([prism(a), prism([(0, 0), (w, 0), (w, 4.71), (0, 4.71)]), prism([(0, 4.71), (w, 4.71), (w, 80), (0, 80)])])
     ax = gp_Ax1(gp_Pnt(0, 0, T + 2), gp_Dir(-1, 0, 0))
     p = BRepBuilderAPI_MakePolygon()
@@ -89,9 +89,7 @@ class Backbar(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = Path(tempfile.mkdtemp())
-        code = re.search(r'^```python backbar.py\n(.*?)^```$', SKILL.read_text(), re.S | re.M).group(1)
-        cls.script = cls.tmp / 'backbar.py'
-        cls.script.write_text(code)
+        cls.script = SKILL.parent / 'scripts' / 'geometry.py'
         for name, kw in (('one', {}), ('two', {'bends': 2}), ('wide', {'w': 85.0})):
             part(cls.tmp / f'{name}.step', **kw)
         cls.bent_volume = bent(cls.tmp / 'bent.step')

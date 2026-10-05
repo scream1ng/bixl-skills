@@ -1,0 +1,1 @@
+- Scripts moved to scripts/ (formed-only unfold, geometry helpers), app card and icon added; version shown on the installed-skill card

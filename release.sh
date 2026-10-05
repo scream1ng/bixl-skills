@@ -1,6 +1,7 @@
 #!/bin/sh
 # ./release.sh <skill-folder> <version> <notes>
 #   e.g. ./release.sh draft-drawing v1.1 "- Bend notes on the assembly sheet"
+#   Versions are vMAJOR.MINOR (no patch number).
 #
 # Run `python -m unittest discover -s tests` in the skill's folder first.
 # This then, for that skill alone:
@@ -20,9 +21,13 @@ tag="$skill-$version"; zip="$(mktemp -d)/$tag.zip"
 # Stamp "<version> · " at the start of the SKILL.md description, replacing any old stamp.
 sed -i '' -E -e '1,/^---$/s/^(description: "?)v[0-9.]+ · /\1/' \
   -e "1,/^---\$/s/^(description: \"?)/\\1$version · /" "$skill/SKILL.md"
+# Same stamp on the app card text, which the installed-skills list shows instead of SKILL.md.
+card="$skill/agents/openai.yaml"
+[ -f "$card" ] && sed -i '' -E -e 's/^(  short_description: "?)v[0-9.]+ · /\1/' \
+  -e "s/^(  short_description: \"?)/\\1$version · /" "$card"
 (cd "$skill" && zip -qr "$zip" . -x '*__pycache__*' '*.pyc' '*.DS_Store' '*.fixture-cache*')
 sed -i '' "s|^\*\*\[Download $skill-.*|**[Download $tag.zip](../../releases/download/$tag/$tag.zip)** — \`SKILL.md\` at the zip root; unzip into a folder named \`$skill\`.|" README.md
-git commit -q -m "README: $tag download link" README.md "$skill/SKILL.md"
+git commit -q -m "README: $tag download link" README.md "$skill/SKILL.md" $([ -f "$card" ] && echo "$card")
 git push -q origin HEAD
 git tag -a "$tag" -m "$skill $version"
 git push -q origin "$tag"
