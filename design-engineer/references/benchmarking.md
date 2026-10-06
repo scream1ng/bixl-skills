@@ -22,6 +22,18 @@ Start with one relevant case if that resolves the current uncertainty. Run all t
 4. Record the specific failed behavior and its evidence. Determine whether it comes from missing input, tool capability, an implementation error or an instruction gap before changing the skill.
 5. When skill changes are authorized, make the smallest generalizable correction. Repeat the failing case and test a different example to check transfer. Do not optimize only for the original picture.
 
+## Comparing hosts (ChatGPT vs Claude)
+
+Run the same case on each host with the same skill version, inputs and scripted user answers (write the answers before the first run; reuse them verbatim; when a host asks something the script does not cover, answer "use your recommendation" and log it). Record per run:
+
+- Host, model and the capabilities table from `design-spec.md` (which path was used: generated concepts or rendered variants, inline HTML or file).
+- The final `board.html` and `board.json`: the run's visual record of questions, pictures, stops and decisions.
+- Interview: rounds asked, checklist items covered, items left as unconfirmed assumptions.
+- Previews: stages shown, elements in `elements.json`, any `preview.py` blocks and how they were resolved.
+- Results: the same silhouette, proportion, feature, surface and dimension criteria as above, from the final `sheet.png` and CAD measurements.
+
+Compare hosts on these records, not on prose quality. Note where a difference comes from a missing host capability rather than modeling skill.
+
 Keep comparison settings consistent when assessing an improvement. More render samples, different lighting, or a new camera can conceal a geometry regression; include neutral views and CAD measurements where relevant.
 
 Report which evidence actually occurred: table-top scenario review, structural validator, or executed modeling benchmark. Never claim independent evaluation if the same agent performed it.

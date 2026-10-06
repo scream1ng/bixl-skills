@@ -56,7 +56,7 @@ STEP of the formed part in (a supplied flat pattern is used if present, otherwis
 
 ## design-engineer
 
-[SKILL.md](design-engineer/SKILL.md) · `surface_from_grid.py` needs [`scripts/requirements.txt`](design-engineer/scripts/requirements.txt) (build123d 0.13, OCP 8.0, scipy)
+[SKILL.md](design-engineer/SKILL.md) · `surface_from_grid.py` and the stage-preview generator `preview.py` need [`scripts/requirements.txt`](design-engineer/scripts/requirements.txt) (build123d 0.13, OCP 8.0, scipy, Pillow)
 
 ![Workflow](engineer-flow.svg)
 

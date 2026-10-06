@@ -1,0 +1,4 @@
+- Grilling interview: every independent frontier question asked at once, with recommendations
+- Design board (scripts/board.py): one full-quality HTML page per job, reviewed at every stop
+- New stops: concept translation, patch trial, camera-matched concept vs CAD comparison
+- Stage previews (scripts/preview.py): 4-view numbered sheet plus interactive 3D viewer; "front" axis setting; blocks on missing, out-of-bounds or unexplained hidden elements

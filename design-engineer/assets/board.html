@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+:root{--bg:#f3f5f7;--card:#fff;--ink:#152a38;--soft:#52626e;--line:#d6dee4;--accent:#1f5f7a;--ok:#2e7d4f;--warn:#b26a00}
+@media (prefers-color-scheme:dark){:root{--bg:#11181d;--card:#1b252c;--ink:#e3eaef;--soft:#9aabb7;--line:#2c3a44;--accent:#6fb3d2;--ok:#6cc58f;--warn:#e0a54a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,sans-serif}
+nav{position:sticky;top:0;z-index:5;display:flex;gap:4px;flex-wrap:wrap;padding:8px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+nav a{color:var(--accent);text-decoration:none;padding:4px 10px;border-radius:14px;font-size:13px}nav a:hover{background:var(--bg)}
+main{max-width:1400px;margin:0 auto;padding:16px}header,section{scroll-margin-top:56px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:0 0 16px}
+h1{margin:0;font-size:24px}h2{margin:0 0 10px;font-size:19px}h3{font-size:15px;margin:14px 0 4px}.meta{color:var(--soft);margin:2px 0 6px}
+ul{margin:6px 0;padding-left:20px}li{margin:2px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;margin-top:10px}
+figure{margin:0}figure img{width:100%;display:block;border-radius:8px;border:1px solid var(--line);cursor:zoom-in;background:#fff}
+figcaption{font-size:13px;color:var(--soft);margin-top:4px}
+.cmp{margin-top:10px}.cmpbox{position:relative;overflow:hidden;border-radius:8px;border:1px solid var(--line)}.cmpbox img{display:block;width:100%;border:0;border-radius:0;cursor:default}
+.cmpbox .top{position:absolute;inset:0;clip-path:inset(0 0 0 50%)}.cmp input{width:100%}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.card{display:flex;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px;align-items:flex-start}.card img{width:84px;height:84px;object-fit:cover;border-radius:6px;cursor:zoom-in}
+.card div{display:flex;flex-direction:column;gap:2px}.card span{font-size:13px}.card small{font-size:12px;color:var(--soft)}
+.st{font-weight:600}.st.agreed{color:var(--ok)}.st.open,.st.pending{color:var(--warn)}
+iframe{width:100%;height:78vh;border:1px solid var(--line);border-radius:8px}
+.dec small{color:var(--soft)}
+#zoom{position:fixed;inset:0;background:#000d;display:none;align-items:center;justify-content:center;z-index:10;cursor:zoom-out}#zoom img{max-width:96vw;max-height:96vh}
+@media (max-width:600px){main{padding:16px 16px}.grid{grid-template-columns:1fr}}
+</style></head><body>
+<nav>__NAV__</nav><main>__BODY__</main><div id="zoom"><img alt=""></div>
+<script>
+for(const c of document.querySelectorAll('.cmp')){const top=c.querySelector('.top'),r=c.querySelector('input');r.oninput=()=>top.style.clipPath=`inset(0 0 0 ${r.value}%)`;}
+const zoom=document.querySelector('#zoom');
+for(const img of document.querySelectorAll('figure>img,.card img'))img.onclick=()=>{zoom.firstElementChild.src=img.src;zoom.style.display='flex';};
+zoom.onclick=()=>zoom.style.display='none';
+</script></body></html>

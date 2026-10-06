@@ -20,7 +20,63 @@ Do not make a failed geometry check disappear behind a polished render. Do not c
 | Expensive final render | Cheap draft with intended materials, camera and lighting | Framing, material separation, texture scale, obvious intersections or stretching |
 | Delivery | Reopened final files and inspected final image | Export loss, missing assets, incorrect output settings, defects introduced by the last revision |
 
-Apply only the stages relevant to the task. A CAD-only bracket needs no expensive presentation render. These checks do not ask the user to approve routine progress. Do not keep polishing a later stage while a consequential earlier-stage defect remains unresolved.
+Apply only the stages relevant to the task. A CAD-only bracket needs no expensive presentation render. Once an internal check passes at blockout, structure or detail, show that stage's preview to the user and stop (below). Do not keep polishing a later stage while a consequential earlier-stage defect remains unresolved.
+
+## Stage previews
+
+The previews are how the user and the agent confirm they mean the same thing. Each one covers the **whole element table**, not just what changed.
+
+| Stage | Show | Then |
+|---|---|---|
+| Spec playback | Element table + assumptions; annotated reference crops; for concept work the traced concept and section sketch | Stop for confirmation |
+| Blockout | Image sheet: iso, front, right, top, every element numbered | Ask the frontier questions it raises; stop |
+| Structure | Image sheet + interactive 3D preview with comment pins; concept vs CAD compare at the concept camera | Stop; apply pinned comments |
+| Detail | Image sheet; concept vs CAD compare (renders at the reference camera for visual work) | Stop; approval releases delivery |
+
+Every stage's pictures go on the design board (below); the chat message only links it.
+
+Generate with the CAD environment:
+
+```
+python scripts/preview.py model.step elements.json OUT --stage blockout [--html]
+```
+
+`model.step` may also be an STL (e.g. exported from Blender — set the export scale so the STL is in millimetres, matching the anchors). `elements.json`:
+
+```json
+{"project": "lamp", "revision": "r2", "elements": [
+  {"id": "E1", "name": "Base disc", "value": "Ø180 × 12", "source": "provided", "anchor": [0, 0, 6]},
+  {"id": "E2", "name": "Rear cable exit", "value": "Ø8, 20 above base", "source": "estimated", "anchor": [0, 90, 20]}]}
+```
+
+Add `"front": "+Y"` (one of ±X, ±Y, ±Z; default `-Y`) when the product's visible face points along another axis, so the sheet's Front view shows the face the user sees. `anchor` is a model-space point (mm) on the element's visible surface (for a hole, a point on its rim, not its empty centre). The script writes `OUT/sheet.png` (four views, numbered callouts, legend with value and source) and, with `--html`, `OUT/preview.html` (rotate/pan/zoom, numbered element markers, comment pins, copy comments). It **blocks** (exit 2, no outputs) when an element lacks an anchor or an anchor lies outside the model bounds — fix the table, don't drop the element. An element not yet modeled stays in the table with `"status": "pending"` and shows as pending in the legend. Pending is refused at `--stage detail`. `source` is one of `provided`, `measured`, `derived`, `estimated`; once the user confirms a row at playback or a stage stop, set `"status": "agreed"` (the board shows provided/measured rows as agreed, every other unconfirmed row as "to confirm").
+
+Each callout is filled where the anchor is visible and a ring where it is hidden. An element no view shows (underside, internals) **blocks** the preview: move the anchor onto a visible face, or make a section/detail image for it and name it in the element's `"hidden"` field (shown in the legend). Do not ask the user to approve elements they cannot see.
+
+Open the sheet yourself before sending it, then add it (and `preview.html` as the board's viewer) to the design board. Comments are review notes; apply them to the spec and model, then regenerate.
+
+## Design board
+
+One page per job, rebuilt at every stop: the brief, all pictures and renders at full quality, comparisons, element cards, the 3D viewer, and decisions. It is the scope of work the user approves. Bullets only.
+
+```
+python scripts/board.py board.json [--out board.html]
+```
+
+```json
+{"project": "Fascia 636873", "revision": "r3", "stage": "structure",
+ "next": ["Check concept vs CAD slider", "Answer Q1–Q3 in chat"],
+ "brief": ["Keep 4 openings + mounts", "Flowing wave relief, +3 mm max"],
+ "sections": [
+   {"title": "Concept translation", "bullets": ["~28 crests across"],
+    "images": [{"src": "concepts/trace.png", "caption": "Traced paths"}]},
+   {"title": "Concept vs CAD", "compare": [{"a": "concepts/hero.png", "b": "renders/cad_hero.png",
+     "a_label": "Concept", "b_label": "CAD", "caption": "same camera"}]}],
+ "elements": "elements.json", "viewer": "out/preview.html",
+ "decisions": [{"date": "2026-10-06", "text": "Continuous wave, not ribs"}], "open": ["LED strip type"]}
+```
+
+Paths are relative to `board.json`. Images are embedded unscaled; a missing or non-image file **blocks** (exit 2). An element in `elements.json` may carry an `"image"` (a crop or close-up) for its card. Keep superseded pictures in a dated section rather than deleting them, so the board doubles as the job record. Open the board yourself before linking it.
 
 ## Evidence-based comparison
 
