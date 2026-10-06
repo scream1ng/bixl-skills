@@ -4,6 +4,7 @@ import argparse
 import base64
 import gzip
 import json
+import mimetypes
 import struct
 import sys
 from pathlib import Path
@@ -71,7 +72,7 @@ def load_components(model):
 
 
 def check_elements(spec, lo, hi, stage):
-    """Every element needs an anchor inside the (padded) model bounds; nothing may be pending at detail."""
+    """Every element needs an anchor inside the (padded) model bounds; at detail nothing may be pending or unapproved."""
     elements = spec.get('elements') or []
     if not elements: raise Blocked('elements.json has no elements')
     pad = 0.05 * max(float((hi - lo).max()), 1.0)
@@ -81,6 +82,8 @@ def check_elements(spec, lo, hi, stage):
         if not eid or eid in seen: problems.append(f'{eid or "?"}: missing or duplicate id'); continue
         seen.add(eid)
         if not e.get('name'): problems.append(f'{eid}: missing name')
+        if stage == 'detail' and e.get('approval') not in ('agreed', 'assumed'):
+            problems.append(f'{eid}: not approved by the user (approval is {e.get("approval") or "open"})')
         if e.get('status') == 'pending':
             if stage == 'detail': problems.append(f'{eid}: still pending at detail stage')
             continue
@@ -91,6 +94,14 @@ def check_elements(spec, lo, hi, stage):
             problems.append(f'{eid}: anchor {a} outside model bounds')
     if problems: raise Blocked('; '.join(problems))
     return elements
+
+
+def hidden_evidence(element, base):
+    """A hidden element needs a "hidden" description and an existing section/detail image the user can see."""
+    image = element.get('image')
+    if not (element.get('hidden') and image): return False
+    p = Path(image) if Path(image).is_absolute() else base / image
+    return p.is_file() and (mimetypes.guess_type(p.name)[0] or '').startswith('image/')
 
 
 def view_frame(name):
@@ -198,7 +209,7 @@ def html(components, elements, spec, stage, out):
         meshes = [{'id': n, **compact_mesh(t, max(200, budget * len(t) // total))} for n, t in components]
         scene = {'project': spec.get('project', ''), 'revision': spec.get('revision', ''), 'stage': stage, 'units': 'mm',
                  'components': meshes,
-                 'elements': [{k: e.get(k) for k in ('id', 'name', 'value', 'source', 'status', 'anchor', 'hidden')} for e in elements]}
+                 'elements': [{k: e.get(k) for k in ('id', 'name', 'value', 'source', 'approval', 'status', 'anchor', 'hidden')} for e in elements]}
         payload = json.dumps(scene, separators=(',', ':'), allow_nan=False).replace('<', '\\u003c').encode()
         encoded = base64.b64encode(gzip.compress(payload, compresslevel=9, mtime=0)).decode('ascii')
         page = template.replace('__SCENE_GZIP_BASE64__', encoded); size = len(page.encode())
@@ -230,11 +241,11 @@ def generate(model, elements_path, out, stage='blockout', with_html=False):
     title = f"{spec.get('project', Path(model).stem)} · {spec.get('revision', '')} · {stage} · front {front}"
     visible = sheet(components, elements, lo, hi, out, title)
     hidden = [e['id'] for e in elements if not visible[e['id']] and e.get('status') != 'pending']
-    unexplained = [k for k in hidden if not next(e for e in elements if e['id'] == k).get('hidden')]
+    unexplained = [k for k in hidden if not hidden_evidence(next(e for e in elements if e['id'] == k), Path(elements_path).parent)]
     if unexplained:
         (out / 'sheet.png').unlink(missing_ok=True)
-        raise Blocked(f'hidden in all views without a "hidden" reason: {", ".join(unexplained)}; '
-                      'move the anchor onto a visible face or show a section/detail image and name it in "hidden"')
+        raise Blocked(f'hidden in all views without section/detail evidence: {", ".join(unexplained)}; move the anchor '
+                      'onto a visible face, or set "image" to an existing section/detail image and describe it in "hidden"')
     result = {'sheet': str((out / 'sheet.png').resolve()), 'elements': len(elements), 'components': len(components),
               'hidden_in_all_views': hidden, 'pending': [e['id'] for e in elements if e.get('status') == 'pending'],
               'skipped_surface': round(skipped, 5)}

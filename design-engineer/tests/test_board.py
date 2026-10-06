@@ -21,7 +21,7 @@ class BoardTests(unittest.TestCase):
             Image.new('RGB', (1600, 900), color).save(self.dir / name)
         (self.dir / 'elements.json').write_text(json.dumps({'elements': [
             {'id': 'E1', 'name': 'Plate', 'value': '100 x 60', 'source': 'provided', 'image': 'a.png'},
-            {'id': 'E2', 'name': 'Boss', 'value': 'D20', 'source': 'estimated'}]}))
+            {'id': 'E2', 'name': 'Boss', 'value': 'D20', 'source': 'estimated', 'approval': 'assumed'}]}))
         (self.dir / 'preview.html').write_text('<!doctype html><p>viewer "quoted"</p>')
         self.board = {'project': 'Test', 'revision': 'r1', 'stage': 'blockout', 'next': ['Answer Q1'],
                       'sections': [{'title': 'Concept', 'bullets': ['x'], 'images': [{'src': 'a.png', 'caption': 'A'}],
@@ -41,7 +41,9 @@ class BoardTests(unittest.TestCase):
         uri = page.split('src="data:image/png;base64,', 1)[1].split('"', 1)[0]
         self.assertEqual(Image.open(io.BytesIO(base64.b64decode(uri))).size, (1600, 900))
         self.assertEqual(page.count('class="card"'), 2)
-        self.assertIn('to confirm', page)
+        self.assertIn('<small class="st open">to confirm</small>', page)  # provided is not approved
+        self.assertIn('<small class="st assumed">assumed</small>', page)
+        self.assertNotIn('class="st agreed"', page)
         self.assertIn('class="cmp"', page)
         self.assertIn('<iframe srcdoc="', page)
         self.assertIn('viewer &quot;quoted&quot;', page)

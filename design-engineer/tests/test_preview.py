@@ -51,7 +51,11 @@ class PreviewTests(unittest.TestCase):
         with self.assertRaisesRegex(module.Blocked, 'E3'):
             self.run_preview(self.elements + [underside])
         self.assertFalse((self.dir / 'out/sheet.png').exists())
-        result = self.run_preview(self.elements + [dict(underside, hidden='flat, see underside.png')])
+        with self.assertRaisesRegex(module.Blocked, 'E3'):  # a description alone is not evidence
+            self.run_preview(self.elements + [dict(underside, hidden='flat', image='underside.png')])
+        from PIL import Image
+        Image.new('RGB', (40, 40)).save(self.dir / 'underside.png')
+        result = self.run_preview(self.elements + [dict(underside, hidden='flat', image='underside.png')])
         self.assertEqual(result['hidden_in_all_views'], ['E3'])
 
     def test_legend_fits_many_elements(self):
@@ -65,6 +69,12 @@ class PreviewTests(unittest.TestCase):
         self.assertEqual(self.run_preview(pending)['pending'], ['E3'])
         with self.assertRaisesRegex(module.Blocked, 'pending at detail'):
             self.run_preview(pending, stage='detail')
+
+    def test_detail_needs_user_approval_not_just_a_measurement(self):
+        with self.assertRaisesRegex(module.Blocked, 'E1: not approved'):  # E1 is provided but unapproved
+            self.run_preview(self.elements, stage='detail')
+        approved = [dict(self.elements[0], approval='agreed'), dict(self.elements[1], approval='assumed')]
+        self.assertEqual(self.run_preview(approved, stage='detail')['elements'], 2)
 
     def test_stl_input(self):
         stl = self.dir / 'model.stl'

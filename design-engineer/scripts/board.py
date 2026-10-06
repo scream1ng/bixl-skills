@@ -47,14 +47,16 @@ def compare(pair, base):
 
 
 def element_cards(elements, base):
-    status = {'pending': 'pending', 'agreed': 'agreed', None: 'open'}
+    """Source, user approval and model status stay separate: a measured value is not an approved one."""
+    approval = {'agreed': 'agreed', 'assumed': 'assumed'}
     cards = []
     for i, e in enumerate(elements, 1):
         pic = f'<img src="{embed(e["image"], base)}" alt="">' if e.get('image') else ''
-        st = e.get('status') or ('agreed' if e.get('source') in ('provided', 'measured') else None)
+        ap = approval.get(e.get('approval'), 'open')
         cards.append(f'<div class="card">{pic}<div><b>{i}. {esc(e["id"])} {esc(e["name"])}</b>'
                      f'<span>{esc(e.get("value", ""))}</span><small class="src">{esc(e.get("source", "?"))}</small>'
-                     f'<small class="st {status.get(st, "open")}">{esc(st or "to confirm")}</small></div></div>')
+                     f'<small class="st {ap}">{"to confirm" if ap == "open" else ap}</small>'
+                     f'<small class="ms">{esc(e.get("status") or "modeled")}</small></div></div>')
     return '<div class="cards">' + ''.join(cards) + '</div>'
 
 

@@ -1,0 +1,4 @@
+- Mechanical layout review for assemblies: orientation, functional paths, wasted space, support/retention, access, body suitability
+- Proportional interview: only consequential questions; "keep going" accepts shown recommendations as assumed; stage stops can be waived up front
+- Elements keep source, approval and model status separate; detail stage blocks unapproved elements
+- Hidden elements need an existing section/detail image, not just a description

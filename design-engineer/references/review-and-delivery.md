@@ -11,6 +11,21 @@ Use the working spec as the acceptance checklist. Match verification effort to t
 
 Do not make a failed geometry check disappear behind a polished render. Do not call a model visually reviewed because a preview file was created.
 
+## Mechanical layout review
+
+For assemblies and housings around bought or existing components. Both tracks above check the model against the spec; this checks whether the arrangement itself is sound. Run it at blockout, while orientation and body form are still cheap to change, and again at structure.
+
+| Check | Ask |
+|---|---|
+| Orientation | Does each component face the way its function needs (inlet/outlet, connector exits, display or control side, gravity, drainage)? Would turning or mirroring it shorten a path or free space? |
+| Functional paths | Trace air, fluid, cable, heat and load paths end to end. Any sharp turns, blocked inlets, crossings, recirculation or pinch points? |
+| Wasted space | Where is dead volume? Could the envelope shrink or the parts regroup? |
+| Support and retention | What holds each part, against which loads, vibration or shock? Is anything floating, cantilevered or held only by its cables? |
+| Installation and access | Assembly order, hand and tool reach, fastener access, connector mating, service and replacement. |
+| Body suitability | Does the chosen body (enclosure, housing, existing part) suit this layout, or is the layout being forced to fit it? |
+
+Use the functional faces recorded in the element table; when one is unknown, say so instead of guessing an orientation. Put a "Layout review" section on the design board: a plan or section view with the paths drawn, one bullet per finding, and the alternative when a finding suggests one. A finding that changes the envelope, an interface, the body or the agreed arrangement becomes a question in the next round with your recommendation. Do not fix it silently.
+
 ## Internal stage checks
 
 | Before proceeding to | Inspect | Resolve first |
@@ -29,7 +44,7 @@ The previews are how the user and the agent confirm they mean the same thing. Ea
 | Stage | Show | Then |
 |---|---|---|
 | Spec playback | Element table + assumptions; annotated reference crops; for concept work the traced concept and section sketch | Stop for confirmation |
-| Blockout | Image sheet: iso, front, right, top, every element numbered | Ask the frontier questions it raises; stop |
+| Blockout | Image sheet: iso, front, right, top, every element numbered; for assemblies the layout review | Ask the consequential questions it raises; stop |
 | Structure | Image sheet + interactive 3D preview with comment pins; concept vs CAD compare at the concept camera | Stop; apply pinned comments |
 | Detail | Image sheet; concept vs CAD compare (renders at the reference camera for visual work) | Stop; approval releases delivery |
 
@@ -49,9 +64,19 @@ python scripts/preview.py model.step elements.json OUT --stage blockout [--html]
   {"id": "E2", "name": "Rear cable exit", "value": "Ø8, 20 above base", "source": "estimated", "anchor": [0, 90, 20]}]}
 ```
 
-Add `"front": "+Y"` (one of ±X, ±Y, ±Z; default `-Y`) when the product's visible face points along another axis, so the sheet's Front view shows the face the user sees. `anchor` is a model-space point (mm) on the element's visible surface (for a hole, a point on its rim, not its empty centre). The script writes `OUT/sheet.png` (four views, numbered callouts, legend with value and source) and, with `--html`, `OUT/preview.html` (rotate/pan/zoom, numbered element markers, comment pins, copy comments). It **blocks** (exit 2, no outputs) when an element lacks an anchor or an anchor lies outside the model bounds — fix the table, don't drop the element. An element not yet modeled stays in the table with `"status": "pending"` and shows as pending in the legend. Pending is refused at `--stage detail`. `source` is one of `provided`, `measured`, `derived`, `estimated`; once the user confirms a row at playback or a stage stop, set `"status": "agreed"` (the board shows provided/measured rows as agreed, every other unconfirmed row as "to confirm").
+Add `"front": "+Y"` (one of ±X, ±Y, ±Z; default `-Y`) when the product's visible face points along another axis, so the sheet's Front view shows the face the user sees. `anchor` is a model-space point (mm) on the element's visible surface (for a hole, a point on its rim, not its empty centre). The script writes `OUT/sheet.png` (four views, numbered callouts, legend with value and source) and, with `--html`, `OUT/preview.html` (rotate/pan/zoom, numbered element markers, comment pins, copy comments). It **blocks** (exit 2, no outputs) when an element lacks an anchor or an anchor lies outside the model bounds — fix the table, don't drop the element.
 
-Each callout is filled where the anchor is visible and a ring where it is hidden. An element no view shows (underside, internals) **blocks** the preview: move the anchor onto a visible face, or make a section/detail image for it and name it in the element's `"hidden"` field (shown in the legend). Do not ask the user to approve elements they cannot see.
+Three separate fields per element; never infer one from another:
+
+| Field | Values | Meaning |
+|---|---|---|
+| `source` | `provided`, `measured`, `derived`, `estimated` | Where the value came from |
+| `approval` | `open` (default), `agreed`, `assumed` | The user's decision: confirmed it, or accepted your recommendation by telling you to proceed. A measured or provided value is still `open` until the user confirms keeping it |
+| `status` | `pending`, `modeled` (default), `verified` | Model state: not built yet, built, or checked against its value with a CAD measurement |
+
+An element not yet modeled stays in the table with `"status": "pending"` and shows as pending in the legend. At `--stage detail` the script refuses pending elements and any element whose approval is still `open`.
+
+Each callout is filled where the anchor is visible and a ring where it is hidden. An element no view shows (underside, internals) **blocks** the preview: move the anchor onto a visible face, or render a section/detail view of it, set the element's `"image"` to that file (relative to `elements.json`; it must exist and be an image) and say what it shows in `"hidden"` (shown in the legend). The board's element card shows the image. Do not ask the user to approve elements they cannot see.
 
 Open the sheet yourself before sending it, then add it (and `preview.html` as the board's viewer) to the design board. Comments are review notes; apply them to the spec and model, then regenerate.
 
