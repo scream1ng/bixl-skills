@@ -24,7 +24,7 @@ class BoardTests(unittest.TestCase):
             {'id': 'E2', 'name': 'Boss', 'value': 'D20', 'source': 'estimated', 'approval': 'assumed'}]}))
         (self.dir / 'preview.html').write_text('<!doctype html><p>viewer "quoted"</p>')
         self.board = {'project': 'Test', 'revision': 'r1', 'stage': 'blockout', 'next': ['Answer Q1'],
-                      'sections': [{'title': 'Concept', 'bullets': ['x'], 'images': [{'src': 'a.png', 'caption': 'A'}],
+                      'sections': [{'title': 'Concept', 'bullets': ['x'], 'images': [{'src': 'a.png', 'basis': 'concept', 'caption': 'A'}],
                                     'compare': [{'a': 'a.png', 'b': 'b.png'}]}],
                       'elements': 'elements.json', 'viewer': 'preview.html',
                       'decisions': [{'date': '2026-10-06', 'text': 'ok'}], 'open': ['LED']}
@@ -45,20 +45,28 @@ class BoardTests(unittest.TestCase):
         self.assertIn('<small class="st assumed">assumed</small>', page)
         self.assertNotIn('class="st agreed"', page)
         self.assertIn('class="cmp"', page)
+        self.assertIn('<b class="basis concept">concept · appearance only</b>', page)
         self.assertIn('<iframe srcdoc="', page)
         self.assertIn('viewer &quot;quoted&quot;', page)
 
     def test_missing_image_blocks_and_removes_stale_board(self):
         out = Path(self.build()['board'])
-        self.board['sections'][0]['images'].append({'src': 'gone.png'})
+        self.board['sections'][0]['images'].append({'src': 'gone.png', 'basis': 'cad'})
         with self.assertRaisesRegex(module.Blocked, 'missing image: gone.png'):
             self.build()
         self.assertFalse(out.exists())
 
     def test_non_image_blocks(self):
-        self.board['sections'][0]['images'] = [{'src': 'elements.json'}]
+        self.board['sections'][0]['images'] = [{'src': 'elements.json', 'basis': 'cad'}]
         with self.assertRaisesRegex(module.Blocked, 'not an image'):
             self.build()
+
+
+    def test_image_without_basis_blocks(self):
+        for basis in (None, 'render'):
+            self.board['sections'][0]['images'] = [{'src': 'a.png', 'basis': basis}]
+            with self.assertRaisesRegex(module.Blocked, 'basis must be one of'):
+                self.build()
 
 
 if __name__ == '__main__':

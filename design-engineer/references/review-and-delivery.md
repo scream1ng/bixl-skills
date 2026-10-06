@@ -13,7 +13,7 @@ Do not make a failed geometry check disappear behind a polished render. Do not c
 
 ## Mechanical layout review
 
-For assemblies and housings around bought or existing components. Both tracks above check the model against the spec; this checks whether the arrangement itself is sound. Run it at blockout, while orientation and body form are still cheap to change, and again at structure.
+For assemblies and housings around bought or existing components. Both tracks above check the model against the spec; this checks whether the arrangement itself is sound. Run it on the preliminary CAD before the proposal board, while orientation and body form are still cheap to change, and again at structure.
 
 | Check | Ask |
 |---|---|
@@ -24,7 +24,7 @@ For assemblies and housings around bought or existing components. Both tracks ab
 | Installation and access | Assembly order, hand and tool reach, fastener access, connector mating, service and replacement. |
 | Body suitability | Does the chosen body (enclosure, housing, existing part) suit this layout, or is the layout being forced to fit it? |
 
-Use the functional faces recorded in the element table; when one is unknown, say so instead of guessing an orientation. Put a "Layout review" section on the design board: a plan or section view with the paths drawn, one bullet per finding, and the alternative when a finding suggests one. A finding that changes the envelope, an interface, the body or the agreed arrangement becomes a question in the next round with your recommendation. Do not fix it silently.
+Use the functional faces recorded in the element table; when one is unknown, say so instead of guessing an orientation. Put a "Layout review" section on the design board: a plan or section view with the paths drawn, one bullet per finding, and the alternative when a finding suggests one. Before the proposal, resolve findings internally and show the chosen arrangement and its alternative on the board. After approval, a finding that changes the envelope, an interface, the body or the approved arrangement is a consequential departure: ask. Never fix it silently.
 
 ## Internal stage checks
 
@@ -35,20 +35,26 @@ Use the functional faces recorded in the element table; when one is unknown, say
 | Expensive final render | Cheap draft with intended materials, camera and lighting | Framing, material separation, texture scale, obvious intersections or stretching |
 | Delivery | Reopened final files and inspected final image | Export loss, missing assets, incorrect output settings, defects introduced by the last revision |
 
-Apply only the stages relevant to the task. A CAD-only bracket needs no expensive presentation render. Once an internal check passes at blockout, structure or detail, show that stage's preview to the user and stop (below). Do not keep polishing a later stage while a consequential earlier-stage defect remains unresolved.
+Apply only the stages relevant to the task. A CAD-only bracket needs no expensive presentation render. Passing a stage check releases the next stage; it is not a user stop. Do not keep polishing a later stage while a consequential earlier-stage defect remains unresolved.
 
-## Stage previews
+## Proposal board
 
-The previews are how the user and the agent confirm they mean the same thing. Each one covers the **whole element table**, not just what changed.
+The one board the user approves in stage 2. Build all of it before showing any of it. Each preview covers the **whole element table**, not just what changed.
 
-| Stage | Show | Then |
-|---|---|---|
-| Spec playback | Element table + assumptions; annotated reference crops; for concept work the traced concept and section sketch | Stop for confirmation |
-| Blockout | Image sheet: iso, front, right, top, every element numbered; for assemblies the layout review | Ask the consequential questions it raises; stop |
-| Structure | Image sheet + interactive 3D preview with comment pins; concept vs CAD compare at the concept camera | Stop; apply pinned comments |
-| Detail | Image sheet; concept vs CAD compare (renders at the reference camera for visual work) | Stop; approval releases delivery |
+| Section | Contents |
+|---|---|
+| Brief and assumptions | Requirements used, recommendations adopted, open risks |
+| Concept | Concept pictures, labelled appearance only |
+| Views | Enough views to understand the design; every element visible at least once (`preview.py` sheet and 3D viewer from the preliminary CAD) |
+| Mechanism | Moving parts: every operating position and how the parts fit together in it, from posed CAD, with the motion explained |
+| Dimensions and interfaces | Element table: value, source, approval |
+| Materials and manufacturing | Process, build orientation and supports or tooling, finishing, assembly |
+| Feasibility | Checks run on the preliminary CAD and their results; what is not yet checked |
+| Trade-offs | Alternatives considered and why this one |
 
-Every stage's pictures go on the design board (below); the chat message only links it.
+Label every picture by `basis` (below): a concept picture never shows a mechanism position, clearance or fit. For concept work include the traced concept and section sketch.
+
+At delivery, update the same board: final sheet and viewer, proposal vs final comparison (concept vs CAD at the concept camera for visual work), verification results, departures from the proposal, and physical validation still required. Keep the approved proposal in a dated section.
 
 Generate with the CAD environment:
 
@@ -71,7 +77,7 @@ Three separate fields per element; never infer one from another:
 | Field | Values | Meaning |
 |---|---|---|
 | `source` | `provided`, `measured`, `derived`, `estimated` | Where the value came from |
-| `approval` | `open` (default), `agreed`, `assumed` | The user's decision: confirmed it, or accepted your recommendation by telling you to proceed. A measured or provided value is still `open` until the user confirms keeping it |
+| `approval` | `open` (default), `agreed`, `assumed` | The user's decision: confirmed it (board approval sets every proposal element to `agreed`), or accepted your recommendation by telling you to proceed. A routine element added during CAD delivery within the approved proposal is `assumed` and listed on the final board. A measured or provided value is still `open` until the user confirms keeping it |
 | `status` | `pending`, `modeled` (default), `verified` | Model state: not built yet, built, or checked against its value with a CAD measurement |
 
 An element not yet modeled stays in the table with `"status": "pending"` and shows as pending in the legend. At `--stage detail` the script refuses pending elements and any element whose approval is still `open`.
@@ -82,26 +88,26 @@ Open the sheet yourself before sending it, then add it (and `preview.html` as th
 
 ## Design board
 
-One page per job, rebuilt at every stop: the brief, all pictures and renders at full quality, comparisons, element cards, the 3D viewer, and decisions. It is the scope of work the user approves. Bullets only.
+One page per job, rebuilt when the proposal is complete, after each requested revision, and at delivery: the brief, all pictures and renders at full quality, comparisons, element cards, the 3D viewer, and decisions. It is the scope of work the user approves. Bullets only.
 
 ```
 python scripts/board.py board.json [--out board.html]
 ```
 
 ```json
-{"project": "Fascia 636873", "revision": "r3", "stage": "structure",
- "next": ["Check concept vs CAD slider", "Answer Q1–Q3 in chat"],
+{"project": "Fascia 636873", "revision": "r3", "stage": "proposal",
+ "next": ["Approve for CAD, or list changes"],
  "brief": ["Keep 4 openings + mounts", "Flowing wave relief, +3 mm max"],
  "sections": [
    {"title": "Concept translation", "bullets": ["~28 crests across"],
-    "images": [{"src": "concepts/trace.png", "caption": "Traced paths"}]},
+    "images": [{"src": "concepts/trace.png", "basis": "concept", "caption": "Traced paths"}]},
    {"title": "Concept vs CAD", "compare": [{"a": "concepts/hero.png", "b": "renders/cad_hero.png",
      "a_label": "Concept", "b_label": "CAD", "caption": "same camera"}]}],
  "elements": "elements.json", "viewer": "out/preview.html",
  "decisions": [{"date": "2026-10-06", "text": "Continuous wave, not ribs"}], "open": ["LED strip type"]}
 ```
 
-Paths are relative to `board.json`. Images are embedded unscaled; a missing or non-image file **blocks** (exit 2). An element in `elements.json` may carry an `"image"` (a crop or close-up) for its card. Keep superseded pictures in a dated section rather than deleting them, so the board doubles as the job record. Open the board yourself before linking it.
+Paths are relative to `board.json`. Images are embedded unscaled; a missing or non-image file **blocks** (exit 2). Every section image needs a `basis`, shown as a badge: `concept` (generated or sketched; appearance only), `cad` (preliminary CAD; checked as stated), `final` (delivered CAD) or `photo` (supplied reference). A missing or unknown basis **blocks**. An element in `elements.json` may carry an `"image"` (a crop or close-up) for its card. Keep superseded pictures in a dated section rather than deleting them, so the board doubles as the job record. Open the board yourself before linking it.
 
 ## Evidence-based comparison
 
@@ -121,7 +127,7 @@ For progression trials, retain the baseline and compare actual CAD at matching c
 4. Change the smallest relevant parameter set. Stay within existing authorization; ask about a changed functional constraint or scope before depending on it.
 5. Repeat affected geometry checks and visual inspection. Correct new defects introduced by the revision.
 
-If alternatives represent a genuine design preference, show the options together and ask a compact independent question round.
+Before approval, put genuine preference alternatives on the proposal board as trade-offs. After approval, ask only if the choice departs consequentially from the proposal.
 
 Stop iterating when applicable acceptance criteria are met and no material issue remains, or explain the concrete unresolved limitation. Repeated unchanged failures call for a different construction or missing information, not indefinite retries or silently reduced requirements.
 

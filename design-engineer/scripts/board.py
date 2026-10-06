@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+# What a picture can be trusted for: a concept never shows checked geometry.
+BASES = {'concept': 'concept · appearance only', 'cad': 'preliminary CAD', 'final': 'final CAD', 'photo': 'supplied photo'}
 
 
 class Blocked(Exception):
@@ -33,8 +35,9 @@ def bullets(items):
 
 
 def figure(img, base):
+    if img.get('basis') not in BASES: raise Blocked(f'image {img.get("src")}: basis must be one of {", ".join(BASES)}')
     return (f'<figure><img src="{embed(img["src"], base)}" alt="{esc(img.get("caption", ""))}" loading="lazy">'
-            f'<figcaption>{esc(img.get("caption", ""))}</figcaption></figure>')
+            f'<figcaption><b class="basis {img["basis"]}">{BASES[img["basis"]]}</b> {esc(img.get("caption", ""))}</figcaption></figure>')
 
 
 def compare(pair, base):

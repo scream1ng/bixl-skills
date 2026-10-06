@@ -29,7 +29,7 @@ Run the same case on each host with the same skill version, inputs and scripted 
 - Host, model and the capabilities table from `design-spec.md` (which path was used: generated concepts or rendered variants, inline HTML or file).
 - The final `board.html` and `board.json`: the run's visual record of questions, pictures, stops and decisions.
 - Interview: rounds asked, checklist items covered, items left as unconfirmed assumptions.
-- Previews: stages shown, elements in `elements.json`, any `preview.py` blocks and how they were resolved.
+- Stages: user stops (expected: three), board revisions before approval, any stage-3 pauses and why; elements in `elements.json`; any `preview.py` or `board.py` blocks and how they were resolved.
 - Results: the same silhouette, proportion, feature, surface and dimension criteria as above, from the final `sheet.png` and CAD measurements.
 
 Compare hosts on these records, not on prose quality. Note where a difference comes from a missing host capability rather than modeling skill.
