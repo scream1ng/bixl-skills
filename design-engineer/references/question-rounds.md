@@ -34,7 +34,7 @@ For a question about shape or style, show the option pictures (reference crops, 
 
 ## Coverage checklist (top-level branches)
 
-Every item ends **answered** (by the user, the brief or supplied files), **assumed** (a recommendation the user explicitly accepted) or **recommended** on the proposal board, which board approval settles. Track status in the board's decisions list.
+Every item ends **answered** (by the user, the brief or supplied files), **assumed** (a recommendation the user explicitly accepted) or **recommended** on the proposal board, which board approval settles. Track status in the relevant element and internal working spec.
 
 | Branch | Settle |
 |---|---|
@@ -62,4 +62,8 @@ Honor authorization already given. Ask when a proposed fix changes the agreed en
 
 During CAD delivery, ask only for a consequential departure from the approved proposal: envelope, functional interface, scope, mechanism, process, surface character, or a visible change to the approved look. Resolve everything else internally and record it on the final board.
 
-An explicit instruction to proceed ("you have enough information — keep going", "use your recommendations", "continue") accepts the recommendation you showed for each open question. Mark those decisions **assumed** (`"approval": "assumed"` on affected elements), list them in the board's decisions, say so in one line, and keep going. A decision you never put to the user with a recommendation is not covered and stays open.
+An explicit instruction to proceed ("you have enough information — keep going", "use your recommendations", "continue") accepts the recommendation you showed for each open question. Mark those decisions **assumed** (`"approval": "assumed"` on affected elements), record them under the affected elements, say so in one line, and keep going. A decision you never put to the user with a recommendation is not covered and stays open.
+
+## Unresolved engineering work
+
+Resolve consequential inputs in chat before the next stage relies on them. If the user explicitly approves deferral, record the question, working assumption and actual approval in the affected element. Do not invent an owner or due date. Keep physical validation requirements separate from design-choice approval. A supplied process or sufficient brief needs no repeated interview, and a complete board needs no separate questions form.

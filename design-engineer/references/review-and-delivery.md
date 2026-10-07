@@ -24,7 +24,7 @@ For assemblies and housings around bought or existing components. Both tracks ab
 | Installation and access | Assembly order, hand and tool reach, fastener access, connector mating, service and replacement. |
 | Body suitability | Does the chosen body (enclosure, housing, existing part) suit this layout, or is the layout being forced to fit it? |
 
-Use the functional faces recorded in the element table; when one is unknown, say so instead of guessing an orientation. Put a "Layout review" section on the design board: a plan or section view with the paths drawn, one bullet per finding, and the alternative when a finding suggests one. Before the proposal, resolve findings internally and show the chosen arrangement and its alternative on the board. After approval, a finding that changes the envelope, an interface, the body or the approved arrangement is a consequential departure: ask. Never fix it silently.
+Use the functional faces recorded in the element table; when one is unknown, say so instead of guessing an orientation. Put the layout review inside the relevant assembly/interface element: a plan or section view with the paths drawn, one bullet per finding, and the alternative when a finding suggests one. Before the proposal, resolve findings internally and show the chosen arrangement and its alternative on the board. After approval, a finding that changes the envelope, an interface, the body or the approved arrangement is a consequential departure: ask. Never fix it silently.
 
 ## Internal stage checks
 
@@ -41,20 +41,9 @@ Apply only the stages relevant to the task. A CAD-only bracket needs no expensiv
 
 The one board the user approves in stage 2. Build all of it before showing any of it. Each preview covers the **whole element table**, not just what changed.
 
-| Section | Contents |
-|---|---|
-| Brief and assumptions | Requirements used, recommendations adopted, open risks |
-| Concept | Concept pictures, labelled appearance only |
-| Views | Enough views to understand the design; every element visible at least once (`preview.py` sheet and 3D viewer from the preliminary CAD) |
-| Mechanism | Moving parts: every operating position and how the parts fit together in it, from posed CAD, with the motion explained |
-| Dimensions and interfaces | Element table: value, source, approval |
-| Materials and manufacturing | Process, build orientation and supports or tooling, finishing, assembly |
-| Feasibility | Checks run on the preliminary CAD and their results; what is not yet checked |
-| Trade-offs | Alternatives considered and why this one |
+Use the three-section layout and visual requirements in [board-format.md](board-format.md). Review holds the requested concept options, recommendation and enough overall views. Elements hold dimensions, functional interfaces, materials/process, layout findings, posed mechanisms, feasibility evidence and trade-offs, each with a visible snapshot. Revision History records brief actual changes. Do not add extra top-level cards for these subjects.
 
-Label every picture by `basis` (below): a concept picture never shows a mechanism position, clearance or fit. For concept work include the traced concept and section sketch.
-
-At delivery, update the same board: final sheet and viewer, proposal vs final comparison (concept vs CAD at the concept camera for visual work), verification results, departures from the proposal, and physical validation still required. Keep the approved proposal in a dated section.
+Label concept images as appearance-only; use actual posed CAD for mechanism positions and actual geometry for fit/clearance evidence. Complete and inspect every render and snapshot before presenting the board. For a simple visual concept, do not force final CAD before approval; use a preliminary blockout only where feasibility or motion needs it. At delivery use the current actual model for snapshots and the viewer. Preserve the approved proposal in job files and put relevant matched-view comparisons in Review or the affected element.
 
 Generate with the CAD environment:
 
@@ -77,7 +66,7 @@ Three separate fields per element; never infer one from another:
 | Field | Values | Meaning |
 |---|---|---|
 | `source` | `provided`, `measured`, `derived`, `estimated` | Where the value came from |
-| `approval` | `open` (default), `agreed`, `assumed` | The user's decision: confirmed it (board approval sets every proposal element to `agreed`), or accepted your recommendation by telling you to proceed. A routine element added during CAD delivery within the approved proposal is `assumed` and listed on the final board. A measured or provided value is still `open` until the user confirms keeping it |
+| `approval` | `open` (default), `agreed`, `assumed` | The user's decision: confirmed the presented design choice (board approval does not verify physical performance or accept undisclosed assumptions), or accepted your recommendation by telling you to proceed. A routine element added during CAD delivery within the approved proposal is `assumed` and listed on the final board. A measured or provided value is still `open` until the user confirms keeping it |
 | `status` | `pending`, `modeled` (default), `verified` | Model state: not built yet, built, or checked against its value with a CAD measurement |
 
 An element not yet modeled stays in the table with `"status": "pending"` and shows as pending in the legend. At `--stage detail` the script refuses pending elements and any element whose approval is still `open`.
@@ -88,26 +77,7 @@ Open the sheet yourself before sending it, then add it (and `preview.html` as th
 
 ## Design board
 
-One page per job, rebuilt when the proposal is complete, after each requested revision, and at delivery: the brief, all pictures and renders at full quality, comparisons, element cards, the 3D viewer, and decisions. It is the scope of work the user approves. Bullets only.
-
-```
-python scripts/board.py board.json [--out board.html]
-```
-
-```json
-{"project": "Fascia 636873", "revision": "r3", "stage": "proposal",
- "next": ["Approve for CAD, or list changes"],
- "brief": ["Keep 4 openings + mounts", "Flowing wave relief, +3 mm max"],
- "sections": [
-   {"title": "Concept translation", "bullets": ["~28 crests across"],
-    "images": [{"src": "concepts/trace.png", "basis": "concept", "caption": "Traced paths"}]},
-   {"title": "Concept vs CAD", "compare": [{"a": "concepts/hero.png", "b": "renders/cad_hero.png",
-     "a_label": "Concept", "b_label": "CAD", "caption": "same camera"}]}],
- "elements": "elements.json", "viewer": "out/preview.html",
- "decisions": [{"date": "2026-10-06", "text": "Continuous wave, not ribs"}], "open": ["LED strip type"]}
-```
-
-Paths are relative to `board.json`. Images are embedded unscaled; a missing or non-image file **blocks** (exit 2). Every section image needs a `basis`, shown as a badge: `concept` (generated or sketched; appearance only), `cad` (preliminary CAD; checked as stated), `final` (delivered CAD) or `photo` (supplied reference). A missing or unknown basis **blocks**. An element in `elements.json` may carry an `"image"` (a crop or close-up) for its card. Keep superseded pictures in a dated section rather than deleting them, so the board doubles as the job record. Open the board yourself before linking it.
+Follow [board-format.md](board-format.md) for schema v2, the three-section layout, mandatory per-element snapshots, evidence labels, revision history and migration. Use the generator after assembling all assets; it does not create the renders itself. Retain source/approval/model status separately, and keep questions in chat until answered or explicitly deferred. There is no separate specification, remaining-checks or question-form section.
 
 ## Evidence-based comparison
 

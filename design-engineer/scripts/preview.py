@@ -133,7 +133,16 @@ def sheet(components, elements, lo, hi, out, title):
     """2x2 orthographic views with numbered element callouts and a legend; returns per-element visibility."""
     from PIL import Image, ImageDraw, ImageFont
     tile, legend_w = 620, 560
-    font, big = ImageFont.load_default(16), ImageFont.load_default(24)
+    # CAD labels contain diameter, multiplication and dash glyphs absent from Pillow's default font.
+    for family in ('DejaVuSans.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                   'Arial.ttf', '/System/Library/Fonts/Supplemental/Arial.ttf', 'C:/Windows/Fonts/arial.ttf'):
+        try:
+            font, big = ImageFont.truetype(family, 14), ImageFont.truetype(family, 23)
+            break
+        except OSError:
+            continue
+    else:
+        raise Blocked('A Unicode font (DejaVu Sans or Arial) is required for readable CAD labels')
     centre = (lo + hi) / 2; tol = 0.02 * max(float((hi - lo).max()), 1.0)
     light = np.array([-.3, .6, 1.]); light /= np.linalg.norm(light)
     im = Image.new('RGB', (2 * tile + legend_w, max(2 * tile + 100, 140 + 46 * len(elements))), (243, 245, 247))
