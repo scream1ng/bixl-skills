@@ -107,7 +107,7 @@ Stop iterating when applicable acceptance criteria are met and no material issue
 
 - Reopen the saved native/CAD files after the final revision. Confirm expected objects/solids, units, transforms, required assets and editable source where promised.
 - Reimport exported STEP when feasible; verify important dimensions and component counts survived export. Check actual feature positions/axes, not just overall bounds.
-- For a feature added to existing geometry, inspect a section through the joint: a gap or a one-sided join passes validity and volume checks.
+- For a feature added to existing geometry, inspect a section through the joint: a gap or a one-sided join passes validity and volume checks. To make one, cut the part in half with a box in build123d, export that STEP, and run `preview.py --snapshots` on it with an anchor on the cut face; that element's snapshot is the section.
 - Open the final image and check its actual dimensions and visible result. Keep the saved scene and final render consistent.
 - Verify the preview was actually displayed if claiming it works interactively. Otherwise provide and inspect a static fallback and state the limitation.
 - Place requested artifacts in the agreed folder. Keep drafts and supporting scripts out of the main deliverable list, while retaining useful revision sources.

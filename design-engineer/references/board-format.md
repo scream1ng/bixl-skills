@@ -48,7 +48,7 @@ No separate page banner, logo, navigation strip, scope/specification card, quest
 }
 ```
 
-`stage` is `proposal`, `blockout`, `structure`, `detail`, `delivery` or `final`. A proposal may omit `viewer`; pictures are still required, and draft views count. A CAD delivery should supply the viewer when supported. `detail`, `delivery` and `final` require at least one final review render and a final snapshot on every element. A visual-model delivery can use snapshots rendered from its delivered model; `final` describes provenance, not an engineering certification.
+`stage` is `proposal`, `blockout`, `structure`, `detail`, `delivery` or `final`. A proposal may omit `viewer`; pictures are still required, and draft views count. A CAD delivery should supply the viewer when supported. `detail`, `delivery` and `final` require at least one final review render (a draft view of the delivered CAD counts) and a final snapshot on every element. A visual-model delivery can use snapshots rendered from its delivered model; `final` describes provenance, not an engineering certification.
 
 ```json
 {

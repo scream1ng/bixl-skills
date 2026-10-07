@@ -54,7 +54,7 @@ class PreviewTests(unittest.TestCase):
         self.assertEqual(saved[0]['image'], 'out/elements/E1.jpg'); self.assertEqual(saved[0]['image_basis'], 'final')
         self.assertEqual(saved[0]['anchor'], [0, -30, 0])                    # anchors stay in model coordinates
         self.assertEqual(saved[1]['image'], 'section.png')
-        self.assertEqual(self.run_preview(saved, fill_images=True)['filled'], ['E1', 'E2'])
+        self.assertEqual(self.run_preview(saved, fill_images=True)['filled'], ['E1'])
         self.assertEqual(json.loads((self.dir / 'elements.json').read_text())['elements'][0]['image_basis'], 'cad')
 
     def test_fill_images_replaces_snapshots_from_another_out_and_clears_stale_ones(self):
@@ -183,6 +183,11 @@ class PreviewTests(unittest.TestCase):
         self.assertGreater(full, 500)
         self.assertEqual(result['faces'], full)  # fits, so nothing is decimated
         self.assertLess(result['bytes'], module.INLINE_HTML_LIMIT)
+
+    def test_missing_model_blocks_with_a_message(self):
+        self.step = self.dir / 'nope.step'
+        with self.assertRaisesRegex(module.Blocked, 'model not found: .*nope.step'):
+            self.run_preview(self.elements)
 
     def test_anchor_off_the_surface_blocks(self):
         for bad in ([40, 0, 20], [0, 0, 0]):                                   # in the air beside the boss; buried in the base

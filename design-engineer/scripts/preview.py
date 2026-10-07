@@ -72,6 +72,7 @@ def read_stl(path):
 def load_components(model):
     """Return ([(name, triangles)], skipped face area fraction): one per STEP solid (labelled when named) or one STL mesh."""
     model = Path(model)
+    if not model.is_file(): raise Blocked(f'model not found: {model}')
     if model.suffix.lower() == '.stl':
         return [(model.stem, read_stl(model))], 0.0
     import build123d as b
@@ -469,7 +470,7 @@ def generate(model, elements_path, out, stage='blockout', with_html=False, with_
     if fill_images:
         # Point each element at its draft snapshot unless it already carries its own picture (a section, a photo).
         # `image_auto` marks a filled snapshot, so a later run (any OUT folder) replaces or clears it.
-        raw = json.loads(Path(elements_path).read_text())
+        raw = json.loads(Path(elements_path).read_text()); filled_ids = []
         for e in raw.get('elements') or []:
             filled = e.get('image_auto')
             if e.get('image') and not filled: continue
@@ -477,11 +478,11 @@ def generate(model, elements_path, out, stage='blockout', with_html=False, with_
                 e['image'] = Path(made[e['id']][0]).relative_to(base).as_posix() if Path(made[e['id']][0]).is_relative_to(base) else made[e['id']][0]
                 e['image_basis'] = 'final' if stage == 'detail' else 'cad'
                 e['image_caption'] = f"{e.get('name', e['id'])} · draft view from {made[e['id']][1]}"
-                e['image_auto'] = True
+                e['image_auto'] = True; filled_ids.append(e['id'])
             elif filled:
                 for k in ('image', 'image_basis', 'image_caption', 'image_auto'): e.pop(k, None)
         Path(elements_path).write_text(json.dumps(raw, indent=1, ensure_ascii=False))
-        result['filled'] = sorted(made)
+        result['filled'] = sorted(filled_ids)
     if with_html:
         size, faces = html(components, elements, spec, stage, out, turn.T, min(viewer_bytes, INLINE_HTML_LIMIT))
         result.update(html=str((out / 'preview.html').resolve()), bytes=size, faces=faces)
