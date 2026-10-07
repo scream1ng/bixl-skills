@@ -1,4 +1,14 @@
 interface:
-  display_name: "Design Engineer"
-  short_description: "v1.3 · Develop image references and ideas into reviewed CAD"
-  default_prompt: "Use $design-engineer to develop my reference or idea into a detailed model, verify it, and refine the preview."
+  display_name: Design Engineer
+  short_description: v1.5 · Fast draft boards, snapshot cards and verified CAD
+  default_prompt: Use $design-engineer to develop my idea into a complete visual proposal
+    board, then build and verify the approved CAD.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
