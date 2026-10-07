@@ -1,0 +1,4 @@
+- Large assemblies: the skill decides by itself whether parallel helpers are worth it (6+ custom parts, interfaces fixed by the approved board)
+- Asks once, at proposal approval, in plain words: what each helper builds, what the lead does, A (helpers) / B (build alone) / C (change the board)
+- Hosts without subagents build the part groups one at a time with progress updates; no extra question
+- Helpers deliver STEP plus editable build123d source; the lead runs the whole-assembly checks and notes who built each part

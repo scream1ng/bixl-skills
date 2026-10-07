@@ -1,6 +1,6 @@
 interface:
   display_name: Design Engineer
-  short_description: v1.6 · Fast draft boards, snapshot cards and verified CAD
+  short_description: v1.7 · Fast draft boards, snapshot cards, verified CAD and parallel helpers
   default_prompt: Use $design-engineer to develop my idea into a complete visual proposal
     board, then build and verify the approved CAD.
   icon_small: assets/icon.svg

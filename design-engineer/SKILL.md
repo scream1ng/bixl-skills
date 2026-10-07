@@ -1,6 +1,6 @@
 ---
 name: design-engineer
-description: v1.6 · Develop product ideas, photographs, sketches, drawings, or existing STEP parts into detailed visual models or dimensioned CAD. Use for reference-based modeling, product form development, parts and assemblies, and iterative CAD previews. Supports build123d for solid CAD and Blender for visual modeling and rendering. Not for weld or checking fixtures (use design-fixture) or shop drawings of existing sheet-metal parts (use draft-drawing).
+description: v1.7 · Develop product ideas, photographs, sketches, drawings, or existing STEP parts into detailed visual models or dimensioned CAD. Use for reference-based modeling, product form development, parts and assemblies, and iterative CAD previews. Supports build123d for solid CAD and Blender for visual modeling and rendering. Not for weld or checking fixtures (use design-fixture) or shop drawings of existing sheet-metal parts (use draft-drawing).
 ---
 
 # Design Engineer
@@ -12,7 +12,7 @@ Turn the user's references and requirements into an editable model, then inspect
 The user sees exactly three stages. Route choice, spec, preliminary CAD, stage checks, layout/motion/process reviews and refinement are internal work between them.
 
 1. **Requirements.** Use what the request and supplied files already settle. Ask every essential decision in one round, each with your recommendation ([question-rounds.md](references/question-rounds.md)). There is no limit on the number of questions: ten to twenty is fine when the job needs them, and a complete first round is cheaper than a revised board. Ask a follow-up only when a missing answer would materially change the proposal. Once the proposal can be built, go straight to stage 2 without asking.
-2. **Proposal board, approved once.** Build the complete design board in one pass, then show it ([Proposal board](references/review-and-delivery.md#proposal-board)). Ask one question: approve the proposal for CAD, or what to change. Revise and re-show the whole board until approved. Never show a partial board or add pictures across approval rounds.
+2. **Proposal board, approved once.** Build the complete design board in one pass, then show it ([Proposal board](references/review-and-delivery.md#proposal-board)). Ask one question: approve the proposal for CAD, or what to change. For a large assembly, the same question can offer helpers to build part groups in parallel ([Large assemblies](references/large-assemblies.md)). Revise and re-show the whole board until approved. Never show a partial board or add pictures across approval rounds.
 3. **CAD delivery, autonomous.** After approval, build, check and deliver without further approvals. Pause only for a genuine blocker or a consequential departure from the approved proposal ([Changes and approvals](references/question-rounds.md#changes-and-approvals)).
 
 When the user says to proceed on your judgment ("you have enough information — keep going", "use your recommendations"), accept your recommendation for every open question, mark those rows `"approval": "assumed"`, record them under their elements, say so in one line, and continue. Silence or an elapsed timeout is never an answer.
@@ -45,6 +45,7 @@ This skill runs on ChatGPT and Claude. At the start, check which of these the ho
 |---|---|---|
 | Image generation | Generate concept pictures for picture-first work | Draft shaded views of 2–3 quick CAD blockout variants (`preview.py --snapshots`), or simple vector sketches; or ask the user for concept images (from any tool) |
 | Inline HTML rendering (ChatGPT visualization surface, Claude artifact) | Also show the board inline when it fits the host's size limit | Send `board.html` as a file; it opens in any browser at full quality |
+| Subagents (parallel helpers) | Offer helpers for a large assembly ([Large assemblies](references/large-assemblies.md)) | Build the part groups one at a time and post an update after each |
 | Code execution with the CAD environment | build123d, `scripts/preview.py` (sheet, 3D viewer, draft views and element snapshots) | Say which outputs are blocked; do not fake renders or previews |
 
 Never claim a capability you did not use, and never present a generated picture as measured geometry.
