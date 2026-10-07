@@ -26,6 +26,8 @@ For assemblies and housings around bought or existing components. Both tracks ab
 
 Use the functional faces recorded in the element table; when one is unknown, say so instead of guessing an orientation. Put the layout review inside the relevant assembly/interface element: a plan or section view with the paths drawn, one bullet per finding, and the alternative when a finding suggests one. Before the proposal, resolve findings internally and show the chosen arrangement and its alternative on the board. After approval, a finding that changes the envelope, an interface, the body or the approved arrangement is a consequential departure: ask. Never fix it silently.
 
+**When the product's purpose is an effect** (light out of a reveal, air through a vent), on any part, not only assemblies: check that the effect works on the preliminary CAD before the proposal. Trace rays or flow from the source and report the share that reaches where it is meant to go; a hidden source says nothing about whether the effect works. Show the traced paths and the share in a section in the relevant element, and offer an alternative when the effect is weak.
+
 ## Internal stage checks
 
 | Before proceeding to | Inspect | Resolve first |

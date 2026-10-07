@@ -219,6 +219,13 @@ class PreviewTests(unittest.TestCase):
         self.assertEqual([saved[0]['image'], saved[2]['image']], ['out/elements/E1-section.jpg', 'out/elements/E3.jpg'])
         self.assertNotIn('image_auto', saved[0])
 
+    def test_edge_snapshot_stays_inside_the_part(self):
+        import numpy as np
+        from PIL import Image
+        corner = {'id': 'E1', 'name': 'Corner', 'source': 'provided', 'anchor': [49, -30, 5], 'frame': 40}
+        shot = self.run_preview([corner, self.elements[1]], with_snapshots=True)['snapshots']['E1']
+        self.assertLess((np.asarray(Image.open(shot).convert('L')) > 235).mean(), 0.2)   # 0.27 when centred on the corner
+
     def test_wall_in_front_hides_an_inner_part(self):
         # A closed 1.5 mm housing around an inner block: the block's face is on a surface but never visible.
         b.export_step(b.Compound([b.Box(100, 100, 100) - b.Box(97, 97, 97), b.Box(97, 97, 97)]), str(self.step))

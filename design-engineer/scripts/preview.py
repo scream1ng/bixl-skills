@@ -343,7 +343,10 @@ def snapshots(components, elements, lo, hi, out, normals=None, keep=()):
         if width >= extent:
             mid, half = fit(frame, size[0] / size[1]); half = max(half, width / 2)
         else:
-            mid, half = ((anchor - centre) @ frame)[:2], width / 2
+            # Centred on the anchor, but kept inside the part's outline so an element at the edge is not half background.
+            half = width / 2; reach = np.array([half, half * size[1] / size[0]]); q = (corners - centre) @ frame
+            a, b = q.min(0)[:2] + reach, q.max(0)[:2] - reach
+            mid = np.where(a <= b, np.clip(((anchor - centre) @ frame)[:2], a, b), (a + b) / 2)
         save(draft_render(components, frame, centre, mid, half, size)[0], size, path)
         made[e['id']] = (str(path.resolve()), name)
     return views, made, missing

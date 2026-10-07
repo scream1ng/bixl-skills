@@ -12,6 +12,8 @@ The **frontier** is every decision whose prerequisites are already settled. Ask 
 
 Finding **facts** is your job, never the user's: measure supplied CAD, read files, inspect images and check tools yourself before asking. Only questions downstream of an unfinished lookup wait for it. The **decisions** are the user's: put each one to them with your recommendation.
 
+Open the first round with the **outcome** as Q1: what the user or customer should see or get when the product works (for a light, where the light comes out and what stays hidden). The rest of the tree hangs off it.
+
 The interview is done when no remaining open decision would materially change the proposal: every branch visited, nothing left silently assumed. Record the rest as `estimated` with approval `open`; the proposal board settles them. Size the interview to the job: usually one round, occasionally a follow-up. Do not trim the round to keep it short: a question skipped here usually returns as a rejected board, which costs far more than an answer. When unsure whether a decision is consequential, ask it. Group a long round under the checklist branches so it reads quickly. Then build the proposal without asking.
 
 ## Round format

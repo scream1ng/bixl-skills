@@ -60,6 +60,6 @@ STEP of the formed part in (a supplied flat pattern is used if present, otherwis
 
 ![Workflow](engineer-flow.svg)
 
-**[Download design-engineer-v1.4.zip](../../releases/download/design-engineer-v1.4/design-engineer-v1.4.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-engineer`.
+**[Download design-engineer-v1.6.zip](../../releases/download/design-engineer-v1.6/design-engineer-v1.6.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-engineer`.
 
 References, ideas or an existing STEP in; an editable build123d model, a Blender visual model, or both, out. Geometry and appearance are reviewed as separate tracks, and estimated dimensions are labelled as estimates. A valid solid or a good render is not a manufacturability check.

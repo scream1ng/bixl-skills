@@ -1,0 +1,8 @@
+- Includes the v1.5 visual review boards: draft snapshots by default, snapshot cards, board strictly under 1 MB
+- Anchors must sit on the model surface (and be finite); the error gives the nearest surface point
+- Snapshots face the element's surface; a wall in front hides an inner part; edge features stay framed inside the part
+- The user's own images are never deleted or replaced; only `image_auto` snapshots are refilled
+- 3D viewer: comment positions exported in the model's own frame; pins labelled C1, C2…; `--viewer-bytes` budget
+- Reserved element ids; clear "model not found" message
+- Interview opens with the outcome question; effect products (light, air) get a traced-path check before the proposal
+- Section-through-joint check for features added to existing geometry, with a recipe using preview.py
