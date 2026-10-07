@@ -1,0 +1,6 @@
+- Three user-facing stages: requirements, one complete proposal board approved once, autonomous CAD delivery
+- Spec playback, concept translation, patch trial and blockout/structure/detail stops are now internal checks
+- Proposal board: concept, views, every mechanism position from posed CAD, dimensions, materials, manufacturing, feasibility, trade-offs
+- New motion and process checks before the proposal and on the final CAD
+- Board images need a basis (concept, cad, final, photo); concept pictures are labelled appearance only
+- Delivery reports concept imagery, CAD verification and physical validation separately
