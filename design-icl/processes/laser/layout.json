@@ -1,0 +1,7 @@
+{
+  "process":"laser", "template":"template.xlsx", "sheet":"xl/worksheets/sheet1.xml", "history":"xl/worksheets/sheet2.xml",
+  "groups":{"setup":[11,12,13],"hourly":[15,16,17,18,19,20,21]}, "clear_rows":[11,12,13,15,16,17,18,19,20,21],
+  "clear_cells":["A6","B9","A15"], "fixed_cells":{"B8":"CHECK\nPOINT","F6":"LASER","A10":"Inspection Frequency : Start of run","A14":"Inspection Frequency : Hourly"},
+  "metadata":{"C3":"revision","C4":"date","C6":"drawing_number","I6":"number","N6":"name","F7":"frequency"},
+  "drawing":{"part":"xl/drawings/drawing1.xml","rels":"xl/drawings/_rels/drawing1.xml.rels","logo_rel":"rId1","row":21,"width_px":830,"height_px":198}
+}

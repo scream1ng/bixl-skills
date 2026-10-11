@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "process": "bending",
+  "revision": 1,
+  "part": {
+    "number": "UCHANNEL-B",
+    "name": "U-channel trial",
+    "date": "2026-10-11",
+    "drawing_number": "uchannel.step",
+    "frequency": "TBC"
+  },
+  "sources": [
+    {
+      "path": "part.step",
+      "sha256": "ed741ecbe7357bfd0f18d96912aacaf8a0ac5f3be6590c889fa9d1456bb77937"
+    }
+  ],
+  "checks": [
+    {
+      "key": "left_height",
+      "id": "B1",
+      "description": "Outer base to left flange tip",
+      "nominal": 35,
+      "tolerance": 0.5,
+      "unit": "mm",
+      "gauge": "Vernier",
+      "source": "Measured from supplied U-channel STEP; outside CAD surfaces.",
+      "method": "Vernier outside contacts at main outer base z=0 and flange tip z=35; verify both ends."
+    },
+    {
+      "key": "right_height",
+      "id": "B2",
+      "description": "Outer base to right flange tip",
+      "nominal": 35,
+      "tolerance": 0.5,
+      "unit": "mm",
+      "gauge": "Vernier",
+      "source": "Measured from supplied U-channel STEP; outside CAD surfaces.",
+      "method": "Vernier outside contacts at main outer base z=0 and other flange tip z=35; verify both ends."
+    },
+    {
+      "key": "outside_width",
+      "id": "B3",
+      "description": "Outside flange width",
+      "nominal": 100,
+      "tolerance": 0.5,
+      "unit": "mm",
+      "gauge": "Vernier",
+      "source": "Measured from supplied U-channel STEP; outside CAD surfaces.",
+      "method": "Outside flange faces y=0 and y=100."
+    },
+    {
+      "key": "parallelism",
+      "id": "B4",
+      "description": "Check flanges are parallel",
+      "limits": "Tolerance TBC",
+      "gauge": "Gauge TBC",
+      "source": "Formed U-channel CAD",
+      "method": "Define acceptance and gauge before production use."
+    },
+    {
+      "key": "bend_condition",
+      "id": "B5",
+      "description": "Check for bend cracks / tooling marks",
+      "limits": "Standard TBC",
+      "gauge": "Visual",
+      "source": "Bending process requirement",
+      "method": "Inspect bend zones against the agreed surface standard."
+    }
+  ],
+  "drawing": {
+    "width": 1800,
+    "height": 430,
+    "geometry": "geometry.svg",
+    "dimensions": [
+      {
+        "check": "left_height",
+        "kind": "vertical",
+        "a": [
+          1010.0,
+          278.0
+        ],
+        "b": [
+          1010.0,
+          110.0
+        ],
+        "offset": 875,
+        "badge_xy": [
+          900,
+          65
+        ]
+      },
+      {
+        "check": "right_height",
+        "kind": "vertical",
+        "a": [
+          1490.0,
+          278.0
+        ],
+        "b": [
+          1490.0,
+          110.0
+        ],
+        "offset": 1530,
+        "badge_xy": [
+          1555,
+          65
+        ]
+      },
+      {
+        "check": "outside_width",
+        "kind": "horizontal",
+        "a": [
+          1010.0,
+          278.0
+        ],
+        "b": [
+          1490.0,
+          278.0
+        ],
+        "offset": 345,
+        "badge_xy": [
+          1250,
+          393
+        ]
+      }
+    ]
+  },
+  "change": "Initial preview example; remaining acceptance criteria TBC",
+  "author": ""
+}
