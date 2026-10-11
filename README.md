@@ -69,6 +69,8 @@ References, ideas or an existing STEP in; an editable build123d model, a Blender
 
 [SKILL.md](design-icl/SKILL.md) · preview needs only Python; Excel export needs [`scripts/requirements.txt`](design-icl/scripts/requirements.txt) (CairoSVG, lxml) plus the system Cairo library
 
+![Workflow](icl-flow.svg)
+
 **[Download design-icl-v1.0.zip](../../releases/download/design-icl-v1.0/design-icl-v1.0.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-icl`.
 
 A STEP file or dimensioned drawing in; a process-specific check list and a dimensioned wireframe out, first as an HTML preview with pinned comments, then, on explicit approval, filled into the company ICL Excel form. Default tolerances: laser cut ±0.2 mm, bending and welding ±0.5 mm, clinch-fastener holes ±0.2 mm; drawing tolerances win. Laser and Bending export to their bundled forms; Welding previews only until its company form is supplied. Unknown limits stay TBC. Approval generates the document; it is not physical validation.
