@@ -1,6 +1,6 @@
 ---
 name: design-icl
-description: Design and revise process-specific inspection check lists (ICLs) from STEP files or dimensioned drawings. Supports Laser, Bending and Welding, with HTML review and pinned comments before company-template Excel delivery. Use for inspection check lists, QC/inspection check sheets and ICL rules. Not for weld or checking fixtures (use design-fixture), shop drawings (use draft-drawing) or general CAD modeling (use design-engineer).
+description: v1.0 · Design and revise process-specific inspection check lists (ICLs) from STEP files or dimensioned drawings. Supports Laser, Bending and Welding, with HTML review and pinned comments before company-template Excel delivery. Use for inspection check lists, QC/inspection check sheets and ICL rules. Not for weld or checking fixtures (use design-fixture), shop drawings (use draft-drawing) or general CAD modeling (use design-engineer).
 ---
 
 # Design ICL
