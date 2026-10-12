@@ -72,7 +72,9 @@
       "source": "Company Laser inspection profile: SOP008",
       "method": "Visually inspect cut edges for harmful burrs, sharp edges and laser daggs according to SOP008. Confirm the current SOP is available to the operator.",
       "group": "hourly"
-    }
+    },
+    "reference_sample_check": true,
+    "balloon_scale": 2
   },
   "group_headers": {
     "setup": 10,

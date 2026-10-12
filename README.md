@@ -10,6 +10,7 @@ Backwell IXL assistant skills. Each [release](../../releases) carries one skill 
 | [design-backbar](#design-backbar) | Laser-cut backgauge jig plates for bends where the blank edge is not parallel to the bend |
 | [design-engineer](#design-engineer) | Product ideas, photos, sketches or STEP parts into visual models or dimensioned CAD |
 | [draft-icl](#draft-icl) | Laser, bending or welding inspection check list (ICL), reviewed in HTML before the company Excel form |
+| [draft-pfc](#draft-pfc) | Process flow chart (PFC) from a D365 BOM, reviewed in HTML before the company Excel form |
 
 ## design-fixture
 
@@ -67,10 +68,20 @@ References, ideas or an existing STEP in; an editable build123d model, a Blender
 
 ## draft-icl
 
-[SKILL.md](draft-icl/SKILL.md) · preview needs only Python; Excel export needs [`scripts/requirements.txt`](draft-icl/scripts/requirements.txt) (CairoSVG, lxml) plus the system Cairo library
+Formerly `design-icl`. [SKILL.md](draft-icl/SKILL.md) · preview needs only Python; Excel export needs [`scripts/requirements.txt`](draft-icl/scripts/requirements.txt) (CairoSVG, lxml, pypdf) plus the system Cairo library
 
 ![Workflow](icl-flow.svg)
 
-**[Download draft-icl-v1.1.zip](../../releases/download/draft-icl-v1.1/draft-icl-v1.1.zip)** — `SKILL.md` at the zip root; unzip into a folder named `draft-icl`.
+**[Download draft-icl-v1.2.zip](../../releases/download/draft-icl-v1.2/draft-icl-v1.2.zip)** — `SKILL.md` at the zip root; unzip into a folder named `draft-icl`.
 
 A STEP file or dimensioned drawing in; a process-specific check list and a dimensioned wireframe out, first as an HTML preview with pinned comments, then, on explicit approval, filled into the company ICL Excel form. Default tolerances: laser cut ±0.2 mm, bending and welding ±0.5 mm, clinch-fastener holes ±0.2 mm; drawing tolerances win. Laser and Bending export to their bundled forms; Welding previews only until its company form is supplied. Unknown limits stay TBC. Approval generates the document; it is not physical validation.
+
+## draft-pfc
+
+[SKILL.md](draft-pfc/SKILL.md) · import, preview and Excel export need only Python; optional CAD isometric views need [`scripts/render-requirements.txt`](draft-pfc/scripts/render-requirements.txt) (cadquery, numpy, Pillow)
+
+![Workflow](pfc-flow.svg)
+
+**[Download draft-pfc-v1.0.zip](../../releases/download/draft-pfc-v1.0/draft-pfc-v1.0.zip)** — `SKILL.md` at the zip root; unzip into a folder named `draft-pfc`.
+
+A D365 BOM spreadsheet in, plus optional STEP or drawing; a process flow chart out, first as an HTML preview with pinned comments, then, on explicit approval, drawn as editable native shapes on the company PFC Excel form. Component branches, materials, hardware and packing stay attached to the stage that consumes them; unknowns stay TBC. The bundled form is a masked copy (placeholder codes, no author, no macros). Approval generates the document; it is not a production release.

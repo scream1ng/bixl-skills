@@ -13,7 +13,7 @@ class Element{
 }
 const saved=new Map();let failStorage=false,clipboardWorks=false,copied;
 function environment(){
-  const ids={};for(const id of ['drawing','pins','logo','notes','status','mode','copy','download','exported']){ids[id]=new Element();ids[id].id=id;}
+  const ids={};for(const id of ['drawing','pins','logo','notes','status','mode','copy','exported']){ids[id]=new Element();ids[id].id=id;}
   const sheet=new Element();sheet.bounds={left:20,top:100,right:1520,width:1500,height:1000};sheet.append(ids.pins,ids.drawing);
   ids.drawing.bounds={left:40,top:700,right:1040,width:1000,height:500};ids.logo.attrs.src='image';
   const row=new Element('tr');row.dataset.check='height';const cell=new Element('td');cell.bounds={left:40,top:200,right:90,width:50,height:40};row.append(cell);sheet.append(row);
@@ -37,7 +37,7 @@ function environment(){
   clipboardWorks=true;await e.ids.copy.onclick();assert(e.ids.exported.hidden);assert(copied.includes('C1. Check this flange'));
   e=environment();assert.equal(e.ids.pins.children.length,1);assert.equal(e.run('comments[0].text'),'Check this flange');assert(e.ids.pins.children[0].classes.has('shut'));
   failStorage=true;area=e.ids.pins.children[0].children[1].children[1];area.value='Still editable offline';area.oninput();assert(e.ids.status.textContent.includes('Local storage unavailable'));assert(e.ids.notes.textContent.includes('Still editable offline'));
-  const key='draft-icl:bending:digest123';saved.set(key,JSON.stringify([{check:'wrong',text:'bad'},{check:null,text:'bad',position:{x:2,y:0}},{check:null,text:'valid',position:{x:.2,y:.3}}]));
+  const key='design-icl:bending:digest123';saved.set(key,JSON.stringify([{check:'wrong',text:'bad'},{check:null,text:'bad',position:{x:2,y:0}},{check:null,text:'valid',position:{x:.2,y:.3}}]));
   e=environment();assert.equal(e.run('comments.length'),1);assert.equal(e.run('comments[0].text'),'valid');
   console.log('Comment controller checks passed: pins, editing, collapse/reopen, row keyboard, deletion/renumbering, copy fallback, persistence and invalid saved notes.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

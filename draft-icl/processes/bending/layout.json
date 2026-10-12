@@ -56,7 +56,9 @@
       "Vernier",
       "Protractor",
       "Visual"
-    ]
+    ],
+    "reference_sample_check": true,
+    "balloon_scale": 1
   },
   "group_headers": {},
   "print_last_row": 24

@@ -161,9 +161,18 @@ def build(path,spec,layout,template):
         if not any(b.get('{'+R+'}embed')==config['logo_rel'] for b in anchor.iter('{'+A+'}blip')):drawing.remove(anchor)
     anchor=E.SubElement(drawing,'{'+D+'}oneCellAnchor')
     origin=E.SubElement(anchor,'{'+D+'}from')
-    for tag,value in [('col',0),('colOff',0),('row',config['row']),('rowOff',0)]:E.SubElement(origin,'{'+D+'}'+tag).text=str(value)
-    w,h=config['width_px'],config['height_px'];aspect=spec['drawing']['width']/spec['drawing']['height']
+    w,h=config['width_px'],config['height_px']-4;aspect=spec['drawing']['width']/spec['drawing']['height']
     w=min(w,h*aspect);h=w/aspect
+    # Centre the approved drawing within A:T, retaining its aspect and band height.
+    # Excel widths use character units; convert to pixels at the standard 7 px digit.
+    columns=sheet.find(q('cols'));widths=[]
+    for col in range(1,21):
+        entries=[c for c in columns if int(c.get('min'))<=col<=int(c.get('max'))]if columns is not None else []
+        character_width=float(entries[-1].get('width','8.43'))if entries else 8.43
+        widths.append(round(character_width*7+5)if character_width>=1 else round(character_width*12))
+    left=max(0,(sum(widths)-w)/2);col=0
+    while col<len(widths)-1 and left>=widths[col]:left-=widths[col];col+=1
+    for tag,value in [('col',col),('colOff',round(left*9525)),('row',config['row']),('rowOff',2*9525)]:E.SubElement(origin,'{'+D+'}'+tag).text=str(value)
     E.SubElement(anchor,'{'+D+'}ext',cx=str(round(w*9525)),cy=str(round(h*9525)))
     picture=E.SubElement(anchor,'{'+D+'}pic');nv=E.SubElement(picture,'{'+D+'}nvPicPr')
     ids=[int(n.get('id')) for n in drawing.iter('{'+D+'}cNvPr')]

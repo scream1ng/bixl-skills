@@ -1,4 +1,4 @@
-const $=id=>document.getElementById(id),storageKey='draft-icl:'+meta.process+':'+meta.fingerprint;
+const $=id=>document.getElementById(id),storageKey='design-icl:'+meta.process+':'+meta.fingerprint;
 const sheet=document.querySelector('.sheet'),drawing=$('drawing');
 let comments=[],active=false;
 try {
@@ -8,11 +8,12 @@ try {
     (!c.position||(['x','y'].every(k=>Number.isFinite(c.position[k])&&c.position[k]>=0&&c.position[k]<=1))));
 } catch(e) {}
 if(!$('logo').getAttribute('src')) $('logo').hidden=true;
-function say(value){$('status').textContent=value;}
-function persist(){try{localStorage.setItem(storageKey,JSON.stringify(comments));}catch(e){say('Local storage unavailable. Copy or download comments before closing.');}}
+function say(value){$('status').textContent=value;$('status').hidden=!value;}
+function persist(){try{localStorage.setItem(storageKey,JSON.stringify(comments));}catch(e){say('Local storage unavailable. Copy comments before closing.');}}
 function target(c){return meta.check_labels[c.check]||'Drawing';}
 function report(){
-  $('notes').textContent=comments.length?comments.map((c,i)=>`C${i+1}. ${c.text||'(empty)'} on ${target(c)}${c.position?' @ drawing ['+['x','y'].map(k=>Number(c.position[k].toFixed(5))).join(', ')+'] (normalized)':''}`).join('\n'):'none';
+  $('notes').textContent=comments.length?comments.map((c,i)=>`C${i+1}. ${c.text||'(empty)'} on ${target(c)}${c.position?' @ drawing ['+['x','y'].map(k=>Number(c.position[k].toFixed(5))).join(', ')+'] (normalized)':''}`).join('\n'):'';
+  $('notes').hidden=!comments.length;
 }
 function rowFor(key){return Array.from(document.querySelectorAll('tr[data-check]')).find(r=>r.dataset.check===key);}
 function placePins(){
@@ -45,7 +46,7 @@ function render(focusIndex=null){
   });
   report();placePins();
 }
-$('mode').onclick=()=>{active=!active;$('mode').setAttribute('aria-pressed',String(active));document.body.classList.toggle('commenting',active);say(active?'Click a drawing location, badge or check row to pin a note. Click Comment mode again to stop.':'Turn on Comment mode to pin notes.');};
+$('mode').onclick=()=>{active=!active;$('mode').setAttribute('aria-pressed',String(active));document.body.classList.toggle('commenting',active);say(active?'Click to add a comment.':'');};
 function select(event){
   if(!active||event.target.closest('#pins'))return;
   const hit=event.target.closest('[data-check]'),inDrawing=event.target.closest('#drawing');
@@ -59,10 +60,10 @@ document.querySelectorAll('tr[data-check]').forEach(row=>row.addEventListener('k
 function payload(){return JSON.stringify({process:meta.process,part:meta.number,revision:meta.revision,fingerprint:meta.fingerprint,comments},null,2);}
 function readable(){return `${meta.process.toUpperCase()} ICL — ${meta.name} — revision ${meta.revision}\nSpec: ${meta.fingerprint}\n\n${$('notes').textContent}`;}
 $('copy').onclick=async()=>{
-  const value=readable(),buffer=$('exported');buffer.value=value;buffer.hidden=false;buffer.focus();buffer.select();say('Text selected — press ⌘C / Ctrl+C, then paste into chat.');
-  try{await navigator.clipboard.writeText(value);buffer.hidden=true;say('Copied — paste into chat.');}catch(e){}
+  if(!comments.length){say('No comments yet.');return;}
+  const value=readable(),buffer=$('exported');buffer.value=value;buffer.hidden=false;buffer.focus();buffer.select();say('Press ⌘C / Ctrl+C to copy.');
+  try{await navigator.clipboard.writeText(value);buffer.hidden=true;say('Copied.');}catch(e){}
 };
-$('download').onclick=()=>{const url=URL.createObjectURL(new Blob([payload()],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='icl-'+meta.process+'-r'+meta.revision+'-comments.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 addEventListener('resize',placePins);sheet.addEventListener('scroll',placePins);
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(placePins).observe(sheet);
 render();

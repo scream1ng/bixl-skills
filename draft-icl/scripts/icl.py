@@ -9,8 +9,9 @@ from pathlib import Path
 import sys
 import xml.etree.ElementTree as ET
 from zipfile import ZipFile
-from presentation import normalize, nominal_value, caption, pack_views
+from presentation import normalize, nominal_value, caption, pack_views, measurement, validate_measurements
 from leaders import validate as validate_leaders
+from annotation_clearance import validate as validate_annotation_clearance
 
 ROOT = Path(__file__).resolve().parents[1]
 SVG = 'http://www.w3.org/2000/svg'
@@ -45,6 +46,7 @@ def load(path):
         if check['key'] in keys:
             raise ValueError('Check keys must be unique.')
         keys.add(check['key'])
+        validate_measurements(check)
         for field in ('nominal', 'tolerance'):
             value = check.get(field)
             if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value)):
@@ -120,9 +122,16 @@ def render_svg(spec, geometry):
     def element(parent, tag, **attrs):
         return ET.SubElement(parent, f'{{{SVG}}}{tag}', {k.replace('_','-'):str(v) for k,v in attrs.items()})
     def line(parent, a, b, thin=False):
-        element(parent, 'line', x1=a[0], y1=a[1], x2=b[0], y2=b[1], stroke='#365668', stroke_width=1 if thin else 2)
+        element(parent, 'line', x1=a[0], y1=a[1], x2=b[0], y2=b[1], stroke='#e31837', stroke_width=1 if thin else 2)
+    def arrow(parent, tip, inside):
+        dx,dy=inside[0]-tip[0],inside[1]-tip[1];length=math.hypot(dx,dy)
+        if length==0:raise ValueError('Arrowhead needs a nonzero direction.')
+        ux,uy=dx/length,dy/length
+        base=(tip[0]+9*ux,tip[1]+9*uy)
+        points=[tip,(base[0]-3.5*uy,base[1]+3.5*ux),(base[0]+3.5*uy,base[1]-3.5*ux)]
+        element(parent,'polygon',points=' '.join(f'{x},{y}'for x,y in points),fill='#e31837')
     for dimension in drawing['dimensions']:
-        check = checks[dimension['check']]
+        check = measurement(checks[dimension['check']],dimension.get('measurement'))
         if check.get('nominal') is None:
             raise ValueError('A dimension needs a measured nominal.')
         group = element(root, 'g', data_check=check['key'])
@@ -135,8 +144,8 @@ def render_svg(spec, geometry):
                 ends=[(offset,a[1]),(offset,b[1])]; value_pos=(offset+25,(a[1]+b[1])/2)
             for point,end in zip((a,b),ends):
                 line(group,point,end,True)
-                line(group,(end[0]-4,end[1]+5),(end[0]+4,end[1]-5))
             line(group,*ends)
+            arrow(group,ends[0],ends[1]);arrow(group,ends[1],ends[0])
         elif kind=='angle':
             if check.get('unit')!='deg':raise ValueError('Angular dimensions require unit deg.')
             cx,cy=dimension['centre']; radius=dimension['radius']
@@ -145,7 +154,9 @@ def render_svg(spec, geometry):
             sweep=(dimension['end_deg']-dimension['start_deg'])%360
             if radius<=0 or abs(sweep-check['nominal'])>0.02:
                 raise ValueError('Angular arc sweep must match the measured nominal; radius must be positive.')
-            element(group,'path',d=f'M {a[0]} {a[1]} A {radius} {radius} 0 {int(sweep>180)} 1 {b[0]} {b[1]}',fill='none',stroke='#365668',stroke_width=2)
+            element(group,'path',d=f'M {a[0]} {a[1]} A {radius} {radius} 0 {int(sweep>180)} 1 {b[0]} {b[1]}',fill='none',stroke='#e31837',stroke_width=2)
+            arrow(group,a,(a[0]-math.sin(start),a[1]+math.cos(start)))
+            arrow(group,b,(b[0]+math.sin(end),b[1]-math.cos(end)))
             for point in (a,b):line(group,(cx,cy),point,True)
             # Gauge-contact segments must be projected from the specified physical CAD faces.
             if 'contact_segments' in dimension and len(dimension['contact_segments'])!=2:
@@ -154,38 +165,57 @@ def render_svg(spec, geometry):
                 if len(segment)!=2:raise ValueError('Angular contact segment needs two CAD-projected endpoints.')
                 line(group,*segment)
                 for point in segment:
-                    element(group,'circle',cx=point[0],cy=point[1],r=3,fill='#365668')
+                    element(group,'circle',cx=point[0],cy=point[1],r=3,fill='#e31837')
             value_pos=dimension['value_xy']
         else:raise ValueError('Dimension kind must be horizontal, vertical or angle.')
         x,y=dimension.get('value_xy',value_pos)
         value=nominal_value(check)+('°' if check.get('unit')=='deg' else '')
         text_width=len(value)*15+12
         element(group,'rect',x=x-text_width/2,y=y-15,width=text_width,height=30,fill='white')
-        text=element(group,'text',x=x,y=y+8,text_anchor='middle',font_family='Arial, sans-serif',font_size=24,fill='#365668')
+        text=element(group,'text',x=x,y=y+8,text_anchor='middle',font_family='Arial, sans-serif',font_size=24,fill='#e31837')
         text.text=value
-        x,y=dimension['badge_xy']
-        element(group,'rect',x=x-30,y=y-19,width=60,height=38,rx=8,fill='#FFF0DF',stroke='#A4470B',stroke_width=2)
-        text=element(group,'text',x=x,y=y+8,text_anchor='middle',font_family='Arial, sans-serif',font_size=23,fill='#A4470B');text.text=check['id']
-    leader_paths=[]
-    for balloon in drawing.get('balloons',[]):
+        if not isinstance(dimension.get('show_badge',True),bool):raise ValueError('show_badge must be boolean.')
+        if dimension.get('show_badge',True):
+            x,y=dimension['badge_xy']
+            element(group,'rect',x=x-30,y=y-19,width=60,height=38,rx=8,fill='#ffffff',stroke='#e31837',stroke_width=2)
+            text=element(group,'text',x=x,y=y+8,text_anchor='middle',font_family='Arial, sans-serif',font_size=23,fill='#e31837');text.text=check['id']
+    leader_paths=[];leader_groups=[]
+    balloon_scale=spec.get('presentation',{}).get('balloon_scale',1)
+    if isinstance(balloon_scale,bool)or not isinstance(balloon_scale,(int,float))or not math.isfinite(balloon_scale)or not 0.5<=balloon_scale<=4:
+        raise ValueError('balloon_scale must be finite and within 0.5..4.')
+    for balloon_index,balloon in enumerate(drawing.get('balloons',[])):
         keys=balloon.get('checks',[balloon.get('check')])
         if not keys or any(key not in checks for key in keys):raise ValueError('Balloon needs valid stable check keys.')
         label=' / '.join(checks[key]['id'] for key in keys)
-        x,y=balloon['badge_xy'];target=balloon['target']
+        x,y=balloon['badge_xy']
         group=element(root,'g',data_check=keys[0],data_checks=','.join(keys))
-        points=[target,*balloon.get('elbows',[]),[x,y]]
-        if drawing.get('leader_style','orthogonal')=='orthogonal':
-            if not balloon.get('elbows') and target[0]!=x and target[1]!=y:
-                points=[target,[target[0],y],[x,y]]
-            if any(a[0]!=b[0] and a[1]!=b[1] for a,b in zip(points,points[1:])):
-                raise ValueError('Square leaders require horizontal/vertical segments; revise the elbows.')
-            leader_paths.append(points)
-        element(group,'polyline',points=' '.join(f'{a},{b}' for a,b in points),fill='none',stroke='#365668',stroke_width=2)
-        element(group,'circle',cx=target[0],cy=target[1],r=3,fill='#365668')
-        span=max(50,len(label)*13+16)
-        element(group,'rect',x=x-span/2,y=y-25,width=span,height=50,rx=25,fill='#FFF0DF',stroke='#A4470B',stroke_width=2)
-        text=element(group,'text',x=x,y=y+7,text_anchor='middle',font_family='Arial, sans-serif',font_size=20,fill='#A4470B');text.text=label
-    validate_leaders(leader_paths)
+        branches=balloon.get('targets',[balloon])
+        if not isinstance(branches,list) or not branches or ('targets'in balloon and ('target'in balloon or 'elbows'in balloon)):
+            raise ValueError('Common balloon needs nonempty targets instead of single target/elbows.')
+        for branch in branches:
+            if not isinstance(branch,dict) or 'target'not in branch:raise ValueError('Each balloon target needs a CAD-projected target point.')
+            target=branch['target'];points=[target,*branch.get('elbows',[]),[x,y]]
+            if any(not isinstance(p,(list,tuple)) or len(p)!=2 or any(isinstance(n,bool) or not isinstance(n,(int,float)) or not math.isfinite(n) for n in p)for p in points):raise ValueError('Balloon leader needs finite point coordinates.')
+            if drawing.get('leader_style','orthogonal')=='orthogonal':
+                if not branch.get('elbows') and target[0]!=x and target[1]!=y:
+                    points=[target,[target[0],y],[x,y]]
+                if any(a[0]!=b[0] and a[1]!=b[1] for a,b in zip(points,points[1:])):
+                    raise ValueError('Square leaders require horizontal/vertical segments; revise the elbows.')
+                leader_paths.append(points);leader_groups.append(balloon_index)
+            element(group,'polyline',points=' '.join(f'{a},{b}' for a,b in points),fill='none',stroke='#e31837',stroke_width=2*balloon_scale)
+            element(group,'circle',cx=target[0],cy=target[1],r=3*balloon_scale,fill='#e31837')
+        span=max(50,len(label)*13+16)*balloon_scale
+        element(group,'rect',x=x-span/2,y=y-25*balloon_scale,width=span,height=50*balloon_scale,rx=25*balloon_scale,fill='#ffffff',stroke='#e31837',stroke_width=2*balloon_scale)
+        text=element(group,'text',x=x,y=y+7*balloon_scale,text_anchor='middle',font_family='Arial, sans-serif',font_size=20*balloon_scale,fill='#e31837');text.text=label
+        if balloon.get('show_value'):
+            if len(keys)!=1 or (checks[keys[0]].get('nominal')is None and not checks[keys[0]].get('measurements')):
+                raise ValueError('Balloon value requires one measured checkpoint.')
+            value=caption(checks[keys[0]],checks).split(' ',2)[2]
+            vx,vy=balloon['value_xy'];text_width=(len(value)*15+12)*balloon_scale
+            element(group,'rect',x=vx-text_width/2,y=vy-15*balloon_scale,width=text_width,height=30*balloon_scale,fill='white')
+            text=element(group,'text',x=vx,y=vy+8*balloon_scale,text_anchor='middle',font_family='Arial, sans-serif',font_size=24*balloon_scale,fill='#e31837');text.text=value
+    validate_leaders(leader_paths,leader_groups)
+    validate_annotation_clearance(root)
     return ET.tostring(root, encoding='unicode')
 
 
@@ -238,7 +268,7 @@ def preview(path):
     content=(ROOT/'scripts'/'preview.html').read_text(encoding='utf-8')
     tokens={'TITLE':esc(spec['part']['name']), 'PART':esc(spec['part']['number']), 'PROCESS':esc(spec['process'].title()),'REVISION':str(spec['revision']),
             'ROWS':''.join(rows),'DRAWING':svg,'LOGO':logo_data(layout,template),'META':json.dumps(metadata).replace('<','\\u003c'),
-            'COMMENTS_SCRIPT':(ROOT/'scripts'/'comments.js').read_text(encoding='utf-8'), 'SAMPLES':''.join('<th>'+str(i)+'</th>' for i in range(1,13)), 'EXPORT_NOTE':esc(spec.get('review_note','')) if layout else 'Welding Excel requires your company template and layout mapping.'}
+            'COMMENTS_SCRIPT':(ROOT/'scripts'/'comments.js').read_text(encoding='utf-8'), 'CONFIRM_ITEMS':''.join('<li>'+esc(item)+'</li>' for item in spec.get('to_confirm',[])), 'CONFIRM_HIDDEN':'' if spec.get('to_confirm') else 'hidden', 'SAMPLES':''.join('<th>'+str(i)+'</th>' for i in range(1,13)), 'EXPORT_NOTE':esc(spec.get('review_note','')) if layout else 'Welding Excel requires your company template and layout mapping.'}
     for key,value in tokens.items():content=content.replace('{{'+key+'}}',value)
     if len(content.encode())>=1000000:raise ValueError('HTML exceeds the 1,000,000-byte limit. Simplify geometry without dropping required content.')
     out=path.parent/f'preview-r{spec["revision"]}.html'

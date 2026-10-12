@@ -8,15 +8,54 @@ def nominal_value(check):
     return f'{value:.1f}' if check.get('unit')=='deg' else format(value,'.12g')
 
 
+def measurement(check,key=None):
+    """Resolve one measured characteristic without inventing a second checkpoint."""
+    items=check.get('measurements')
+    if items is None:
+        if key is not None:raise ValueError('Measurement key requires a compound checkpoint.')
+        return check
+    matches=[item for item in items if item['key']==key]
+    if len(matches)!=1:raise ValueError('Dimension needs a valid named measurement from its checkpoint.')
+    return {**check,'nominal':matches[0]['nominal']}
+
+
+def validate_measurements(check):
+    items=check.get('measurements')
+    if items is None:return
+    if not isinstance(items,list) or len(items)<2 or check.get('unit','mm')!='mm':raise ValueError('Compound checks need at least two linear measurements in mm.')
+    if check.get('nominal') is not None or 'size_checks'in check:raise ValueError('Compound checks use measurements instead of nominal/size_checks.')
+    keys=set()
+    for item in items:
+        if not isinstance(item,dict) or not isinstance(item.get('key'),str) or not item['key'] or item['key']in keys:raise ValueError('Measurement keys must be unique nonempty strings.')
+        value=item.get('nominal')
+        if isinstance(value,bool) or not isinstance(value,(int,float)) or not math.isfinite(value):raise ValueError('Measurement nominal must be finite.')
+        if set(item)-{'key','nominal'}:raise ValueError('Compound measurements share the checkpoint criteria; separate checks for different methods or limits.')
+        keys.add(item['key'])
+
+
 def normalize(spec,layout=None):
     spec=copy.deepcopy(spec)
     profile=(layout or {}).get('profile',{})
+    if profile.get('reference_sample_check',True):
+        sample={'key':'reference_sample','description':'Check part to Reference sample','limits':'Reference Sample','gauge':'Visual',
+                'group':'hourly'if spec['process']=='laser'else'main',
+                'source':'Company inspection requirement: designated physical reference sample; identity/revision must be confirmed.',
+                'method':'Compare the part at this operation with the designated physical reference sample. Confirm sample identity/revision before use; CAD review does not validate the sample.'}
+        matching=[c for c in spec['checks']if c['key']==sample['key']or c.get('description')==sample['description']]
+        if len(matching)>1:raise ValueError('Duplicate reference-sample checks; retain one evidence-linked row.')
+        for check in matching:
+            if check.get('nominal')is not None or check.get('tolerance')is not None or 'measurements'in check or any(check.get(k, 'main'if k=='group'else None)!=sample[k]for k in ['description','limits','gauge','group']):
+                raise ValueError('Reference-sample check criteria were altered; change the job-local profile explicitly.')
+        if not matching:
+            insert=next((i for i,c in enumerate(spec['checks'])if c.get('group','main')==sample['group']),len(spec['checks']))
+            spec['checks'].insert(insert,sample)
+    spec.setdefault('presentation',{}).setdefault('balloon_scale',profile.get('balloon_scale',1))
     quality=profile.get('final_visual_check')
     if quality:
         matching=[c for c in spec['checks'] if c['key']==quality['key'] or all(c.get(k)==quality.get(k)for k in ['description','limits','gauge'])]
         if len(matching)>1:raise ValueError('Duplicate configured final visual checks; retain one evidence-linked check.')
         for check in matching:
-            if check.get('nominal') is not None or check.get('tolerance') is not None or any(check.get(k)!=quality.get(k) for k in ['description','limits','gauge','group']):
+            if check.get('nominal') is not None or check.get('tolerance') is not None or 'measurements'in check or any(check.get(k)!=quality.get(k) for k in ['description','limits','gauge','group']):
                 raise ValueError('Configured final visual check was altered; change the job-local company profile explicitly.')
         if not matching:matching=[copy.deepcopy(quality)]
         matched={c['key']for c in matching}
@@ -30,7 +69,7 @@ def normalize(spec,layout=None):
     if available is not None:
         if not isinstance(available,list) or not available:raise ValueError('available_gauges must be a nonempty list.')
         for check in spec['checks']:
-            if check.get('gauge') not in available:
+            if check.get('gauge')!='Visual'and check.get('gauge') not in available:
                 raise ValueError(f"Gauge {check.get('gauge')!r} is not available for {check['id']}; choose an available gauge and verify its contacts/access.")
             if check.get('unit')=='deg'and check.get('gauge')=='Vernier':raise ValueError('Angle checks require Protractor or an explicitly available angular tool with verified contacts.')
     return spec
@@ -38,6 +77,10 @@ def normalize(spec,layout=None):
 
 def caption(check,checks):
     """Numeric captions reference current check values, never copied dimensions."""
+    if check.get('measurements') is not None:
+        validate_measurements(check)
+        value=' × '.join(nominal_value(measurement(check,item['key']))for item in check['measurements'])
+        return f"Check {check.get('feature','size')} {value} mm"
     if check.get('nominal') is None:return check['description']
     feature=check.get('feature','angle' if check.get('unit')=='deg' else 'distance')
     keys=check.get('size_checks',[check['key']])
@@ -100,6 +143,10 @@ def pack_views(spec,geometry):
     for balloon in out.get('balloons',[]):
         key=balloon.pop('view',None)
         if key not in transforms:raise ValueError('Every balloon requires a declared view key.')
-        for field in ['target','badge_xy']:balloon[field]=point(balloon[field],transforms[key])
-        balloon['elbows']=[point(p,transforms[key])for p in balloon.get('elbows',[])]
+        balloon['badge_xy']=point(balloon['badge_xy'],transforms[key])
+        if 'value_xy'in balloon:balloon['value_xy']=point(balloon['value_xy'],transforms[key])
+        branches=balloon.get('targets',[balloon])
+        for branch in branches:
+            branch['target']=point(branch['target'],transforms[key])
+            branch['elbows']=[point(p,transforms[key])for p in branch.get('elbows',[])]
     return result,ET.tostring(root)

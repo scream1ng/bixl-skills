@@ -40,7 +40,7 @@ class Workflow(unittest.TestCase):
         self.assertIn('<aside class="icl-controls"',content)
         document=E.HTML(content)
         self.assertFalse(document.xpath('//header'))
-        for control in ['mode','copy','download','notes','status','exported']:
+        for control in ['mode','copy','notes','status','exported']:
             self.assertEqual(len(document.xpath(f'//aside//*[@id="{control}"]')),1)
         self.assertIn('Comment mode</button>',content)
         self.assertIn('button{color:#20262c!important;-webkit-text-fill-color:#20262c!important',content)
@@ -65,8 +65,9 @@ class Workflow(unittest.TestCase):
         with ZipFile(out) as z,ZipFile(ROOT/'processes/bending/template.xlsx') as original:
             root=E.fromstring(z.read('xl/worksheets/sheet1.xml'));cells={c.get('r'):c for c in root.iter(m+'c')}
             self.assertEqual(''.join(cells['B10'].itertext()),'B1')
-            self.assertIn('35 mm',''.join(cells['C10'].itertext()))
-            self.assertEqual(''.join(cells['E10'].itertext()),'±0.5 mm')
+            self.assertEqual(''.join(cells['C10'].itertext()),'Check part to Reference sample')
+            self.assertIn('35 mm',''.join(cells['C11'].itertext()))
+            self.assertEqual(''.join(cells['E11'].itertext()),'±0.5 mm')
             styles=E.fromstring(z.read('xl/styles.xml')).find(m+'cellXfs')
             self.assertEqual(styles[int(cells['B10'].get('s'))].find(m+'alignment').get('vertical'),'center')
             self.assertTrue(z.read('xl/media/icl-approved.png').startswith(b'\x89PNG'))
@@ -131,7 +132,7 @@ class Workflow(unittest.TestCase):
         for y in range(332,355):
             for x in range(1232,1268):
                 b,g,r,a=data[y*stride+x*4:y*stride+x*4+4]
-                if b>r+15 and r<180:coloured+=1
+                if r>g+15 and r>b+15 and r>150:coloured+=1
         self.assertGreater(coloured,30,'The dimension number disappeared from the Excel PNG.')
 
     def test_feature_balloons_follow_stable_keys_when_ids_change(self):

@@ -13,13 +13,14 @@ def crossing(a,b,c,d):
     return point if min(a[1],b[1])<=point[1]<=max(a[1],b[1])and min(c[0],d[0])<=point[0]<=max(c[0],d[0])else None
 
 
-def validate(paths):
+def validate(paths,groups=None):
     for index,path in enumerate(paths):
         segments=[(a,b)for a,b in zip(path,path[1:])if a!=b]
         for i,(a,b)in enumerate(segments):
             for c,d in segments[i+2:]:
                 if crossing(a,b,c,d)is not None:raise ValueError('Feature leader crosses itself; revise its elbows.')
-        for other in paths[:index]:
+        for other_index,other in enumerate(paths[:index]):
+            if groups is not None and groups[index]==groups[other_index]:continue
             for a,b in segments:
                 for c,d in zip(other,other[1:]):
                     if c==d:continue

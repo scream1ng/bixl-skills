@@ -1,6 +1,6 @@
 interface:
   display_name: Draft ICL
-  short_description: v1.1 · Process-specific ICLs with review before Excel
+  short_description: v1.2 · Process-specific ICLs with review before Excel
   default_prompt: Use $draft-icl to prepare a process-specific inspection checklist
     and an HTML preview before Excel.
   icon_small: assets/icon.svg

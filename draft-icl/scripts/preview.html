@@ -7,12 +7,31 @@
 /* Embedded hosts can impose button colours independently of the document body. */
 button{color:#20262c!important;-webkit-text-fill-color:#20262c!important;opacity:1;font-family:Arial,sans-serif}.icl-controls #mode{color:#fff!important;-webkit-text-fill-color:#fff!important;background:#e31837;border-color:#e31837;font-weight:600}.icl-controls #mode[aria-pressed=true]{background:#20262c;border-color:#20262c;box-shadow:0 0 0 2px #e31837}.pin .marker,.pin .marker span{color:#fff!important;-webkit-text-fill-color:#fff!important}
 
-.icl-controls{position:sticky;top:22px;max-height:calc(100vh - 44px);overflow:auto;border-radius:12px;box-shadow:0 3px 16px #0001}.review-heading{display:flex;flex-direction:column;gap:6px;border-bottom:1px solid #d9dedb;padding-bottom:14px;margin-bottom:16px}.review-heading strong{font-size:19px;color:#20262c}.review-heading span{font-size:12px;color:#64706b}.review-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}.review-actions #mode{width:100%}.review-actions #copy,.review-actions #download{flex:1;font-size:12px;padding:8px 6px}@media(max-width:1000px){.icl-controls{position:static;max-height:none;grid-row:1}}@media print{.icl-controls{display:none}}
+.icl-controls{position:sticky;top:22px;max-height:calc(100vh - 44px);overflow:auto;border-radius:12px;box-shadow:0 3px 16px #0001}.review-heading{display:flex;flex-direction:column;gap:6px;border-bottom:1px solid #d9dedb;padding-bottom:14px;margin-bottom:16px}.review-heading strong{font-size:19px;color:#20262c}.review-heading span{font-size:12px;color:#64706b}.review-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}.review-actions #mode{width:100%}.review-actions #copy{flex:1;font-size:12px;padding:8px 6px}@media(max-width:1000px){.icl-controls{position:static;max-height:none;grid-row:1}}@media print{.icl-controls{display:none}}
 @page{size:A4 landscape;margin:10mm}@media print{.sheet table{font-size:10pt}.sheet th,.sheet td{padding:3px}.drawing svg{max-height:65mm}}
+
+/* This job follows the supplied compact review-card reference. */
+main{grid-template-columns:minmax(600px,1fr) 330px}
+.icl-controls{padding:22px;border:1px solid #d7dedb;border-radius:18px;box-shadow:0 6px 24px #17251d0d;background:#fff}
+.review-heading{gap:8px;padding-bottom:18px;margin-bottom:18px}
+.review-heading strong{font-size:24px;font-weight:700}
+.review-heading span{font-size:14px;line-height:1.5;color:#687570}
+.review-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-bottom:18px;border-bottom:1px solid #d7dedb;margin:0}
+.review-actions #mode,.review-actions #copy{width:100%;min-height:46px;padding:11px 8px;border-radius:7px;font-size:14px;white-space:nowrap}
+.review-actions #copy{background:#fff;border:1px solid #aab7b1}
+.icl-controls #mode[aria-pressed=true]{background:#c9102d;border-color:#c9102d;box-shadow:0 0 0 2px #e3183733}
+.confirmation h2{font-size:16px;line-height:1.4;margin:18px 0 8px}
+.confirmation ul{margin:0;padding-left:20px;line-height:1.55;font-size:14px;color:#20262c}
+.confirmation li{margin:7px 0}
+#notes{font:13px Arial,sans-serif;line-height:1.5;border-top:1px solid #d7dedb;padding-top:14px;margin:16px 0 0;white-space:pre-wrap}
+#status{margin:12px 0 0;color:#687570;line-height:1.4}
+.commenting tr[data-check]:hover{background:#fff3f5}
+[hidden]{display:none!important}
+@media(max-width:1000px){main{grid-template-columns:1fr}.icl-controls{max-height:none}}
 </style>
 
 <main><section class="sheet"><div id="pins" aria-label="Comment pins"></div><div class="sheet-title"><img id="logo" src="{{LOGO}}" alt="Company logo"><h1>INSPECTION CHECK LIST</h1><span>Rev {{REVISION}}</span></div><div class="details"><strong>{{PART}}</strong><span>{{TITLE}}</span><span>{{PROCESS}}</span></div><table><thead><tr><th>Check<br>Point</th><th>Checks</th><th>Limits</th><th>Gauge</th>{{SAMPLES}}</tr></thead><tbody>{{ROWS}}</tbody></table><div class="drawing" id="drawing">{{DRAWING}}</div><div class="footer"><span>Operator: __________________</span><span>Date: ______________</span><span>Verified by: ______________</span></div></section>
-<aside class="icl-controls" aria-label="ICL review and comments"><div class="review-heading"><strong>Draft ICL</strong><span>{{PROCESS}} · Revision {{REVISION}}</span></div><h2>Comments</h2><div class="review-actions"><button id="mode" aria-pressed="false">Comment mode</button><button id="copy">Copy comments</button><button id="download">Download comments</button></div><p>Turn on Comment mode, then click a drawing location, check badge or table row. Type directly in the pin's box; click C1, C2… to close or reopen it.</p><p id="notice">{{EXPORT_NOTE}}</p><pre id="notes">none</pre><p id="status" role="status">Turn on Comment mode to pin notes.</p><textarea id="exported" aria-label="Comments to copy" hidden readonly></textarea><p>Copy comments and paste them into chat. Notes are feedback only.</p></aside></main>
+<aside class="icl-controls" aria-label="ICL review and comments"><div class="review-heading"><strong>Draft ICL</strong><span>{{TITLE}} · {{PROCESS}} · Revision {{REVISION}}</span></div><div class="review-actions"><button id="mode" type="button" aria-pressed="false">Comment mode</button><button id="copy" type="button">Copy comments</button></div><section class="confirmation" {{CONFIRM_HIDDEN}}><h2>To confirm</h2><ul>{{CONFIRM_ITEMS}}</ul></section><pre id="notes" hidden></pre><p id="status" role="status" hidden></p><textarea id="exported" aria-label="Comments to copy" hidden readonly></textarea></aside></main>
 <script>
 const meta={{META}};
 {{COMMENTS_SCRIPT}}
