@@ -82,6 +82,6 @@ A STEP file or dimensioned drawing in; a process-specific check list and a dimen
 
 ![Workflow](pfc-flow.svg)
 
-**[Download draft-pfc-v1.0.zip](../../releases/download/draft-pfc-v1.0/draft-pfc-v1.0.zip)** — `SKILL.md` at the zip root; unzip into a folder named `draft-pfc`.
+**[Download draft-pfc-v1.1.zip](../../releases/download/draft-pfc-v1.1/draft-pfc-v1.1.zip)** — `SKILL.md` at the zip root; unzip into a folder named `draft-pfc`.
 
 A D365 BOM or the draft calc parts table in, plus optional STEP or drawing; a process flow chart out, first as an HTML preview with pinned comments, then, on explicit approval, drawn as editable native shapes on the company PFC Excel form. Component branches, materials, hardware and packing stay attached to the stage that consumes them; unknowns stay TBC. The bundled form is a masked copy (placeholder codes, no author, no macros). Approval generates the document; it is not a production release.

@@ -1,6 +1,6 @@
 ---
 name: draft-pfc
-description: v1.0 · Draft and revise process flow charts (PFCs) from D365 BOM spreadsheets or draft calc parts tables using the IXL form. Preserve component branches, materials, hardware and operation sequence; include supplied CAD isometric views; deliver a complete HTML review with pinned comments before approved Excel export. Use for BOM-to-PFC, manufacturing flow charts and PFC revisions. Not for costing, CAD design or inspection check lists.
+description: v1.1 · Draft and revise process flow charts (PFCs) from D365 BOM spreadsheets or draft calc parts tables using the IXL form. Preserve component branches, materials, hardware and operation sequence; include supplied CAD isometric views; deliver a complete HTML review with pinned comments before approved Excel export. Use for BOM-to-PFC, manufacturing flow charts and PFC revisions. Not for costing, CAD design or inspection check lists.
 ---
 
 # Draft PFC
