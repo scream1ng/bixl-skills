@@ -48,24 +48,6 @@
       "gauge": "Vernier",
       "source": "Measured from supplied U-channel STEP; outside CAD surfaces.",
       "method": "Outside flange faces y=0 and y=100."
-    },
-    {
-      "key": "parallelism",
-      "id": "B4",
-      "description": "Check flanges are parallel",
-      "limits": "Tolerance TBC",
-      "gauge": "Gauge TBC",
-      "source": "Formed U-channel CAD",
-      "method": "Define acceptance and gauge before production use."
-    },
-    {
-      "key": "bend_condition",
-      "id": "B5",
-      "description": "Check for bend cracks / tooling marks",
-      "limits": "Standard TBC",
-      "gauge": "Visual",
-      "source": "Bending process requirement",
-      "method": "Inspect bend zones against the agreed surface standard."
     }
   ],
   "drawing": {

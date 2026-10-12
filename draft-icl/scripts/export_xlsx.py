@@ -6,6 +6,8 @@ from io import BytesIO
 from zipfile import ZipFile, ZIP_DEFLATED
 from lxml import etree as E
 from icl import limits, nominal
+from presentation import caption
+from form_layout import compact, print_setup
 
 M='http://schemas.openxmlformats.org/spreadsheetml/2006/main'
 D='http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing'
@@ -97,6 +99,7 @@ def build(path,spec,layout,template):
     png=cairosvg.svg2png(bytestring=svg.read_bytes())
     with ZipFile(template) as z:original={n:z.read(n) for n in z.namelist()}
     parts=dict(original);sheet=E.fromstring(parts[layout['sheet']]);styles=E.fromstring(parts['xl/styles.xml'])
+    layout,last=compact(sheet,layout,spec['checks'],styles)
     xfs=styles.find(q('cellXfs'));style_cache={}
     for ref in layout['clear_cells']:put(sheet,ref,None)
     for row in layout['clear_rows']:
@@ -117,26 +120,40 @@ def build(path,spec,layout,template):
             alignment.set('horizontal','center');alignment.set('vertical','center');style.set('applyAlignment','1')
             style_cache[old_style]=str(len(xfs));xfs.append(style)
         cell.set('s',style_cache[old_style])
-        description=check['description']+(' '+nominal(check) if check.get('nominal') is not None else '')
+        description=caption(check,{c['key']:c for c in spec['checks']})
         for col,value in [('C',description),('E',limits(check)),('G',check['gauge'])]:put(sheet,f'{col}{row}',value)
     xfs.set('count',str(len(xfs)));parts['xl/styles.xml']=serialized(styles)
     parts[layout['sheet']]=serialized(sheet)
     old_sheet=E.fromstring(original[layout['sheet']])
-    for tag in ('cols','mergeCells','pageSetup','pageMargins','sheetViews'):
+    for tag in ('cols','pageMargins'):
         old,new=old_sheet.find(q(tag)),sheet.find(q(tag))
         assert (E.tostring(old) if old is not None else None)==(E.tostring(new) if new is not None else None),tag
 
     history=E.fromstring(parts[layout['history']])
     for ref,value in [('B1',spec['part']['number']),('B2',spec['part'].get('customer_number','')),('B3',spec['part']['name'])]:put(history,ref,value)
     records=spec.get('history',[])+[{'date':spec['part']['date'],'revision':str(spec['revision']),'change':spec.get('change','Inspection plan'),'author':spec.get('author','')}]
-    if len(records)>10:raise ValueError('History exceeds mapped rows 6–15; extend the company form explicitly.')
-    for row in range(6,16):
+    prototype=copy.deepcopy(history.find(q('sheetData')+'/'+q('row')+'[@r="15"]'))
+    for row in range(16,6+len(records)):
+        if history.find(q('sheetData')+'/'+q('row')+f'[@r="{row}"]')is None and prototype is not None:
+            clone=copy.deepcopy(prototype);clone.set('r',str(row))
+            for cell in clone:
+                import re
+                cell.set('r',re.sub(r'\d+$',str(row),cell.get('r')))
+                for node in list(cell):cell.remove(node)
+                cell.attrib.pop('t',None)
+            history.find(q('sheetData')).append(clone)
+    for row in range(6,max(16,6+len(records))):
         for col in 'ABCD':put(history,f'{col}{row}',None)
     for row,record in enumerate(records,6):
         for col,key in [('A','date'),('B','revision'),('C','change'),('D','author')]:
             value=record.get(key,'')
             if key=='date':value=(date.fromisoformat(value)-date(1899,12,30)).days
             put(history,f'{col}{row}',value)
+    dimension=history.find(q('dimension'))
+    if dimension is not None:
+        bounds=dimension.get('ref').split(':');end=bounds[-1]
+        history_last=max(int(row.get('r'))for row in history.find(q('sheetData')))
+        dimension.set('ref',bounds[0]+':'+''.join(c for c in end if c.isalpha())+str(history_last))
     parts[layout['history']]=serialized(history)
 
     config=layout['drawing'];drawing=E.fromstring(parts[config['part']])
@@ -176,7 +193,7 @@ def build(path,spec,layout,template):
             parts[rels_name]=serialized(rels)
             for item in list(types):
                 if item.get('PartName','').endswith('calcChain.xml'):types.remove(item)
-    parts[ct]=serialized(types);scrub(parts)
+    parts[ct]=serialized(types);scrub(parts);print_setup(parts,layout,last)
     target=path.parent/f'{spec["process"]}-icl-r{spec["revision"]}.xlsx'
     buffer=BytesIO()
     with ZipFile(buffer,'w',ZIP_DEFLATED) as z:
@@ -186,4 +203,9 @@ def build(path,spec,layout,template):
         assert z.read('xl/media/icl-approved.png')==png
         for name in (layout['sheet'],layout['history']):
             assert not E.fromstring(z.read(name)).findall('.//'+q('c')+'[@t="e"]')
-    target.write_bytes(buffer.getvalue());return target
+    target.write_bytes(buffer.getvalue())
+    import json
+    from verify_print import verify
+    report=verify(target)
+    target.with_suffix('.print-settings.json').write_text(json.dumps(report,indent=2), encoding='utf-8')
+    return target

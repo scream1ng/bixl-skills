@@ -5,6 +5,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+import subprocess
 from io import BytesIO
 from zipfile import ZipFile
 from lxml import etree as E
@@ -22,6 +23,10 @@ class Workflow(unittest.TestCase):
 
     def write(self):self.path.write_text(json.dumps(self.spec))
 
+    @unittest.skipUnless(shutil.which('node'), 'Node is optional; needed only for comment UI tests')
+    def test_comment_controller_interaction(self):
+        subprocess.run(['node', str(ROOT/'tests/test_comments.cjs')], check=True, capture_output=True, text=True)
+
     def test_review_is_offline_small_and_does_not_export(self):
         result=icl.preview(self.path);content=result.read_text()
         self.assertLess(result.stat().st_size,1000000)
@@ -29,6 +34,18 @@ class Workflow(unittest.TestCase):
         self.assertIn('data-check="left_height"',content)
         self.assertFalse(list(self.job.glob('*.xlsx')))
         with self.assertRaisesRegex(ValueError,'No approval'):icl.export(self.path)
+
+    def test_comment_buttons_have_explicit_embedded_host_colours(self):
+        content=icl.preview(self.path).read_text()
+        self.assertIn('<aside class="icl-controls"',content)
+        document=E.HTML(content)
+        self.assertFalse(document.xpath('//header'))
+        for control in ['mode','copy','download','notes','status','exported']:
+            self.assertEqual(len(document.xpath(f'//aside//*[@id="{control}"]')),1)
+        self.assertIn('Comment mode</button>',content)
+        self.assertIn('button{color:#20262c!important;-webkit-text-fill-color:#20262c!important',content)
+        self.assertIn('.icl-controls #mode{color:#fff!important;-webkit-text-fill-color:#fff!important;background:#e31837',content)
+        self.assertIn('.pin .marker,.pin .marker span{color:#fff!important',content)
 
     def test_revision_and_stale_approval(self):
         icl.preview(self.path);icl.approve(self.path,'TEST ONLY: approve this temporary fixture')
@@ -54,7 +71,7 @@ class Workflow(unittest.TestCase):
             self.assertEqual(styles[int(cells['B10'].get('s'))].find(m+'alignment').get('vertical'),'center')
             self.assertTrue(z.read('xl/media/icl-approved.png').startswith(b'\x89PNG'))
             old=E.fromstring(original.read('xl/worksheets/sheet1.xml'))
-            for tag in ['cols','mergeCells','pageSetup','pageMargins']:
+            for tag in ['cols','pageMargins']:
                 a,b=old.find(m+tag),root.find(m+tag)
                 self.assertEqual(E.tostring(a) if a is not None else None,E.tostring(b) if b is not None else None)
         after={str(p):icl.digest(p.read_bytes()) for p in (ROOT/'processes').rglob('*') if p.is_file()}
@@ -86,7 +103,7 @@ class Workflow(unittest.TestCase):
         with ZipFile(out) as z:
             root=E.fromstring(z.read('xl/worksheets/sheet1.xml'));m='{http://schemas.openxmlformats.org/spreadsheetml/2006/main}'
             cells={c.get('r'):''.join(c.itertext()) for c in root.iter(m+'c')}
-            self.assertEqual(cells['B15'],'L1');self.assertEqual(cells['F6'],'LASER')
+            self.assertEqual(cells['B11'],'L1');self.assertEqual(cells['F6'],'LASER')
 
     def test_welding_preview_requires_own_template_for_export(self):
         self.spec['process']='welding';self.write();icl.preview(self.path)
@@ -94,7 +111,7 @@ class Workflow(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'Company template'):icl.export(self.path)
 
     def test_capacity_does_not_silently_drop_checks(self):
-        for i in range(6,11):
+        for i in range(4,11):
             c=copy.deepcopy(self.spec['checks'][0]);c.update(key=f'extra{i}',id=f'B{i}');self.spec['checks'].append(c)
         self.write()
         with self.assertRaisesRegex(ValueError,'capacity'):icl.preview(self.path)
@@ -116,6 +133,35 @@ class Workflow(unittest.TestCase):
                 b,g,r,a=data[y*stride+x*4:y*stride+x*4+4]
                 if b>r+15 and r<180:coloured+=1
         self.assertGreater(coloured,30,'The dimension number disappeared from the Excel PNG.')
+
+    def test_feature_balloons_follow_stable_keys_when_ids_change(self):
+        self.spec['drawing']['balloons']=[{'checks':['left_height','right_height'],'target':[150,200],'elbows':[[75,200]],'badge_xy':[75,120]}]
+        self.spec['checks'][0]['id']='B8'
+        geometry=(self.job/'geometry.svg').read_bytes()
+        svg=E.fromstring(icl.render_svg(self.spec,geometry).encode())
+        ns={'s':icl.SVG}
+        group=svg.xpath('//s:g[@data-checks="left_height,right_height"]',namespaces=ns)[0]
+        self.assertEqual(group.xpath('string(s:text)',namespaces=ns),'B8 / B2')
+        self.assertEqual(group.xpath('string(s:polyline/@points)',namespaces=ns),'150,200 75,200 75,120')
+        self.spec['drawing']['balloons'][0]['checks']=['unknown']
+        with self.assertRaisesRegex(ValueError,'stable check keys'):icl.render_svg(self.spec,geometry)
+
+    def test_surface_angle_contacts_and_nominal_are_consistent(self):
+        check=self.spec['checks'][0]
+        check.update(nominal=105,unit='deg',tolerance=None)
+        dimension={'check':check['key'],'kind':'angle','centre':[400,200],'radius':50,'start_deg':180,'end_deg':285,'value_xy':[400,300],'badge_xy':[300,300],
+                   'contact_segments':[[[300,200],[350,200]],[[410,160],[420,120]]]}
+        self.spec['drawing']['dimensions']=[dimension]
+        geometry=(self.job/'geometry.svg').read_bytes()
+        svg=E.fromstring(icl.render_svg(self.spec,geometry).encode())
+        ns={'s':icl.SVG}
+        group=svg.xpath('//s:g[@data-check="left_height"]',namespaces=ns)[0]
+        self.assertEqual(group.xpath('.//s:circle/@cx',namespaces=ns),['300','350','410','420'])
+        self.assertIn('105.0°',group.xpath('.//s:text/text()',namespaces=ns))
+        dimension['end_deg']=270
+        with self.assertRaisesRegex(ValueError,'arc sweep'):icl.render_svg(self.spec,geometry)
+        dimension['end_deg']=285;dimension['contact_segments'].pop()
+        with self.assertRaisesRegex(ValueError,'exactly two surfaces'):icl.render_svg(self.spec,geometry)
 
 
 if __name__=='__main__':unittest.main()

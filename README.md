@@ -9,7 +9,7 @@ Backwell IXL assistant skills. Each [release](../../releases) carries one skill 
 | [costing](#costing) | Sheet-metal fabrication cost estimate from a drawing or STEP file |
 | [design-backbar](#design-backbar) | Laser-cut backgauge jig plates for bends where the blank edge is not parallel to the bend |
 | [design-engineer](#design-engineer) | Product ideas, photos, sketches or STEP parts into visual models or dimensioned CAD |
-| [design-icl](#design-icl) | Laser, bending or welding inspection check list (ICL), reviewed in HTML before the company Excel form |
+| [draft-icl](#draft-icl) | Laser, bending or welding inspection check list (ICL), reviewed in HTML before the company Excel form |
 
 ## design-fixture
 
@@ -65,12 +65,12 @@ STEP of the formed part in (a supplied flat pattern is used if present, otherwis
 
 References, ideas or an existing STEP in; an editable build123d model, a Blender visual model, or both, out. Geometry and appearance are reviewed as separate tracks, and estimated dimensions are labelled as estimates. A valid solid or a good render is not a manufacturability check.
 
-## design-icl
+## draft-icl
 
-[SKILL.md](design-icl/SKILL.md) · preview needs only Python; Excel export needs [`scripts/requirements.txt`](design-icl/scripts/requirements.txt) (CairoSVG, lxml) plus the system Cairo library
+[SKILL.md](draft-icl/SKILL.md) · preview needs only Python; Excel export needs [`scripts/requirements.txt`](draft-icl/scripts/requirements.txt) (CairoSVG, lxml) plus the system Cairo library
 
 ![Workflow](icl-flow.svg)
 
-**[Download design-icl-v1.0.zip](../../releases/download/design-icl-v1.0/design-icl-v1.0.zip)** — `SKILL.md` at the zip root; unzip into a folder named `design-icl`.
+**[Download draft-icl-v1.1.zip](../../releases/download/draft-icl-v1.1/draft-icl-v1.1.zip)** — `SKILL.md` at the zip root; unzip into a folder named `draft-icl`.
 
 A STEP file or dimensioned drawing in; a process-specific check list and a dimensioned wireframe out, first as an HTML preview with pinned comments, then, on explicit approval, filled into the company ICL Excel form. Default tolerances: laser cut ±0.2 mm, bending and welding ±0.5 mm, clinch-fastener holes ±0.2 mm; drawing tolerances win. Laser and Bending export to their bundled forms; Welding previews only until its company form is supplied. Unknown limits stay TBC. Approval generates the document; it is not physical validation.

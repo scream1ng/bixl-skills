@@ -1,7 +1,63 @@
 {
-  "process":"bending", "template":"template.xlsx", "sheet":"xl/worksheets/sheet1.xml", "history":"xl/worksheets/sheet2.xml",
-  "groups":{"main":[10,11,12,13,14,15,16,17]}, "clear_rows":[10,11,12,13,14,15,16,17],
-  "clear_cells":["A6","A10","B9"], "fixed_cells":{"B8":"CHECK\nPOINT","P1":"","F6":"Press Brake"},
-  "metadata":{"C3":"revision","C4":"date","C6":"drawing_number","I6":"number","N6":"name","F7":"frequency"},
-  "drawing":{"part":"xl/drawings/drawing1.xml","rels":"xl/drawings/_rels/drawing1.xml.rels","logo_rel":"rId2","row":17,"width_px":1050,"height_px":251}
+  "process": "bending",
+  "template": "template.xlsx",
+  "sheet": "xl/worksheets/sheet1.xml",
+  "history": "xl/worksheets/sheet2.xml",
+  "groups": {
+    "main": [
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ]
+  },
+  "clear_rows": [
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17
+  ],
+  "clear_cells": [
+    "A6",
+    "A10",
+    "B9"
+  ],
+  "fixed_cells": {
+    "B8": "CHECK\nPOINT",
+    "P1": "",
+    "F6": "Press Brake"
+  },
+  "metadata": {
+    "C3": "revision",
+    "C4": "date",
+    "C6": "drawing_number",
+    "I6": "number",
+    "N6": "name",
+    "F7": "frequency"
+  },
+  "drawing": {
+    "part": "xl/drawings/drawing1.xml",
+    "rels": "xl/drawings/_rels/drawing1.xml.rels",
+    "logo_rel": "rId2",
+    "row": 17,
+    "width_px": 1050,
+    "height_px": 251
+  },
+  "profile": {
+    "available_gauges": [
+      "Vernier",
+      "Protractor",
+      "Visual"
+    ]
+  },
+  "group_headers": {},
+  "print_last_row": 24
 }
