@@ -1,6 +1,6 @@
 ---
 name: draft-pfc
-description: v1.0 · Draft and revise process flow charts (PFCs) from D365 BOM spreadsheets using the IXL form. Preserve component branches, materials, hardware and operation sequence; include supplied CAD isometric views; deliver a complete HTML review with pinned comments before approved Excel export. Use for BOM-to-PFC, manufacturing flow charts and PFC revisions. Not for costing, CAD design or inspection check lists.
+description: v1.0 · Draft and revise process flow charts (PFCs) from D365 BOM spreadsheets or draft calc parts tables using the IXL form. Preserve component branches, materials, hardware and operation sequence; include supplied CAD isometric views; deliver a complete HTML review with pinned comments before approved Excel export. Use for BOM-to-PFC, manufacturing flow charts and PFC revisions. Not for costing, CAD design or inspection check lists.
 ---
 
 # Draft PFC
@@ -24,11 +24,11 @@ Ordinary generation or “change this PFC” edits the job only. Change permanen
 
 ## 1. Interpret the source and build the draft
 
-Use the supplied BOM spreadsheet as the primary input. CAD, route sheets and drawings are optional evidence. Ask only if missing information prevents a meaningful draft; otherwise keep TBC and a concise review decision. Inspect sheets and identify the BOM by headers.
+Use the supplied D365 BOM or calc parts table as the primary input; `import` detects which. A calc parts table is the pre-system draft BOM: code/description rows, finished part first, each process row ending in its stage word (see BOM rules). CAD, route sheets and drawings are optional evidence. With only CAD or a drawing, ask for the BOM or calc table; never write a chart by hand. Ask only if missing information prevents a meaningful draft; otherwise keep TBC and a concise review decision. Inspect sheets and identify the BOM by headers.
 
 ```bash
 python scripts/pfc.py import "INPUT - BOM.xlsx" --job JOB
-# Add --sheet "BOM" only when needed to select one table.
+# Works for a D365 BOM or a calc workbook. Add --sheet "BOM" only when needed to select one table.
 ```
 
 Inspect `JOB/spec.json` before presenting it. The parser is a first pass. Verify owning levels, child-to-parent production flow, independent component branches and the actual consuming/joining stage for material and hardware. Consolidate setup, machine and operator records into physical operations; keep surcharge/cost rows as evidence. Keep packing consumables together. Derive units/carton only from a clear carton quantity and its owning lot.

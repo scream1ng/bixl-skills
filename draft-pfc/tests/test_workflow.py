@@ -36,6 +36,46 @@ ROWS=[HEADER,
  ['Process',1,'BENCH','Work Bench','Workbench','MACH','Hours',.2,100],
  ['Surcharge',1,'Surcharge','Overhead','','OVH','AUD',20,100]]
 
+# Calc parts table as the quality team receives it: no headers, finished part first, codes listing remaining stages.
+CALC=[['',''],
+ ['','100200','CUST-1 - BRACKET'],
+ ['','600100','RSC 280x195x110 3C CARTON  (25pcs/box)'],
+ ['','100200E','CUST-1 - E-COAT'],
+ ['','100200WE','CUST-1 - WELD'],
+ ['','100200BWE','CUST-1 - BEND'],
+ ['','600200','M6 x 20 Flat Head Weld Stud 8.8'],
+ ['','100201L','CUST-1-3 - SPACER - LASER'],
+ ['','100200LBWE','CUST-1 - LASER'],
+ ['','600300','2.0 HA3P 2440 X 1220 SHT']]
+
+class CalcTable(unittest.TestCase):
+    def setUp(self):self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name)
+    def tearDown(self):self.tmp.cleanup()
+    def draft(self,rows,name='calc'):
+        fixture(self.root/(name+'.xlsx'),rows);return pfc.read(pfc.build(self.root/(name+'.xlsx'),self.root/(name+'-job')))
+    def test_route_branches_and_pack(self):
+        s=self.draft(CALC);by={n['item']:n for n in s['nodes']};edge=lambda a,b:{'from':by[a]['key'],'to':by[b]['key']} in s['edges']
+        self.assertEqual(s['source']['format'],'calc_parts_table');self.assertEqual(s['number'],'100200')
+        self.assertEqual([(by_key['item'],by_key['family'],by_key['op']) for by_key in (next(n for n in s['nodes'] if n['key']==k) for k in s['main'])],
+            [('100200LBWE','laser',10),('100200BWE','bend',20),('100200WE','weld',30),('100200E','ecoat',40),('100200','pack',50)])
+        self.assertEqual((by['100201L']['family'],by['100201L']['op']),('laser',10))
+        self.assertTrue(edge('100201L','100200WE') and edge('600200','100200WE'))
+        self.assertTrue(edge('600300','100200LBWE') and edge('600300','100201L'))
+        self.assertEqual(by['100200']['label'],'Pack\nCARTON #600100\n25 / BOX');self.assertNotIn('600100',by)
+        self.assertEqual(by['600200']['kind'],'hardware');self.assertIsNone(by['600200']['quantity'])
+        self.assertEqual(len(s['issues']),3)  # spacer join, stud join/quantity, shared sheet
+        scene=pfc.layout(s);self.assertEqual(len(scene['boxes']),len(s['nodes']))
+    def test_clinch_and_powdercoat(self):
+        rows=[['','200300','PART-2 - PANEL'],['','200300LCP','PART-2 - LASER'],['','200300CP','PART-2 - CLINCH'],['','200300P','PART-2 - POWDERCOAT'],['','600400','M5 Clinch Nut'],['','600500','1.6 GALV SHT']]
+        s=self.draft(rows,'clinch');by={n['item']:n for n in s['nodes']}
+        self.assertEqual([by_n['family'] for by_n in (next(n for n in s['nodes'] if n['key']==k) for k in s['main'])],['laser','clinch','powdercoat','pack'])
+        self.assertIn({'from':by['600400']['key'],'to':by['200300CP']['key']},s['edges'])
+        self.assertTrue(any(i['key']=='pack' for i in s['issues']))
+    def test_preview_and_export(self):
+        s_path=self.root/'calc-job'/'spec.json';self.draft(CALC)
+        pfc.preview(s_path);pfc.approve(s_path,'approve');out=pfc.export(s_path)
+        with zipfile.ZipFile(out) as z:self.assertIn('100201L',z.read('xl/drawings/drawing-pfc.xml').decode())
+
 class Workflow(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.bom=self.root/'BOM.xlsx';fixture(self.bom,ROWS)

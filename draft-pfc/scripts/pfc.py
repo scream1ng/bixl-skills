@@ -72,6 +72,10 @@ def build(bom, job, sheet_name=None):
         for idx,(rn,cells) in enumerate(rows[:20]):
             headers={str(v or '').strip().lower():col for col,v in cells.items()}
             if {'type','level','item/resource','description'}<=set(headers): choices.append((name,rows[idx+1:],headers)); break
+    if not choices:
+        tables=[t for t in (parts_table(name,rows) for name,rows in sheets if not sheet_name or name==sheet_name) if t]
+        if len(tables)==1: return build_parts(bom,job,*tables[0])
+        if tables: raise ValueError('Select exactly one calc parts table using --sheet; found '+str(len(tables)))
     if len(choices)!=1: raise ValueError('Select exactly one BOM sheet using --sheet; found '+str(len(choices)))
     name,rows,headers=choices[0]; nodes=[]; stack={}; issues=[]; unsupported=[]; allrows=[]
     keys={'type':'type','level':'level','item/resource':'resource','description':'description','operation':'operation','cost group':'group','unit':'unit','consumption per lot size':'consumption','lot size quantity':'lot'}
@@ -171,6 +175,88 @@ def build(bom, job, sheet_name=None):
     spec={'schema_version':1,'revision':1,'number':root['resource'],'name':root['description'],'plant':'TBC','issued_by':'TBC','original_date':None,'revision_date':None,'source':{'path':str(target.relative_to(job)),'sha256':sha(target),'sheet':name},'template_sha256':sha(ROOT/'assets/reference-pfc.xlsx'),'nodes':graph,'edges':edges,'main':main,'operation_numbering':{'basis':'proposed_route_sequence','increment':10,'restart_independent_routes':True,'source':None},'issues':issues,'source_rows':allrows,'history':[],'images':{}}
     save(job/'spec.json',spec);return job/'spec.json'
 
+# Calc parts table: code + description rows, finished part first, stage word at the end of each description.
+STAGES={'LASER':('laser','Laser Cut Blank'),'BEND':('bend','Bend'),'WELD':('weld','Weld'),'ECOAT':('ecoat',"E'Coat"),
+        'POWDERCOAT':('powdercoat','Powdercoat'),'CLINCH':('clinch','Clinch'),'PACK':('pack','Pack')}
+CODE=re.compile(r'^[A-Za-z0-9][A-Za-z0-9._/-]{2,}$')
+
+def stage(desc):
+    head,sep,tail=str(desc).rpartition(' - ')
+    return (STAGES.get(re.sub(r'[^A-Z]','',tail.upper())),head.strip()) if sep else (None,str(desc).strip())
+
+def parts_table(name,rows):
+    """Find the longest run of consecutive code/description rows that names at least one stage."""
+    best=None;run=[];col=None
+    def close():
+        nonlocal best
+        if len(run)>=3 and any(stage(r['description'])[0] for r in run[1:]) and (best is None or len(run)>len(best[1])):best=(name,list(run))
+    for rn,cells in rows:
+        filled=[(c,v) for c,v in sorted(cells.items(),key=lambda x:(len(x[0]),x[0])) if str(v if v is not None else '').strip()]
+        hit=None
+        for (c,v),(_,d) in zip(filled,filled[1:]):
+            if CODE.match(str(v).strip()) and re.search(r'[A-Za-z]',str(d)) and ' ' in str(d).strip():hit=(c,str(v).strip(),str(d).strip());break
+        if hit and (col is None or hit[0]==col) and (not run or rn==run[-1]['row']+1):
+            col=hit[0];run.append({'row':rn,'sheet':name,'item':hit[1],'description':hit[2]})
+        else:
+            close();run=[];col=None
+            if hit:col=hit[0];run.append({'row':rn,'sheet':name,'item':hit[1],'description':hit[2]})
+    close();return best
+
+def build_parts(bom,job,name,rows):
+    """Draft a PFC from a calc parts table. Joins and material sharing are inferred and listed as issues."""
+    root,rest=rows[0],rows[1:];graph=[];edges=[];issues=[];chains={};others=[]
+    for r in rest:
+        st,head=stage(r['description'])
+        if st and st[0]!='pack':chains.setdefault('main' if r['item'].startswith(root['item']) else head,[]).append((r,st))
+        else:others.append(r)
+    if 'main' not in chains:raise ValueError('Calc table has no process rows for '+root['item'])
+    def add(key,item,label,kind,rows,**extra):
+        graph.append({'key':key,'item':str(item),'label':str(label),'kind':kind,'source_rows':rows,**extra});return key
+    routes={}
+    for chain,items in chains.items():
+        # Earlier stages carry more remaining-stage letters (818240LBWE before 818240BWE); ties keep bottom-up table order.
+        items=sorted(items,key=lambda x:(-len(x[0]['item']),-x[0]['row']));keys=[]
+        for i,(r,(fam,label)) in enumerate(items):
+            keys.append(add('op-'+str(r['row']),r['item'],label,'operation',[r['row']],family=fam,op=(i+1)*10))
+            letters=r['item'][len(root['item']):] if chain=='main' else ''
+            if letters and letters[0].upper()!=label[0].upper():
+                issues.append({'key':'order-'+str(r['row']),'summary':r['item']+': confirm stage order.','text':r['item']+': code letters "'+letters+'" do not start with the '+label+' stage named in its description. Confirm route order.'})
+        edges.extend({'from':a,'to':b} for a,b in zip(keys,keys[1:]));routes[chain]=keys
+    main=routes.pop('main');ops={g['key']:g for g in graph}
+    def joining(prefer):
+        for fam in prefer:
+            hit=next((k for k in main if ops[k]['family']==fam),None)
+            if hit:return hit
+        return main[-1]
+    for chain,keys in routes.items():
+        target=joining(['weld','clinch']);edges.append({'from':keys[-1],'to':target})
+        issues.append({'key':'join-'+keys[0],'summary':ops[keys[0]]['item']+': confirm joins at '+ops[target]['label']+' and quantity.','text':ops[keys[0]]['item']+' ('+chain+') is drawn joining the main part at '+ops[target]['label']+'. The calc table gives no joining stage or quantity per assembly; confirm both.'})
+    pack=add('op-'+str(root['row']),root['item'],'Pack','operation',[root['row']],family='pack',op=(len(main)+1)*10)
+    edges.append({'from':main[-1],'to':pack});packaging=[];ops[pack]=graph[-1]
+    firsts=[k[0] for k in [main,*routes.values()]];lasers=[k for k in firsts if ops[k]['family']=='laser'] or [main[0]]
+    for r in others:
+        desc=r['description']
+        if re.search(r'carton|rsc\b|box|label|pallet|bag',desc,re.I):
+            packaging.append({'key':'item-'+str(r['row']),'item':r['item'],'label':desc,'kind':'packaging','source_rows':[r['row']]});continue
+        if re.search(r'stud|nut\b|bolt|screw|washer|rivet|bush|pem\b',desc,re.I):
+            prefer=['clinch','weld'] if re.search(r'clinch|pem\b|self.clinch',desc,re.I) else ['weld','clinch']
+            key=add('item-'+str(r['row']),r['item'],desc,'hardware',[r['row']],quantity=None,unit=None);target=joining(prefer)
+            edges.append({'from':key,'to':target})
+            issues.append({'key':'join-'+key,'summary':r['item']+': confirm '+ops[target]['label']+' and quantity.','text':r['item']+' is drawn into '+ops[target]['label']+'. Confirm the consuming stage and quantity per assembly; the calc table has no quantity.'})
+            continue
+        key=add('item-'+str(r['row']),r['item'],desc,'material',[r['row']],quantity=None,unit=None)
+        edges.extend({'from':key,'to':k} for k in lasers)
+        if len(lasers)>1:issues.append({'key':'material-'+key,'summary':r['item']+': confirm it feeds every laser part.','text':r['item']+' is drawn feeding every laser stage ('+', '.join(ops[k]['item'] for k in lasers)+'). Confirm each part is cut from this material.'})
+    if packaging:
+        ops[pack]['packaging']=packaging;cartons=[g for g in packaging if re.search(r'carton|rsc\b',g['label'],re.I)]
+        count=re.search(r'(\d+)\s*(?:pcs?|ea)?\s*/\s*box',cartons[0]['label'],re.I) if len(cartons)==1 else None
+        ops[pack]['label']='Pack'+('\nCARTON #'+cartons[0]['item'] if len(cartons)==1 else '')+('\n'+count.group(1)+' / BOX' if count else '')
+    else:issues.append({'key':'pack','summary':'Confirm packing.','text':root['item']+': no carton or packaging row in the calc table. Confirm packing.'})
+    job=Path(job);job.mkdir(parents=True,exist_ok=False)
+    src=job/'sources';src.mkdir();target=src/Path(bom).name;shutil.copy2(bom,target)
+    spec={'schema_version':1,'revision':1,'number':root['item'],'name':root['description'],'plant':'TBC','issued_by':'TBC','original_date':None,'revision_date':None,'source':{'path':str(target.relative_to(job)),'sha256':sha(target),'sheet':name,'format':'calc_parts_table'},'template_sha256':sha(ROOT/'assets/reference-pfc.xlsx'),'nodes':graph,'edges':edges,'main':main+[pack],'operation_numbering':{'basis':'proposed_route_sequence','increment':10,'restart_independent_routes':True,'source':None},'issues':issues,'source_rows':rows,'history':[],'images':{}}
+    save(job/'spec.json',spec);return job/'spec.json'
+
 def valid(spec):
     nodes={n['key']:n for n in spec['nodes']}
     if len(nodes)!=len(spec['nodes']): raise ValueError('Duplicate graph keys')
@@ -257,7 +343,8 @@ def layout(spec):
     route_axis=(route_left+route_right)/2 if route_left<route_right else None
     for e in spec['edges']:
         a=pos[e['from']];b=pos[e['to']];aw,ah=a[2:];bw,bh=b[2:]
-        if nodes[e['from']]['kind']=='hardware':points=[[a[0]+aw/2,a[1]+ah],[a[0]+aw/2,b[1]+bh/2],[b[0],b[1]+bh/2]]
+        if nodes[e['from']]['kind']=='material' and b[0]>=a[0]+aw and b[1]>a[1]+ah:points=[[a[0]+aw,a[1]+ah/2],[b[0]+bw/2,a[1]+ah/2],[b[0]+bw/2,b[1]]]
+        elif nodes[e['from']]['kind']=='hardware':points=[[a[0]+aw/2,a[1]+ah],[a[0]+aw/2,b[1]+bh/2],[b[0],b[1]+bh/2]]
         elif a[0]+aw/2<b[0] and a[1]>=b[1]:
             mid=(a[0]+aw+b[0])/2
             points=[[a[0]+aw,a[1]+ah/2],[mid,a[1]+ah/2],[mid,b[1]+bh/2],[b[0],b[1]+bh/2]]

@@ -3,7 +3,7 @@
 `spec.json` is the editable job authority. Keep paths relative to its folder. The import command creates a fresh job and will not overwrite an existing one.
 
 - `schema_version`, `revision`, `number`, `name`, `plant`, `issued_by`, `original_date`, `revision_date`: header and revision data. Dates are ISO YYYY-MM-DD or null; do not copy sample dates. Plant and issuer default to TBC until supported by the job input or user; do not copy them from the sample form.
-- `source`: relative BOM path, SHA-256 and sheet name.
+- `source`: relative BOM path, SHA-256 and sheet name; `format: "calc_parts_table"` when drafted from a calc table (absent for D365).
 - `nodes`: stable key, item code, label, kind, source_rows; operations add family/op/bom_key and the owning component quantity/unit when ea/each consumption and lot establish them; items add quantity/unit/parent. Pack nodes keep their complete `packaging` items.
 - `edges`: `from` and `to` stable node keys. Verify physical joining stage.
 - `operation_numbering`: record the proposed-route basis, increment, independent-route restart and source (null until supplied). Supplied route IDs replace the proposal with explicit source/evidence.
