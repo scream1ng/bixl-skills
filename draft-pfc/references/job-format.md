@@ -11,6 +11,7 @@
 - `issues`: stable key, full text and optional concise summary for unresolved facts or provisional interpretations. Show concise decisions in the review card and retain full notes in the spec. Resolve only from actual evidence/user input.
 - `source_rows`: all extracted BOM records, preserving source row and sheet.
 - `layout.boxes`: optional mapping from node key to [x,y,width,height] in measured reference-form pixels. Used to revise placement; graph quantities/meaning do not change.
+- `layout.connector_overrides`: optional mapping from `from-key->to-key` to a list of [x,y] points. Keys must identify existing graph edges. Points must form nonzero horizontal/vertical segments within the page, meet both owning box boundaries and avoid unrelated boxes. The renderer uses these routes in both outputs.
 - `nodes[].display_lines`: optional concise multiline display preserving the same source facts; `nodes[].symbols` can retain stage-specific source selections such as Pack having Operation and Storage only.
 - `history`: revision, requested change and evidence. Increment revision for content changes.
 - `preview`: current revision HTML name/hash and fingerprint. Managed by preview command.
@@ -20,6 +21,8 @@
 - `images`: mapping of stable image role keys to `path`, `sha256`, `node_key`, `[x,y,width,height]` in `box`, optional `within_node`, `caption`, render settings and evidence. Use PNG files with transparency. Image boxes preserve aspect ratio in SVG and Excel. Images inside their parent node must fit entirely; external images must avoid every process box. Keep copied feedback bound to the mapped node and normalized image position.
 
 PNG bytes are embedded directly in the self-contained HTML and in native Excel picture objects. Changing image/source bytes invalidates approval; update evidence hashes and regenerate before recording a new approval. The spec retains the exact solid selections and camera/finish choices for rerendering. Single-sheet export uses the five measured process slots in the supplied form plus side routes. More stages or complicated branches require an inspected extra-page mapping, not a silently stretched form. The entire source A1:X52 grid is retained. Overlapping boxes/cycles/missing references fail rather than generating silently broken charts. Connector intersections require visual review.
+
+For screenshot input, `source.format` is `calc_parts_table_image`; `source` binds the image and `additional_sources` binds the exact JSON transcription. Source descriptions remain unchanged in `source_rows`. Native Excel picture extents fit each approved PNG proportionally and centrally, matching SVG `xMidYMid meet` without stretching.
 
 ```bash
 python scripts/pfc.py import "PART-NO - BOM.xlsx" --job JOB

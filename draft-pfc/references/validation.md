@@ -7,6 +7,7 @@
 - Verify the original form frame, box spacing, symbol selections/styles and boxed legend. Keep every connector segment horizontal or vertical, with one shared main-route axis.
 - Inspect the whole page for text/image/arrow overlaps, clipped labels, disconnected ends and readable size. Keep complete required isometrics outside boxes by default.
 - Confirm self-contained HTML below 1,000,000 bytes, current logo, complete pins/copy interaction, hidden empty state and no download-comment button.
+- Validate keyed arrow overrides against graph edges, boundary attachment and unrelated-box crossings. Preserve exact generated HTML bytes through approval; regenerate after any HTML modification. Do not patch stored approval hashes.
 
 ## Before delivering Excel
 
@@ -22,6 +23,8 @@ Reopen the exported ZIP/workbook and verify:
 Render with an available spreadsheet application and inspect the entire printed page for pagination, symbols, borders, all labels and image placement. The exporter writes a hash-bound `.print-settings.json`. XML settings, text extraction and a LibreOffice/PDF render do not establish Windows Excel printer-dialog confirmation; leave that flag false unless evidence confirms this exact workbook.
 
 If a required dependency or renderer is unavailable, report the concrete missing capability and the useful output completed. Do not claim a workbook was generated or visually checked when it was not. No manufacturing/engineering qualification follows from a document approval.
+
+Treat an Excel recovery warning as an export failure even if ZIP/XML checks and LibreOffice rendering pass. Preserve the warning and log. A log containing only the generic summary does not establish the invalid element. Optional `export --resave` requires LibreOffice and verifies native item text, source PNG hashes and macro-free output before replacing the export. After this workaround, inspect all boxes/connectors, original grid, dimensions, margins and one-page render again. Keep Windows Excel open-without-repair confirmation false until observed on that exact workbook; do not report the root cause as fixed from a resave alone.
 
 ## Supported boundaries
 

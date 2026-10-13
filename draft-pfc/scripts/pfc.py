@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """BOM -> auditable graph -> HTML review -> approval-bound Excel PFC."""
 import argparse, base64, copy, datetime, hashlib, html, json, re, shutil
-import sys, textwrap, zipfile
+import sys, textwrap, zipfile, struct, subprocess, tempfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
@@ -182,7 +182,28 @@ CODE=re.compile(r'^[A-Za-z0-9][A-Za-z0-9._/-]{2,}$')
 
 def stage(desc):
     head,sep,tail=str(desc).rpartition(' - ')
-    return (STAGES.get(re.sub(r'[^A-Z]','',tail.upper())),head.strip()) if sep else (None,str(desc).strip())
+    token=re.sub(r'[^A-Z]','',tail.upper())
+    token={'WELDASSEMBLY':'WELD','ELECTROCOATING':'ECOAT'}.get(token,token)
+    return (STAGES.get(token),head.strip()) if sep else (None,str(desc).strip())
+
+def build_image(image, transcription, job):
+    """Import a visually checked calc-table transcription; never OCR silently."""
+    if Path(image).suffix.lower() not in ('.png','.jpg','.jpeg','.webp','.bmp'):raise ValueError('Supply a screenshot image file')
+    if Path(image).name==Path(transcription).name:raise ValueError('Source filenames must differ')
+    rows=read(transcription)
+    if not isinstance(rows,list) or not rows:raise ValueError('Transcription must be a nonempty row list')
+    seen=set()
+    for row in rows:
+        if not isinstance(row,dict) or not isinstance(row.get('row'),int) or row['row']<=0 or row['row'] in seen:raise ValueError('Invalid or duplicate screenshot row')
+        if not all(isinstance(row.get(k),str) and row[k].strip() for k in ('item','description')):raise ValueError('Unreadable item or description: resolve before import')
+        seen.add(row['row']);row.setdefault('sheet','Screenshot transcription')
+    path=build_parts(image,job,'Screenshot transcription',rows)
+    spec=read(path);spec['source']['format']='calc_parts_table_image'
+    target=Path(job)/'sources'/Path(transcription).name
+    shutil.copy2(transcription,target)
+    spec['additional_sources']=[{'path':str(target.relative_to(Path(job))),'sha256':sha(target)}]
+    spec['issues'].append({'key':'screenshot','summary':'Confirm transcription, cropped notes and quantities.','text':'Only legible transcribed rows are included. Preserve cropped/unreadable notes as review decisions; quantities and hierarchy are not established by the image.'})
+    save(path,spec);return path
 
 def parts_table(name,rows):
     """Find the longest run of consecutive code/description rows that names at least one stage."""
@@ -214,7 +235,7 @@ def build_parts(bom,job,name,rows):
         graph.append({'key':key,'item':str(item),'label':str(label),'kind':kind,'source_rows':rows,**extra});return key
     routes={}
     for chain,items in chains.items():
-        # Earlier stages carry more remaining-stage letters (818240LBWE before 818240BWE); ties keep bottom-up table order.
+        # Earlier stages carry more remaining-stage letters (100200LBWE before 100200BWE); ties keep bottom-up table order.
         items=sorted(items,key=lambda x:(-len(x[0]['item']),-x[0]['row']));keys=[]
         for i,(r,(fam,label)) in enumerate(items):
             keys.append(add('op-'+str(r['row']),r['item'],label,'operation',[r['row']],family=fam,op=(i+1)*10))
@@ -358,7 +379,22 @@ def layout(spec):
                 mid=(a[1]+ah+b[1])/2
                 points=[[a[0]+aw/2,a[1]+ah],[a[0]+aw/2,mid],[b[0]+bw/2,mid],[b[0]+bw/2,b[1]]]
 
-        add('path',points=points,stroke='#4F81BD',stroke_width=2)
+        edge_key=e['from']+'->'+e['to']
+        overrides=spec.get('layout',{}).get('connector_overrides',{})
+        if set(overrides)-{a['from']+'->'+a['to'] for a in spec['edges']}:raise ValueError('Connector override references missing edge')
+        points=overrides.get(edge_key,points)
+        if not isinstance(points,list) or len(points)<2 or any(not isinstance(p,list) or len(p)!=2 or any(not isinstance(v,(int,float)) or not 0<=v<=limit for v,limit in zip(p,(W,H))) for p in points):raise ValueError('Invalid connector points '+edge_key)
+        for a,b in zip(points,points[1:]):
+            if a==b or (a[0]!=b[0] and a[1]!=b[1]):raise ValueError('Connector must have nonzero orthogonal segments '+edge_key)
+            for key,(x,y,w,h) in pos.items():
+                if key in (e['from'],e['to']):continue
+                hit=(x<a[0]<x+w and max(min(a[1],b[1]),y)<min(max(a[1],b[1]),y+h)) if a[0]==b[0] else (y<a[1]<y+h and max(min(a[0],b[0]),x)<min(max(a[0],b[0]),x+w))
+                if hit:raise ValueError('Connector '+edge_key+' crosses '+key+'; revise layout')
+        def boundary(p,box):
+            x,y,w,h=box
+            return (p[0] in (x,x+w) and y<=p[1]<=y+h) or (p[1] in (y,y+h) and x<=p[0]<=x+w)
+        if not boundary(points[0],pos[e['from']]) or not boundary(points[-1],pos[e['to']]):raise ValueError('Connector ends must meet box boundaries '+edge_key)
+        add('path',points=points,stroke='#4F81BD',stroke_width=2,edge_key=edge_key)
     for n in spec['nodes']:
         x,y,w,h=pos[n['key']];label=n['label']
         if n.get('quantity') is not None and n['kind']=='hardware':label+=' (x '+format(n['quantity'],'.4g')+')'
@@ -450,24 +486,69 @@ def export(path):
     path=Path(path).resolve();spec=read(path);fp=digest(spec,path)
     if spec.get('approval',{}).get('fingerprint')!=fp:raise ValueError('Explicit approval of the current preview is required')
     if sha(path.parent/spec['preview']['path'])!=spec['approval']['preview_sha256']:raise ValueError('Approved HTML changed')
-    scene=layout(spec);save(path.parent/'scene.json',scene)
+    scene=layout(spec)
+    # Excel stretches native pictures: fit their actual extents like SVG meet.
+    for p in scene['items']:
+        if p['type']!='image':continue
+        image=path.parent/spec['images'][p['image_key']]['path']
+        png=image.read_bytes()
+        if len(png)<24 or png[:8]!=b'\x89PNG\r\n\x1a\n' or png[12:16]!=b'IHDR':raise ValueError('Isometric must be PNG')
+        iw,ih=struct.unpack('>II',png[16:24])
+        if not iw or not ih:raise ValueError('PNG dimensions must be positive')
+        factor=min(p['w']/iw,p['h']/ih)
+        w,h=iw*factor,ih*factor;p['x']+=(p['w']-w)/2;p['y']+=(p['h']-h)/2;p['w'],p['h']=w,h
+    save(path.parent/'scene.json',scene)
     from drawing import finish
     out=path.parent/f'{spec["number"]}-PFC-r{spec["revision"]}.xlsx'
     finish(ROOT/'assets/reference-pfc.xlsx',out,spec,scene,ROOT)
     return out
 
+def resave(out, spec):
+    """Optional application serialization; does not prove Windows Excel acceptance."""
+    from xml.etree import ElementTree as E
+    exe=shutil.which('soffice') or shutil.which('libreoffice')
+    if not exe:raise ValueError('LibreOffice is unavailable; workbook was not resaved')
+    out=Path(out).resolve()
+    def objects(z):
+        draws=[E.fromstring(z.read(n)) for n in z.namelist() if n.startswith('xl/drawings/') and n.endswith('.xml') and '/_rels/' not in n]
+        ns='{http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing}'
+        return draws,tuple(sum(len(d.findall('.//'+ns+t)) for d in draws) for t in ('sp','pic'))
+    with zipfile.ZipFile(out) as z:_,counts=objects(z)
+    with tempfile.TemporaryDirectory() as td:
+        tmp=Path(td)
+        subprocess.run([exe,'-env:UserInstallation='+ (tmp/'profile').as_uri(),'--headless','--convert-to','xlsx:Calc MS Excel 2007 XML','--outdir',str(tmp),str(out)],check=True,capture_output=True,timeout=60)
+        candidate=tmp/out.name
+        if not candidate.is_file():raise ValueError('Application did not produce resaved XLSX')
+        with zipfile.ZipFile(candidate) as z:
+            draws,new_counts=objects(z)
+            if new_counts!=counts:raise ValueError('Resave changed native shape or picture count')
+            text={t.text for d in draws for t in d.iter('{http://schemas.openxmlformats.org/drawingml/2006/main}t')}
+            if any(n['item'] not in text for n in spec['nodes']):raise ValueError('Resave lost editable item text')
+            hashes={hashlib.sha256(z.read(n)).hexdigest() for n in z.namelist() if n.startswith('xl/media/')}
+            if any(i['sha256'] not in hashes for i in spec.get('images',{}).values()):raise ValueError('Resave changed approved picture bytes')
+            if any('vba' in n.lower() for n in z.namelist()):raise ValueError('Unexpected VBA after resave')
+        shutil.copy2(candidate,out)
+    report_path=Path(str(out)+'.print-settings.json');report=read(report_path)
+    report.update(sha256=sha(out),application_resaved=True,Windows_Excel_open_confirmed=False)
+    save(report_path,report);return out
+
 def main():
     a=argparse.ArgumentParser();s=a.add_subparsers(dest='command',required=True)
     p=s.add_parser('import');p.add_argument('bom');p.add_argument('--job',required=True);p.add_argument('--sheet')
+    p=s.add_parser('import-image');p.add_argument('image');p.add_argument('--rows',required=True);p.add_argument('--job',required=True)
     for c in ('preview','approve','export'):
         p=s.add_parser(c);p.add_argument('spec')
         if c=='approve':p.add_argument('--note',required=True)
+        if c=='export':p.add_argument('--resave',action='store_true')
     args=a.parse_args()
     try:
         if args.command=='import':out=build(args.bom,args.job,args.sheet)
+        elif args.command=='import-image':out=build_image(args.image,args.rows,args.job)
         elif args.command=='preview':out=preview(args.spec)
         elif args.command=='approve':approve(args.spec,args.note);out='Approval recorded'
-        else:out=export(args.spec)
+        else:
+            out=export(args.spec)
+            if args.resave:out=resave(out,read(args.spec))
         print(out)
-    except (ValueError,OSError) as e:print(str(e),file=sys.stderr);sys.exit(1)
+    except (ValueError,OSError,subprocess.SubprocessError) as e:print(str(e),file=sys.stderr);sys.exit(1)
 if __name__=='__main__':main()

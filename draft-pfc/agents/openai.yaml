@@ -1,7 +1,7 @@
 interface:
   display_name: Draft PFC
-  short_description: v1.1 · BOM and CAD to PFC with isometric views
-  default_prompt: Use $draft-pfc to turn this BOM and optional STEP/drawing into a
+  short_description: v1.2 · BOM spreadsheets or screenshots to editable PFC
+  default_prompt: Use $draft-pfc to turn this BOM spreadsheet or screenshot and optional STEP/drawing into a
     process flow chart with an HTML preview before Excel export.
   icon_small: assets/icon.svg
   icon_large: assets/icon.svg
