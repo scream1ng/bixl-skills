@@ -1,6 +1,6 @@
 ---
 name: design-backbar
-description: "v1.4 · Design LVD press-brake backbar jigs from one STEP file. Use a supplied flat pattern or estimate unfolding from the formed part; check direct gauging first, then deliver only required backbar DXFs and a formed STEP with programming gauge tabs, plus a commentable HTML preview. Trimming is only applied when explicitly requested in a user message or preview comment."
+description: "v1.5 · Design LVD press-brake backbar jigs from one STEP file. Use a supplied flat pattern or estimate unfolding from the formed part; check direct gauging first, then deliver only required backbar DXFs and a formed STEP with programming gauge tabs, plus a simple, commentable bend-sequence preview. Trimming is only applied when explicitly requested in a user message or preview comment."
 ---
 
 # Design Backbar
@@ -12,13 +12,31 @@ Accept **one STEP file**. Prefer its supplied flat pattern when present. Otherwi
 Deliver:
 - **DXF:** one per required backbar plate, mm at 1:1, for 6 mm material.
 - **STEP:** formed part with required gauge tabs merged into one valid solid, for CADMAN-B.
-- **HTML review:** dimensioned backbars and tabs, folded part with highlighted tabs, direct-gauge bends, and pinned comments.
+- **HTML review:** all bend operations in sequence, visible programming tabs, and a gauging status for every operation: BACKBAR, BACKBAR OPTION, DIRECT EDGE or DIRECT EDGE TRIAL. Show the matching backbar and dashed gauge line when required; retain pinned comments.
 
-Keep estimated flat patterns, intermediate geometry, logs and JSON internal unless requested. Do not deliver a ZIP unless the user asks for one. When packaging, include only the current run's required plates; exclude superseded plates and internal files.
+Keep estimated flat patterns, intermediate geometry, logs and JSON internal unless requested. Do not deliver a ZIP unless the user asks for one. Treat “package it” as a ZIP request. Use `--package` or `scripts/package_delivery.py:package_run` with the completed run's explicit `deliverables` manifest. Include only current selected-route DXFs, programming STEP, latest HTML/optional PNG and a brief README with unresolved trial checks; exclude superseded plates, unapproved alternatives and internal files. Never collect files by scanning old revision folders.
 
-The physical blank has **no programming tabs**. Its outline defines the jig pocket. The STEP tabs provide straight gauge edges for bending software. They do not enlarge the programmed gauge distance beyond the blank tip.
+Keep three distinct geometry states: the original input blank, the revised physical blank, and the programming model with CAD-only tabs. Preserve the original before any authorised edit. The physical blank has **no programming tabs**. Its outline defines the jig pocket. The STEP tabs provide straight gauge edges for bending software. They do not enlarge the programmed gauge distance beyond the blank tip.
 
-## Trimming: user instruction only
+## Agreed changes must exist in delivered CAD
+
+**A completed package must contain every agreed CAD change, verified in the exported STEP.** Packaging is a completion claim, not merely a ZIP operation. Maintain an internal inventory of agreed common bends, physical extensions/reshapes/trims and CAD-only tabs from the conversation; never drop an unfinished item to pass delivery.
+
+Distinguish **proposed common operation**, **already common in input CAD**, and **commonised and verified after correction**. `--sequence` groups operations only; it does not move a bend. A valid solid, shared plate, matching labels, or looser acceptance tolerance does not establish completion.
+
+When the user asks to make bends common, perform the necessary CAD correction within the agreed scope: keep a reference bend fixed, align the other actual bend geometry, rebuild the connecting flange, and retain thickness, intended radii and surrounding features. Use a part-specific geometry implementation when needed; the CLI does not automatically repair arbitrary bends. Measure affected hole centres, edges and dimensions before/after. Report consequential movements clearly. Do not substitute a report edit for the CAD work or ask again for permission already given.
+
+Before delivery, reopen the exported STEP and check each agreed result. For common bends, verify bend identity, unfolded and formed/staged axes, angles, radii and fold sense. Never increase tolerance to rescue a failed correction. Highlight the corrected region and show before/after measurements even if the outer contour barely changes. Regenerate affected flat references, backbar pockets and reports from the corrected model; do not mix revisions.
+
+Use `scripts/completion.py` and the inventory workflow in [references/completion.md](references/completion.md). Completed packaging fails when any agreed item is missing, unmeasured, out of tolerance or linked to stale files. Fix the cause; if blocked, state the unfinished change. Only an explicitly requested interim package may bypass completion, with **INCOMPLETE** in its filename and unresolved work in its README. Keep shop trial/import checks distinct from incomplete CAD work; verified CAD changes do not prove manufacturing readiness.
+
+## Part identity and bend numbering
+
+Reset part geometry, bend IDs, tooling assumptions and user exceptions when a new STEP is supplied. Never carry over a prior part’s trims, tab positions, sequence or short-contact approval. Resolve the current bracket/body before proceeding.
+
+Follow the user’s annotated bend numbering. Match each label to geometry, then use `--bend-map` to assign those IDs before side, tab, trim or sequence options. Preserve IDs across preview, STEP tab ownership, DXFs and internal report. If no numbering is supplied, establish one consistent view and keep it through revisions; never renumber by operation order.
+
+## Trimming and reshaping: user instruction only
 
 **Never suggest, consider as a default design step, or apply edge trimming automatically.** A nearly parallel edge is not permission to change the part. Report its measured angular mismatch if relevant, then design to the existing contour.
 
@@ -26,15 +44,17 @@ Use trimming only when explicitly requested in the user's message or a pasted pr
 
 `--trim-for N` implements the narrow request “trim the gauged free edge parallel to bend N.” It removes material back to the nearer end of a straight end edge (up to 2 mm automatically, never adds material). A larger or differently located user-requested trim needs explicit geometry implementation and checks; do not force this option to approximate unrelated changes.
 
+For a requested extension, use the smallest local addition supported by the gauging need; measure it against the original contour rather than choosing a large arbitrary extension. For a requested reshape, adjust the local edge parallel to the bend while retaining corner radii and the part’s overall appearance. Do not substitute a large square extension or remove the backbar without checking gauging again. Use the existing conversation to establish whether the real blank changes or only CAD programming geometry changes; ask only if this remains ambiguous. The simple `--trim-for` operation does not guarantee preserved corner radii: implement and validate the requested contour explicitly when needed. A requested extension is not permission to trim.
+
 ## Workflow
 
-1. Run the bundled script on the STEP. Inspect every bend's direct-gauge classification before discussing plates.
+1. Identify the current part and bend numbering. Record the agreed-change inventory and implement requested CAD corrections, then run the bundled script. Inspect every bend’s direct-gauge classification before discussing plates.
 2. If a genuine parallel contact edge at least 10 mm long exists at the chosen end, use direct gauging: no plate, no tab and no +50 mm offset. Do not silently treat a nearly parallel edge as parallel.
-3. For other bends, generate the contour pocket and the programming tab together. Reuse identical plates when their shape and position agree.
-   If an automatic tab does not join one valid formed solid, retry positions toward the same blank tip within the 10 mm automatic height limit. Preserve the gauge line and tab width. Never move an explicitly positioned tab automatically; report its failure.
+3. For shorter parallel edges, report the measured contact as a direct-trial candidate; the 10 mm threshold is a default, not proof a backbar is essential. Use `--direct-trial N` only with explicit job-specific trial authorization. Otherwise label the plate BACKBAR OPTION. For remaining assisted bends, generate the contour pocket and only the necessary programming tab. An existing parallel edge at least the requested tab width can supply the CAD gauge reference without a new virtual tab. Reuse identical plates when their shape and position agree.
+   Plan tabs collectively against every bend’s gauge limit, including direct edges. Search positions around the same gauging tip within the 10 mm height limit; keep the gauge line and tab width. Reuse one physical programming tab when its geometry agrees. Never move an explicitly positioned tab automatically; report conflicts without changing gauge distance. Do not add a redundant tab just because another bend uses the same backbar. Shared plates do not combine bend operations. Explicit common-bend groups are one operation with one gauge master; do not add a follower operation or duplicate tab.
 4. If the user requests a trim or provides pinned comments, rerun with the appropriate option. Trimming must not be inferred from a near-parallel result.
-5. Check the report, STEP validation and preview. Render the preview or extract its SVGs for visual inspection. Highlight tabs clearly; never call an unvalidated result production-ready.
-6. Save and deliver the DXFs, formed STEP and HTML preview. State estimated unfolding assumptions and any bend-order or tooling constraints.
+5. Establish the dependency-safe sequence before presenting the report. Keep user-selected sequences if valid; flag violated dependencies. Check the report, STEP validation and preview. Render the preview or extract its SVGs for visual inspection. Highlight tabs clearly; never call an unvalidated result production-ready.
+6. Pass the exported-CAD completion check, then save and deliver the matching DXFs, formed STEP and HTML preview. State estimated unfolding assumptions and any bend-order or tooling constraints.
 
 ## Run
 
@@ -54,6 +74,12 @@ Use a fresh output directory for each revision so old plates cannot leak into de
 
 | Option | Use |
 |---|---|
+| `--bend-map A,B,…` | Detected bend IDs listed in user-number order; apply before all other bend options. |
+| `--sequence A+B,C+D,E` | Operation order; `+` groups simultaneous common bends. List every bend once. The first member owns the gauge, plate and tab. |
+| `--common-line-tol MM` | Default 0.001 mm input common-axis limit; may tighten, never widen it to pass a correction. |
+| `--direct-trial N` | Explicit job authorization for direct contact below the default 10 mm threshold; use the operation master. |
+| `--requirements FILE` | Reviewed JSON inventory of every agreed CAD change; see completion reference. |
+| `--package` | Requested completed ZIP; requires the inventory, exported-CAD checks and matching file hashes. |
 | `--side N=+` / `--side N=-` | Use the other gauging end for bend N. Read its current sign first. |
 | `--at N=X` | Place a tab's outer side X mm along the bend from the tip; signed coordinate. |
 | `--tab-width MM` | Default 5 mm; only change when requested. |
@@ -62,7 +88,7 @@ Use a fresh output directory for each revision so old plates cannot leak into de
 | `--flat N` | Select supplied flat body N if ambiguous. |
 | `--trim-for N` | **Explicit user-requested trim only**, to make the gauged free edge parallel to bend N. |
 
-Do not infer an option value from a screenshot dimension when exact geometry or comment coordinates are available.
+For common groups, set `--side`, `--at` and `--direct-trial` on the first member; follower overrides are rejected. Do not infer an option value from a screenshot dimension when exact geometry or comment coordinates are available.
 
 ## Shop standard
 
@@ -104,11 +130,13 @@ Prefer a free gauging end with no intervening bend; when both are free choose th
 
 Reject cyclic flat-region requirements and ask for different gauging ends. Report a dependency order for valid choices, clearly distinguished from a complete collision-checked bending sequence.
 
-Design every tab against the real blank contour. Check each tab's own gauge edge independently. If a programming tab for another bend projects beyond that gauge line, report the conflict and tell the user to select the intended edge in CADMAN-B; do not shift the gauge distance to the other tab.
+Design every tab against the real blank contour. Check all tabs together and each tab’s own gauge edge independently. Automatic tab choices must avoid projecting beyond another bend’s gauge line. If the bounded search fails, review tab location or gauging end; do not accept the conflicting automatic choice. For explicitly requested tab positions, report any conflict and the need to select the intended gauge edge in CADMAN-B; never shift the gauge distance. A short contact below 10 mm requires explicit job-specific trial authorization; do not make it a new default.
+
+Validate common groups with `scripts/operations.py`: axes must be parallel and collinear within the stated tolerance and known bend rotations must match. Retain measured offsets in the report. The exported-STEP completion check independently measures analytic bend axes, inner radii, rotation and fold sense. If analytic identification or staged geometry is unsupported, keep the change unresolved until measured custom verification is implemented. Tooling and a simultaneous stroke remain unverified; do not infer them from shared plates or parallel lines alone. Show each group once, highlight all its bend segments, and allow its members to form together when checking flat-region dependencies.
 
 Preserve bend-order warnings on direct-gauge bends too. A parallel edge may still sit beyond another bend.
 
-Report per jig-assisted bend:
+Keep the following per-bend information in the internal engineering record; provide dimensions only when requested:
 - Programmed bend-to-tab-edge distance.
 - Actual bend-to-finger-tip distance, **program distance +50 mm**.
 - Plate front to bend line; ask the user to check against the die in use.
@@ -116,7 +144,19 @@ Report per jig-assisted bend:
 - Tab width, near/far heights and zero offset from its intended gauge line.
 - Shared plate identity, warnings, or any failed operation.
 
-For direct-gauge bends, report contact length and gauge distance with **no jig offset**. Never label a direct-gauge bend as requiring a backbar.
+For direct-gauge bends, record contact length and gauge distance with **no jig offset**. Never label a direct-gauge bend as requiring a backbar.
+
+## Simple sequence preview
+
+Use `scripts/sequence_preview.py`, called by `backbar.py`, as the default review. Show the part large with one selectable row per operation, its bend IDs and gauging status. Label a short-contact fallback **BACKBAR OPTION**, and an authorized direct trial **DIRECT EDGE TRIAL**. Selecting an operation highlights the bend and its contact edge or programming tab. Show only the matching contour backbar for that operation; identify a shared plate consistently while keeping separate rows and gauge distances for separate operations. A common-bend group gets one row, one shared gauge reference and no follower step.
+
+Render the current physical blank with its holes and rounded corners and overlay CAD-only tabs in orange. Whenever physical geometry changes, show a prominent **Physical part changes** section before the sequence: dashed grey original contour, blue material added, red material removed, numbered locations, closeups and measured local offsets. Retain numbered markers in operation views. State that these changes affect the real blank and formed CAD. Never rely on a note alone or confuse CAD-only tabs with physical additions.
+
+Use `preview(..., operations=groups, original_blank=original)` so `scripts/physical_changes.py` computes Boolean differences from the actual contours. Custom reshapes must pass the preserved original in the same coordinate frame and update the package report's `physical_blank_changed`. The CLI does this automatically for `--trim-for`; other contours require explicit geometry implementation. Label sampled offsets as approximate; do not imply exact maxima. Show a dashed red gauge-reference line through the blank/tab tip, parallel to the bend, exactly **50 mm from the rear finger-slot shoulder**. Transform this line with the backbar geometry; do not confuse it with the bend line or the finger contact at the slot shoulder. Direct-edge steps show no plate or jig-offset line.
+
+Keep tab dimensions, coordinates and full calculation tables out of the main view. Keep the folded-part reference and concise unresolved trial checks available below it. Clearly label the flat layout as a reference, not a progressive folded simulation. Retain comment pins; include the selected bend and display-coordinate frame in copied comments. Do not interpret display coordinates as the old tab-detail bend frame.
+
+Inspect assisted, shared and direct-edge selections; verify no stale plate remains on direct steps, no clipped geometry, correct bend IDs, and visible tabs and dashed lines. A preview-only styling change does not require rewriting validated CAD/DXFs.
 
 ## Validation
 
@@ -131,7 +171,8 @@ For direct-gauge bends, report contact length and gauge distance with **no jig o
 - Construct `BRepCheck_Analyzer(shape, True, False, True)` for strict checks on both the unmodified source and exported result. State source warnings separately; do not misattribute them to unfolding or tab addition. Do not claim a STEP repair fixes an unfolding-direction error.
 - If the user supplies a repaired file confirmed to import, preserve its exact bytes; re-export only as a separate, explicitly unconfirmed candidate.
 - Read the exported STEP back; require one valid solid and volume difference within **max(0.5 mm³, 0.001% of part volume)**. Report the actual difference and limit. This accounts for STEP surface-integration precision; never loosen the threshold to rescue a failed run.
-- Audit DXFs and inspect the rendered preview, including dimension labels and visible tab placement.
+- Reopen the final STEP and verify each agreed edit against its recorded criteria. Use `verify_common_step` for supported common bends; retain measured before/after results and feature identity. A source or in-memory check is insufficient.
+- Audit DXFs and inspect the rendered preview, including dimension labels and visible tab placement. Bind all current deliverables to the verified STEP before packaging; any later file change requires a new check.
 
 If a check fails, fix the cause or report the precise limitation. Do not present stale outputs from an earlier run as successful current deliverables.
 
@@ -140,7 +181,7 @@ If a check fails, fix the cause or report the precise limitation. Do not present
 The user enables **Comment mode**, clicks a drawing, types notes, then uses **Copy all** to paste comments into chat. Coordinates refer to the named drawing.
 
 - Change gauging end: rerun `--side N=` with the opposite sign.
-- Move tab: use the signed pin coordinate along the bend plus half tab width farther from the tip as `--at N=X`.
+- Move tab: transform the pin from the named display frame to that bend’s local frame before deriving `--at N=X`. Only older tab-detail views already report coordinates along the bend from the blank tip. Preserve requested tab positions exactly.
 - Request a parallel-edge trim: only then use `--trim-for N` and report removal.
 - Other explicit geometry changes: implement in the reusable geometry workflow, validate and regenerate all affected outputs. Never patch only the displayed picture or a DXF independently of its STEP and contour source.
 
@@ -152,4 +193,4 @@ Confirm tooling for each new part; do not inherit another part's die, punch or t
 
 ## Maintenance
 
-Keep instructions concise and geometry in `scripts/`. Test ordinary parallel-edge parts, angled-edge parts, supplied flats, formed-only inputs, explicit trim comments and refusal cases. Never hard-code sample face numbers or part-specific bend counts. Preserve the no-trim default in both code and instructions.
+Keep instructions concise and geometry in `scripts/`. Test ordinary and short parallel contacts, angled edges, supplied flats, formed-only inputs, common-group validation, explicit physical-change highlighting, package manifests, missing agreed changes, stale exports and refusal cases. Include a two-ear regression: a valid solid with a 0.091 mm bend offset must fail completion; aligned exported geometry must pass. Test the real job against this check as well when its files are available. Never hard-code sample face numbers or part-specific bend counts. Preserve the no-trim default in both code and instructions.

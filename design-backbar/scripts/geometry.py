@@ -57,7 +57,7 @@ document.body.prepend(bar);
 const $=s=>document.querySelector(s),say=m=>{$('#cmsg').textContent=m;},idle='Turn on Comment mode, then click a drawing to pin a note.';say(idle);
 $('#cmode').onclick=()=>{on=!on;$('#cmode').classList.toggle('on',on);document.body.classList.toggle('commenting',on);say(on?'Click a drawing to pin a note. Click Comment mode again to stop.':idle);};
 const list=()=>{notes.forEach((n,i)=>{n.el.querySelector('span').textContent=i+1;});$('#cnotes').textContent=notes.length?notes.map((n,i)=>(i+1)+'. '+(n.text||'(empty)')+'  @ '+n.where).join(NL):'none';};
-const place=n=>{const p=new DOMPoint(n.x,n.y).matrixTransform(n.svg.getScreenCTM()),b=n.fig.getBoundingClientRect();n.el.style.left=(p.x-b.left)+'px';n.el.style.top=(p.y-b.top)+'px';};
+const place=n=>{if(n.fig.offsetParent===null)return;const matrix=n.svg.getScreenCTM();if(!matrix)return;const p=new DOMPoint(n.x,n.y).matrixTransform(matrix),b=n.fig.getBoundingClientRect();n.el.style.left=(p.x-b.left)+'px';n.el.style.top=(p.y-b.top)+'px';};
 addEventListener('resize',()=>notes.forEach(place));
 for(const fig of document.querySelectorAll('.fig')){const svg=fig.querySelector('svg');svg.addEventListener('click',e=>{if(!on)return;
   const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(svg.getScreenCTM().inverse()),d=fig.dataset,x=p.x,y=-p.y;

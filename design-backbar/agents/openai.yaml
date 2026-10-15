@@ -1,9 +1,9 @@
 interface:
   display_name: design backbar
-  short_description: v1.4 · STEP to backbar DXFs and gauge-tab STEP
+  short_description: v1.5 · Backbar DXFs, gauge tabs and bend sequence
   default_prompt: Use $design-backbar to create the required backbar DXFs, formed
-    STEP with gauge tabs, and a commentable preview from this STEP; trim only when
-    I request it.
+    STEP with gauge tabs, and a simple commentable bend-sequence preview from this
+    STEP; trim only when I request it.
   icon_small: assets/icon.svg
   icon_large: assets/icon.svg
 policy:

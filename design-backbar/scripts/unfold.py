@@ -7,6 +7,8 @@ import numpy as np
 import geometry as g
 from OCP.BRepClass import BRepClass_FaceClassifier
 from OCP.TopAbs import TopAbs_IN
+from OCP.BRepAdaptor import BRepAdaptor_Surface
+from OCP.GeomAbs import GeomAbs_Cylinder
 
 V=lambda p:np.asarray(p,dtype=float)
 def unit(v):
@@ -121,7 +123,17 @@ def unfold(formed):
             a0,a1=mp(p0),mp(p1);z0,z1=mapping(c0),mapping(c1)
             stripface=polygon([a0,a1,z1,z0]);flatfaces[strip]=stripface
             mid=(a0+a1+z0+z1)/4
-            bends.append(dict(face=stripface,p=tuple(np.r_[mid,0.]),d=tuple(np.r_[D,0.]),n=(0.,0.,1.),half=ba/2,
+            # Preserve formed-surface evidence for independent exported-STEP checks.
+            surface=BRepAdaptor_Surface(fs[strip]);lower_surface=BRepAdaptor_Surface(fs[lower])
+            physical={"formed_center":tuple(map(float,g.centroid(fs[strip])))}
+            if surface.GetType()==GeomAbs_Cylinder and lower_surface.GetType()==GeomAbs_Cylinder:
+                cylinder=surface.Cylinder();axis=cylinder.Axis();ad=axis.Direction();ap=axis.Location()
+                direction=V([ad.X(),ad.Y(),ad.Z()])
+                if direction[np.argmax(np.abs(direction))]<0:direction=-direction
+                physical.update(formed_axis_p=(ap.X(),ap.Y(),ap.Z()),formed_axis_d=tuple(map(float,direction)),
+                                inner_radius_mm=min(cylinder.Radius(),lower_surface.Cylinder().Radius()),
+                                fold_sense=1 if np.dot(np.cross(V(g.outward(fs[parent])),cn),direction)>0 else -1)
+            bends.append(dict(**physical,face=stripface,p=tuple(np.r_[mid,0.]),d=tuple(np.r_[D,0.]),n=(0.,0.,1.),half=ba/2,
                               estimated_allowance_mm=ba,angle_deg=math.degrees(math.acos(np.clip(np.dot(V(g.outward(fs[parent])),cn),-1,1)))))
             queue.append(child)
     if not bends:raise ValueError('No supported bend strips were found in the formed part.')

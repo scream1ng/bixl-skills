@@ -3,6 +3,9 @@
 import argparse,json,math,os,re,sys
 from pathlib import Path
 import geometry as g
+from sequence_preview import preview
+from operations import operation_sequence, validate_common_groups
+from completion import seal_delivery, digest
 from OCP.ShapeUpgrade import ShapeUpgrade_UnifySameDomain
 from unfold import unfold,straight_endpoints
 
@@ -13,12 +16,12 @@ def gauge_check(o):
         try:a,z=straight_endpoints(e)
         except ValueError:continue
         length=math.dist(a,z)
-        if length<10:continue
+        if length<1e-6:continue
         dy=abs(float(z[1]-a[1]));dx=abs(float(z[0]-a[0]))
         if min(a[1],z[1])>=o['tip']-2:
             near.append(dict(length_mm=round(length,3),angle_deg=round(math.degrees(math.atan2(dy,dx)),5)))
         if dy<.001 and abs(o['tip']-max(a[1],z[1]))<.001:contact=max(contact,length)
-    return dict(direct=contact>=10,contact_mm=round(contact,3),near_edges=near)
+    return dict(direct=contact>=10,contact_mm=round(contact,3),short_contact_candidate=0<contact<10,near_edges=near)
 
 def select(blank,bends,i,sides):
     if i in sides:o=g.choose_end(blank,bends,i,sides[i])
@@ -36,6 +39,39 @@ def gauge_order(ends):
         if not ready:raise ValueError('Conflicting gauge dependencies for bend(s) '+', '.join(map(str,remaining))+'; choose another gauging end with --side.')
         i=min(ready);order.append(i);del remaining[i]
     return order
+
+def bend_permutation(value, count, option):
+    try: order=[int(x) for x in value.split(',')]
+    except ValueError: raise ValueError(f'{option} must list each bend number once, comma separated.')
+    if sorted(order)!=list(range(1,count+1)):
+        raise ValueError(f'{option} must list each bend number once, comma separated.')
+    return order
+
+def tab_conflicts(piece, transform, ends):
+    return [o.get("bend_id",i+1) for i,o in enumerate(ends)
+            if g.bbox(g.moved(piece,g.g_to(o['T'],transform)))[4]>o['tip']+.001]
+
+def automatic_tab(o, floor, blank, width, ends, carriers, formed, thickness):
+    """Try the existing choice then bounded positions on either side of this tip."""
+    first=g.build_tab(o,floor,blank,None,width,[])
+    if 'piece' not in first:return first
+    distance=abs(first['x_out']-first['t0']);sign=1 if first['x_out']>first['t0'] else -1
+    choices=[None]+[s*(distance-k*width/2) for s in (sign,-sign)
+                   for k in range(int(max(0,distance-width-.5)/(width/2))+1)]
+    last='No conflict-free automatic tab position joins one valid flange.'
+    for at in choices:
+        candidate=first if at is None else g.build_tab(o,floor,blank,at,width,[])
+        if 'piece' not in candidate or max(candidate['heights_mm'])>g.TAB_H_MAX+.001:continue
+        conflicts=tab_conflicts(candidate['piece'],o['T'],ends)
+        if conflicts:
+            last='Automatic tab projects beyond gauge line(s) '+', '.join(f'B{i}' for i in conflicts)+'.'
+            continue
+        try:join_tab(o,candidate,carriers,formed,thickness)
+        except ValueError as error:
+            last=str(error);continue
+        if at is not None:candidate['placed']='collective gauge check'
+        return candidate
+    raise ValueError(last+' Choose a tab position or gauging end explicitly; no gauge distance was changed.')
 
 def join_tab(o,tab,carriers,formed,t):
     pc=g.moved(tab['piece'],o['T'].Inverted());touch=[]
@@ -149,7 +185,16 @@ def main():
     ap.add_argument('--flat',type=int);ap.add_argument('--side',action='append',default=[]);ap.add_argument('--at',action='append',default=[])
     ap.add_argument('--wrap',type=float,default=20);ap.add_argument('--die-clear',type=float,default=8);ap.add_argument('--tab-width',type=float,default=5)
     ap.add_argument('--trim-for',type=int,action='append',default=[],help='ONLY when the user requests trimming: trim the gauged free edge parallel to bend N.')
+    ap.add_argument('--bend-map',help='Detected bend IDs in desired user-number order; e.g. 3,2,1 makes detected B3 user B1.')
+    ap.add_argument('--sequence',help='Operation order; use + for simultaneous bends, e.g. 1+4,2+3,5. First ID is the gauge master.')
+    ap.add_argument('--direct-trial',type=int,action='append',default=[],help='Explicit job authorization to trial a short direct edge; give operation master IDs.')
+    ap.add_argument('--common-line-tol',type=float,default=.001,help='Common-axis mismatch limit in mm; may tighten the .001 default, never widen it.')
+    ap.add_argument('--package',action='store_true',help='Create a ZIP of this run only, when the user requests packaging.')
+    ap.add_argument('--requirements',help='JSON inventory of all agreed changes; required for a completed package.')
     a=ap.parse_args();sides={};at={}
+    if not math.isfinite(a.common_line_tol) or not 0<a.common_line_tol<=.001:raise ValueError('Common-line tolerance must be positive and at most 0.001 mm; correct the CAD instead of widening it.')
+    requirements=json.loads(Path(a.requirements).read_text()) if a.requirements else {'reviewed':False,'changes':[]}
+    if a.package and not a.requirements:raise ValueError('--package requires --requirements with the reviewed agreed-change inventory.')
     for v in a.side:
         k,sep,s=v.partition('=')
         if not sep or not k.isdigit() or s not in ('+','-'):raise ValueError('--side must be N=+ or N=-.')
@@ -160,12 +205,24 @@ def main():
         at[int(k)-1]=float(x)
     if not 10<=a.wrap<=20 or not 2<=a.tab_width<=20 or a.die_clear<0:raise ValueError('Use wrap 10–20 mm, tab width 2–20 mm and non-negative die clearance.')
     part,blank,bends,t,carriers,estimated=read_input(a.step,a.flat);T_THICKNESS=t
+    mapping=bend_permutation(a.bend_map,len(bends),'--bend-map') if a.bend_map else list(range(1,len(bends)+1))
+    bends=[bends[i-1] for i in mapping]
     source_strict=g.BRepCheck_Analyzer(part,True,False,True).IsValid()
-    if any(i<0 or i>=len(bends) for i in [*sides,*at,*[j-1 for j in a.trim_for]]):raise ValueError('An option names a bend that is not present.')
-    trims=[]
+    if any(i<0 or i>=len(bends) for i in [*sides,*at,*[j-1 for j in a.trim_for],*[j-1 for j in a.direct_trial]]):raise ValueError('An option names a bend that is not present.')
+    original_blank=blank
+    trims=[];trim_refs=[]
     for i in a.trim_for:
+        before_trim=part
         blank,part,change=apply_trim(blank,part,bends,carriers,i-1,sides);trims.append(change)
-    order=gauge_order([select(blank,bends,i,sides) for i in range(len(bends))])
+        if change['max_trim_mm']>0:trim_refs.append((i,g.BRepAlgoAPI_Cut(before_trim,part).Shape()))
+    ends=[select(blank,bends,i,sides) for i in range(len(bends))]
+    operations=operation_sequence(a.sequence,ends)
+    group_checks=validate_common_groups(operations,bends,a.common_line_tol)
+    master_of={member:group[0] for group in operations for member in group}
+    if any(master_of[i+1]!=i+1 for i in [*at,*sides]) or any(master_of[i]!=i for i in a.direct_trial):
+        raise ValueError('Set --side, --at and --direct-trial on the first bend (gauge master) of a common operation.')
+    order=[member for group in operations for member in group]
+    master_ends=[dict(ends[group[0]-1],bend_id=group[0]) for group in operations]
     outdir=Path(a.out);outdir.mkdir(parents=True,exist_ok=True)
     title=re.sub(r'[^A-Za-z0-9_.-]+','_',Path(a.step).stem).strip('_');rows=[];tabbed=blank;prisms=[];formed=part;expected=0.;notes=[]
     if estimated:notes.append('ESTIMATED unfolding from formed geometry; K=0.50 neutral-axis assumption. Bend-transition edges are approximated. Verify the jig against a production blank.')
@@ -174,18 +231,60 @@ def main():
     if not source_strict:
         notes.append('The source formed STEP already has strict surface/edge warnings. Assess source and output warnings separately; software import remains unconfirmed.')
     for change in trims:notes.append(f"User-requested trim for B{change['bend']}: maximum {change['max_trim_mm']:.4f} mm. Applied to the real blank, jig pockets and programming STEP.")
-    for i,bend in enumerate(bends):
+    processing=[group[0] for group in operations]+[n for n in order if master_of[n]!=n]
+    for number in processing:
+        i=number-1;bend=bends[i]
+        if master_of[number]!=number:
+            owner=next(p for p in rows if p['bend']==master_of[number])
+            p=dict(owner,bend=number,common_master=owner['bend'],warnings=list(owner['warnings']),tab=dict(same_tab_as=owner['bend'],skipped='Included in the common operation; no independent tab.'))
+            if 'plate' in owner:p['same_plate_as']=owner.get('same_plate_as',owner['bend'])
+            rows.append(p);continue
         o=select(blank,bends,i,sides);check=gauge_check(o)
         p=dict(bend=i+1,side='+' if o['s']>0 else '-',T=o['T'],loc=o['loc'],tip=o['tip'],program_gauge_mm=round(o['tip'],2),warnings=[],gauging=check)
-        if o['between']:p['warnings'].append('Gauge this bend before bend(s) '+', '.join(map(str,o['between']))+' are formed; the intervening region must remain flat.')
+        dependencies=[n for n in o['between'] if master_of[n]!=number]
+        if dependencies:p['warnings'].append('Gauge this bend before bend(s) '+', '.join(map(str,dependencies))+' are formed; the intervening region must remain flat.')
+        if number in a.direct_trial:
+            if check['contact_mm']<=0:raise ValueError(f'B{number}: no parallel end edge exists for a direct trial.')
+            check['trial_authorized']=True;check['direct']=True
+            p['warnings'].append('Direct-edge trial authorized for this job only: verify finger reach, stable square location and staged folded-part fit.')
+        if check['short_contact_candidate'] and not check['direct']:
+            p['warnings'].append('Short parallel contact: direct-edge trial candidate, not proof that a backbar is essential. Backbar is the fallback until a job-specific trial is authorized.')
         if check['direct']:
             p['bend_to_finger_tip_mm']=p['program_gauge_mm'];p['tab']=dict(skipped=f"Direct backgauge on {check['contact_mm']:.2f} mm parallel edge; no jig or tab.")
         else:
             p.update(g.build_plate(o,a.wrap,a.die_clear,p['warnings']))
-            if 'plate_error' in p:raise ValueError(f"B{i+1}: {p['plate_error']}")
+            if 'plate_error' in p:
+                trial=' A short parallel edge is a direct-trial candidate; explicit job authorization is needed to use it.' if check['short_contact_candidate'] else ''
+                raise ValueError(f"B{i+1}: {p['plate_error']}"+trial)
             if not g.BRepCheck_Analyzer(p['plate']).IsValid() or any('separate pieces' in w for w in p['warnings']):raise ValueError(f'B{i+1}: pocket splits or invalidates the plate.')
             if p['clearance_mm']!=.1:raise ValueError(f'B{i+1}: pocket clearance failed.')
-            p['tab']=g.build_tab(o,bend['half']+.01,blank,at.get(i),a.tab_width,[])
+            # Resolve shared geometry before adding a tab; do not create another shape
+            # simply because the same physical jig serves a separate operation.
+            shared_tab=None
+            for q in rows:
+                if 'plate' not in q or abs(g.area(p['plate'])-g.area(q['plate']))>=.01:continue
+                same=g.moved(p['plate'],g.g_to(q['T'],p['T']))
+                if abs(g.area(g.BRepAlgoAPI_Common(same,q['plate']).Shape())-g.area(q['plate']))>=.01:continue
+                p['same_plate_as']=q.get('same_plate_as',q['bend']);p['dxf']=q['dxf']
+                owner=next((r for r in rows if r['bend']==q.get('tab',{}).get('same_tab_as',q['bend'])),q)
+                if 'piece' in owner.get('tab',{}):
+                    pc=g.moved(owner['tab']['piece'],g.g_to(p['T'],owner['T']))
+                    # A programming tab has its own width standard, below the 10 mm
+                    # direct-edge threshold; inspect its straight tip edge explicitly.
+                    for edge in g.edges(pc):
+                        try:a0,a1=straight_endpoints(edge)
+                        except ValueError:continue
+                        if abs(a0[1]-p['tip'])<.001 and abs(a1[1]-p['tip'])<.001 and math.dist(a0,a1)>=a.tab_width-.001:
+                            shared_tab=owner['bend'];break
+                break
+            else:p['dxf']=f'{title}_backbar_B{i+1}.dxf'
+            if check['contact_mm']>=a.tab_width and i not in at:
+                p['tab']=dict(skipped='Existing physical end edge supplies the CAD gauge reference; no virtual tab needed.')
+            elif shared_tab is not None and i not in at:
+                p['tab']=dict(same_tab_as=shared_tab,skipped=f'Uses the programming tab already added for B{shared_tab}.')
+            else:
+                p['tab']=(g.build_tab(o,bend['half']+.01,blank,at[i],a.tab_width,[]) if i in at else
+                          automatic_tab(o,bend['half']+.01,blank,a.tab_width,master_ends,carriers,formed,t))
             if 'error' in p['tab']:raise ValueError(f"B{i+1}: {p['tab']['error']}")
             if 'warning' in p['tab']:p['warnings'].append(p['tab'].pop('warning'))
             if 'piece' in p['tab']:
@@ -194,7 +293,7 @@ def main():
                     if 'piece' not in previous.get('tab',{}):continue
                     existing=g.moved(previous['tab']['piece'],previous['T'].Inverted())
                     if abs(g.area(existing)-g.area(candidate))<.001 and abs(g.area(g.BRepAlgoAPI_Common(existing,candidate).Shape())-g.area(candidate))<.001:
-                        p['tab']=dict(skipped=f"Uses the programming tab already added for B{previous['bend']}.")
+                        p['tab']=dict(same_tab_as=previous['bend'],skipped=f"Uses the programming tab already added for B{previous['bend']}.")
                         break
             if 'piece' in p['tab']:
                 try:joined,solid,pc=join_tab(o,p['tab'],carriers,formed,t)
@@ -206,6 +305,7 @@ def main():
                         retry=g.build_tab(o,bend['half']+.01,blank,sign*distance,a.tab_width,[])
                         distance-=a.tab_width/2
                         if 'piece' not in retry or max(retry['heights_mm'])>g.TAB_H_MAX:continue
+                        if tab_conflicts(retry['piece'],o['T'],master_ends):continue
                         try:joined,solid,pc=join_tab(o,retry,carriers,formed,t)
                         except ValueError:continue
                         retry['placed']='join retry';p['tab']=retry
@@ -218,15 +318,10 @@ def main():
                 expected=(g.area(tabbed)-g.area(blank))*t
                 p['tab']['edge_off_tip_line_mm']=round(abs(g.bbox(p['tab']['piece'])[4]-o['tip']),4)
                 if p['tab']['edge_off_tip_line_mm']>.001:raise ValueError('Tab edge does not align with its gauge line.')
-            # Share plates only when their position and shape agree in the blank frame.
-            for q in rows:
-                if 'plate' in q and abs(g.area(p['plate'])-g.area(q['plate']))<.01:
-                    same=g.moved(p['plate'],g.g_to(q['T'],p['T']))
-                    common=g.BRepAlgoAPI_Common(same,q['plate']).Shape()
-                    if abs(g.area(common)-g.area(q['plate']))<.01:p['same_plate_as']=q['bend'];p['dxf']=q['dxf'];break
-            else:p['dxf']=f'{title}_backbar_B{i+1}.dxf'
         rows.append(p)
+    rows.sort(key=lambda p:p['bend'])
     for p in rows:
+        if 'common_master' in p:continue
         for q in rows:
             if p is q or 'piece' not in q.get('tab',{}):continue
             pc=g.moved(q['tab']['piece'],g.g_to(p['T'],q['T']))
@@ -247,12 +342,32 @@ def main():
               f'Check each plate-front distance against the actual die. The {a.die_clear:g} mm minimum is an assumption. Tooling collisions, backgauge travel, finger height and complete bend sequence have not been simulated.',
               f"STEP readback: one valid solid; volume difference {verification['volume_difference_mm3']:.6f} mm³ (limit {verification['volume_tolerance_mm3']:.6f} mm³)."]
     iso=g.iso_svg(formed,prisms,g.gp_Trsf())
-    preview=f'{title}_preview.html';g.preview(str(outdir/preview),title,blank,tabbed,bends,rows,t,notes,iso,step)
+    preview_name=f'{title}_preview.html';preview(str(outdir/preview_name),title,blank,tabbed,bends,rows,t,notes,iso,step,order,operations=operations,original_blank=original_blank)
     hide={'plate','T','loc','cx','x0','x1','front','tip','piece','x_out','x_in','t0','tlo','thi'}
     def clean(d):return {k:clean(v) if isinstance(v,dict) else v for k,v in d.items() if k not in hide}
-    report=dict(part=title,estimated_unfold=estimated,blank_thickness_mm=round(t,4),bends=len(bends),trims=trims,step=step,preview=preview,notes=notes,verification=verification,plates=[clean(p) for p in rows])
-    # Internal report; only DXF, STEP and the review preview are user deliverables.
-    (outdir/'report.json').write_text(json.dumps(report,indent=2));print(json.dumps(report,indent=2))
+    report=dict(part=title,estimated_unfold=estimated,blank_thickness_mm=round(t,4),bends=len(bends),bend_map=mapping,sequence=order,operations=operations,common_group_checks=group_checks,trims=trims,step=step,preview=preview_name,notes=notes,verification=verification,plates=[clean(p) for p in rows])
+    report['deliverables']=[step,preview_name]+sorted({p['dxf'] for p in rows if 'dxf' in p})
+    report['gauging_status']=[{'bends':group,'method':('DIRECT EDGE TRIAL' if rows[group[0]-1]['gauging'].get('trial_authorized') else 'DIRECT EDGE' if rows[group[0]-1]['gauging']['direct'] else 'BACKBAR OPTION' if rows[group[0]-1]['gauging'].get('short_contact_candidate') else 'BACKBAR')} for group in operations]
+    report['common_line_tolerance_mm']=a.common_line_tol
+    report['physical_blank_changed']=bool(trims and any(c['max_trim_mm']>0 for c in trims))
+    # Measure every generated physical removal and virtual addition in exported bytes.
+    readback=g.STEPControl_Reader();readback.ReadFile(str(outdir/step));readback.TransferRoots();exported=readback.OneShape()
+    sha=digest(outdir/step)
+    for number,reference in trim_refs:
+        residual=g.volume(g.BRepAlgoAPI_Common(exported,reference).Shape())
+        requirements.setdefault('changes',[]).append(dict(id=f'auto-trim-B{number}',kind='trim',description=f'Physical edge trim for B{number}',step_sha256=sha,
+            checks=[dict(name='removed region residual volume',unit='mm3',min=0,max=.001,measured=abs(residual))]))
+    for number,reference in enumerate(prisms,1):
+        retained=g.volume(g.BRepAlgoAPI_Common(exported,reference).Shape());expected_volume=g.volume(reference)
+        requirements.setdefault('changes',[]).append(dict(id=f'auto-tab-{number}',kind='programming_tab',description=f'CAD-only programming tab {number}',step_sha256=sha,
+            checks=[dict(name='retained tab volume',unit='mm3',min=expected_volume-max(.1,.001*expected_volume),max=expected_volume+max(.1,.001*expected_volume),measured=retained)]))
+    seal_delivery(outdir,report,requirements,[bend.get('formed_center') for bend in bends])
+    # Internal report; only verified current deliverables enter a completed package.
+    (outdir/'report.json').write_text(json.dumps(report,indent=2))
+    if a.package:
+        from package_delivery import package_run
+        package_run(outdir,outdir/(title+'_package.zip'))
+    print(json.dumps(report,indent=2))
 
 if __name__=='__main__':
     try:main()
