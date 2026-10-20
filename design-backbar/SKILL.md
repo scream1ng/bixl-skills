@@ -14,7 +14,7 @@ Deliver:
 - **STEP:** formed part with required gauge tabs merged into one valid solid, for CADMAN-B.
 - **HTML review:** all bend operations in sequence, visible programming tabs, and a gauging status for every operation: BACKBAR, BACKBAR OPTION, DIRECT EDGE or DIRECT EDGE TRIAL. Show the matching backbar and dashed gauge line when required; retain pinned comments.
 
-Keep estimated flat patterns, intermediate geometry, logs and JSON internal unless requested. Do not deliver a ZIP unless the user asks for one. Treat “package it” as a ZIP request. Use `--package` or `scripts/package_delivery.py:package_run` with the completed run's explicit `deliverables` manifest. Include only current selected-route DXFs, programming STEP, latest HTML/optional PNG and a brief README with unresolved trial checks; exclude superseded plates, unapproved alternatives and internal files. Never collect files by scanning old revision folders.
+Keep estimated flat patterns, intermediate geometry, logs and JSON internal unless requested. **Finalize delivers one ZIP, never loose files**: the user approves the design in the HTML preview, so “finalize”, “package it” or “complete” means rerun with `--requirements` and `--package` and send only that ZIP. Use `--package` or `scripts/package_delivery.py:package_run` with the completed run's explicit `deliverables` manifest. Include only current selected-route DXFs, programming STEP, latest HTML/optional PNG and a brief README with unresolved trial checks; exclude superseded plates, unapproved alternatives and internal files. Never collect files by scanning old revision folders.
 
 Keep three distinct geometry states: the original input blank, the revised physical blank, and the programming model with CAD-only tabs. Preserve the original before any authorised edit. The physical blank has **no programming tabs**. Its outline defines the jig pocket. The STEP tabs provide straight gauge edges for bending software. They do not enlarge the programmed gauge distance beyond the blank tip.
 
@@ -54,7 +54,7 @@ For a requested extension, use the smallest local addition supported by the gaug
    Plan tabs collectively against every bend’s gauge limit, including direct edges. Search positions around the same gauging tip within the 10 mm height limit; keep the gauge line and tab width. Reuse one physical programming tab when its geometry agrees. Never move an explicitly positioned tab automatically; report conflicts without changing gauge distance. Do not add a redundant tab just because another bend uses the same backbar. Shared plates do not combine bend operations. Explicit common-bend groups are one operation with one gauge master; do not add a follower operation or duplicate tab.
 4. If the user requests a trim or provides pinned comments, rerun with the appropriate option. Trimming must not be inferred from a near-parallel result.
 5. Establish the dependency-safe sequence before presenting the report. Keep user-selected sequences if valid; flag violated dependencies. Check the report, STEP validation and preview. Render the preview or extract its SVGs for visual inspection. Highlight tabs clearly; never call an unvalidated result production-ready.
-6. Pass the exported-CAD completion check, then save and deliver the matching DXFs, formed STEP and HTML preview. State estimated unfolding assumptions and any bend-order or tooling constraints.
+6. On finalize, pass the exported-CAD completion check and deliver the `--package` ZIP of the matching DXFs, formed STEP and HTML preview; do not send the files individually. State estimated unfolding assumptions and any bend-order or tooling constraints.
 
 ## Run
 
@@ -79,7 +79,7 @@ Use a fresh output directory for each revision so old plates cannot leak into de
 | `--common-line-tol MM` | Default 0.001 mm input common-axis limit; may tighten, never widen it to pass a correction. |
 | `--direct-trial N` | Explicit job authorization for direct contact below the default 10 mm threshold; use the operation master. |
 | `--requirements FILE` | Reviewed JSON inventory of every agreed CAD change; see completion reference. |
-| `--package` | Requested completed ZIP; requires the inventory, exported-CAD checks and matching file hashes. |
+| `--package` | Finalize: completed ZIP; requires the inventory, exported-CAD checks and matching file hashes. |
 | `--side N=+` / `--side N=-` | Use the other gauging end for bend N. Read its current sign first. |
 | `--at N=X` | Place a tab's outer side X mm along the bend from the tip; signed coordinate. |
 | `--tab-width MM` | Default 5 mm; only change when requested. |

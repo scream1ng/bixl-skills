@@ -189,7 +189,7 @@ def main():
     ap.add_argument('--sequence',help='Operation order; use + for simultaneous bends, e.g. 1+4,2+3,5. First ID is the gauge master.')
     ap.add_argument('--direct-trial',type=int,action='append',default=[],help='Explicit job authorization to trial a short direct edge; give operation master IDs.')
     ap.add_argument('--common-line-tol',type=float,default=.001,help='Common-axis mismatch limit in mm; may tighten the .001 default, never widen it.')
-    ap.add_argument('--package',action='store_true',help='Create a ZIP of this run only, when the user requests packaging.')
+    ap.add_argument('--package',action='store_true',help='Finalize: create the delivery ZIP of this run only.')
     ap.add_argument('--requirements',help='JSON inventory of all agreed changes; required for a completed package.')
     a=ap.parse_args();sides={};at={}
     if not math.isfinite(a.common_line_tol) or not 0<a.common_line_tol<=.001:raise ValueError('Common-line tolerance must be positive and at most 0.001 mm; correct the CAD instead of widening it.')
