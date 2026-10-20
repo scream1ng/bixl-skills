@@ -1,6 +1,6 @@
 ---
 name: design-backbar
-description: "v1.5 · Design LVD press-brake backbar jigs from one STEP file. Use a supplied flat pattern or estimate unfolding from the formed part; check direct gauging first, then deliver only required backbar DXFs and a formed STEP with programming gauge tabs, plus a simple, commentable bend-sequence preview. Trimming is only applied when explicitly requested in a user message or preview comment."
+description: "v1.6 · Design LVD press-brake backbar jigs from one STEP file. Use a supplied flat pattern or estimate unfolding from the formed part; check direct gauging first, then deliver only required backbar DXFs and a formed STEP with programming gauge tabs, plus a simple, commentable bend-sequence preview. Trimming is only applied when explicitly requested in a user message or preview comment."
 ---
 
 # Design Backbar
