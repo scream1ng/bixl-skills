@@ -1,6 +1,6 @@
 ---
 name: design-fixture
-description: v1.6 · Design and revise welding or checking fixtures from STEP geometry or dimensioned drawings, with an interactive concept preview before an explicitly requested verified delivery package. Supports laser-cut ribs, weld blocks, and solid printed checking fixtures.
+description: v1.7 · Design and revise welding or checking fixtures from STEP geometry or dimensioned drawings, with an interactive concept preview before an explicitly requested verified delivery package. Supports laser-cut ribs, weld blocks, and solid printed checking fixtures.
 ---
 
 # Design Fixture
@@ -57,6 +57,8 @@ Open `hardware/gh-201-b.json` only for a value you need (the scripts read it). D
    - [ ] Regenerated with one `workflow.py revise spec.json project.json OUT [--build "<job build cmd>"] [--verify "<job verify cmd>"]` (build, checkpoint, concept, verify; one summary line, full output in `OUT/revise.log` and `OUT/result.json`).
    - [ ] **Stopped here.** No nesting, manufacturing export or final package during concept iteration.
 6. **Finalize only on explicit user request:** “finalize”, “approve”, or “complete the package” authorizes package generation, **not engineering/fabrication approval**; “design a fixture”, invocation, upload or a screenshot revision alone does not. An initial explicit complete-package request may run end-to-end after survey/concept and validation. Record authorization and run the appropriate pipeline. For laser ribs, emit joined open single-stroke etch polylines (never DXF text) and use the configured shop-stock usable zone while preserving a practical rectangular remnant. Fix known defects; retain genuine unknowns.
+
+   **Finalize delivers one zip, never loose files.** The design was approved in the HTML preview, so a passing `workflow.py finalize` packages it itself (`scripts/package_delivery.py`): the whole `DELIVERY` folder (DXF, assembly STEP, both PNGs, `JSON/`) plus `source/` with `spec.json`, `project.json` and the original source files, as `OUT/<project_id>-<revision>.zip` with one top folder of the same name. Send only that zip (one file card); do not send the files individually or zip by hand. A run that needs review is not packaged; fix and rerun. Do not change any file after the build: the JSON records hash the exports, so a hand-edited STEP or DXF breaks validation — fix the spec or script and rebuild instead.
 
 Persist `spec.json` plus `project.json` for a fresh chat/model; resume with `workflow.py resume spec.json project.json`, mapping relocated source paths. Validate source hashes, units, frame and version before reuse; changed source requires a fresh survey and invalidates evidence/approval. A byte-only change (re-export, identical solids by `source_geometry` fingerprint) is rebased automatically before authorization, as is a change confined to the `REF_` fixture solids in a surveyed STEP (a pin lengthened to press through its pad): where a pin locates the part is its `contacts` rows, so the datum ack survives it. Never relabel measurements. A handoff carries both records, the original sources and evidence, not only HTML.
 

@@ -97,11 +97,23 @@ def read_step(path):
     return out
 
 
-def write_step(path, shapes):
+def write_step(path, shapes, root_name=None):
+    """One named root assembly; each shape is a named part placed by its own location.
+
+    A located shape added as a free shape makes OCCT write an extra unnamed 'SOLID' product per body
+    and many root products, which some CAD (Rhino) fails to import."""
+    from OCP.TopLoc import TopLoc_Location
+    from pathlib import Path
     doc = TDocStd_Document(TCollection_ExtendedString("out"))
     st = XCAFDoc_DocumentTool.ShapeTool_s(doc.Main())
+    root = st.NewShape()
+    TDataStd_Name.Set_s(root, TCollection_ExtendedString(root_name or Path(path).stem))
     for name, sh in shapes.items():
-        TDataStd_Name.Set_s(st.AddShape(sh, False), TCollection_ExtendedString(name))
+        part = st.AddShape(sh.Located(TopLoc_Location()), False)
+        TDataStd_Name.Set_s(part, TCollection_ExtendedString(name))
+        comp = st.AddComponent(root, part, sh.Location())
+        TDataStd_Name.Set_s(comp, TCollection_ExtendedString(name))  # instance name = part name
+    st.UpdateAssemblies()
     w = STEPCAFControl_Writer()
     w.SetNameMode(True)
     w.Transfer(doc, STEPControl_AsIs)
@@ -125,7 +137,7 @@ def export(spec, path):
     if bad:raise ValueError('Remove schematic clamp references from placed_step; bundled hardware is inserted automatically: '+', '.join(bad))
     if set(hardware)&set(shapes):raise ValueError('duplicate purchased hardware identity')
     shapes.update(hardware)
-    write_step(path, shapes)
+    write_step(path, shapes, f"{spec.get('project_id', 'fixture')}_{spec.get('revision', '')}".rstrip("_"))
     return {"file": str(path), "plates": len(spec["plates"]), "shapes": len(shapes)}
 
 

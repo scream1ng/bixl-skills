@@ -359,7 +359,8 @@ def action_line(action, result, record):
         return f"{head} status={result['status']} see={result['reference']}"
     return (f"{head} overall={result['overall_status']} geometry={result['geometry_status']}"
             f" exit_code={result['exit_code']} delivery={result['delivery']}"
-            f" delivery_validation={json.dumps(result['delivery_validation'], separators=(',', ':'))}")
+            f" delivery_validation={json.dumps(result['delivery_validation'], separators=(',', ':'))}"
+            + (f" package={result['package']}" if 'package' in result else ''))
 
 
 def run_job(cmd, cwd, tag, log):
@@ -423,7 +424,12 @@ def main():
                 record['datum_preview'] = {**result, 'datum_digest': record['datum_digest']}
             elif a.action == 'datum-ok': result = datum_ok(record, a.note)
             elif a.action == 'concept': result = concept_line(run_concept(a.spec, a.out, record, a.png))
-            else: result = finalize(a.spec, record, a.out)
+            else:
+                result = finalize(a.spec, record, a.out)
+                if record['stage'] == 'finalized':   # approved in the HTML: deliver one zip, not loose files
+                    save(a.record, record)
+                    from package_delivery import package_run
+                    result['package'] = str(package_run(a.spec, a.record, result['delivery'], a.out))
             if not isinstance(result, str): result = action_line(a.action, result, record)
         save(a.record, record)
     print(result if isinstance(result, str) else json.dumps(result, indent=2))

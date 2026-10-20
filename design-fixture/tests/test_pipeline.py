@@ -172,5 +172,24 @@ class FixtureTests(unittest.TestCase):
         file=self.root/'nested.step';self.assertEqual(w.Write(str(file)),IFSelect_RetDone)
         shapes=read_step(file);self.assertIn('Part_Test',shapes)
         for actual,expected in zip(bbox(shapes['Part_Test']),(80,40,20,90,60,50)):self.assertAlmostEqual(actual,expected,places=5)
+    def test_shared_geometry_bodies_all_written_under_one_root(self):
+        from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox
+        from OCP.gp import gp_Pnt,gp_Trsf,gp_Vec
+        from OCP.TopLoc import TopLoc_Location
+        from verify import bbox
+        box=BRepPrimAPI_MakeBox(gp_Pnt(0,0,0),gp_Pnt(10,20,5)).Shape();t=gp_Trsf();t.SetTranslation(gp_Vec(100,0,0))
+        file=self.root/'shared.step';write_step(file,{'A':box,'B':box.Located(TopLoc_Location(t))},'JOB_R1')
+        shapes=read_step(file);self.assertEqual(set(shapes),{'A','B'})
+        self.assertAlmostEqual(bbox(shapes['B'])[0]-bbox(shapes['A'])[0],100,places=5)
+        self.assertEqual(file.read_text().count("PRODUCT('JOB_R1'"),1)
+    def test_finalized_delivery_packaged_as_one_zip(self):
+        from package_delivery import package_run
+        from zipfile import ZipFile
+        out=self.root/'pkg';out.mkdir();record=out/'project.json';record.write_text('{}')
+        z=package_run(self.spec_file,record,self.delivery,out);self.assertEqual(z.name,'EXAMPLE-FLAT-PLATE-R1.zip')
+        names=ZipFile(z).namelist();self.assertTrue(all(n.startswith('EXAMPLE-FLAT-PLATE-R1/') for n in names))
+        for n in ('DELIVERY/JSON/verification.json','source/spec.json','source/project.json','source/workpiece.step'):self.assertIn('EXAMPLE-FLAT-PLATE-R1/'+n,names)
+        self.assertEqual(len([n for n in names if '/DELIVERY/' in n]),len([p for p in self.delivery.rglob('*') if p.is_file()]))
+        with self.assertRaises(ValueError):package_run(self.spec_file,record,self.root/'missing',out)
 
 if __name__=='__main__':unittest.main()
