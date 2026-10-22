@@ -23,13 +23,28 @@ def gauge_check(o):
         if dy<.001 and abs(o['tip']-max(a[1],z[1]))<.001:contact=max(contact,length)
     return dict(direct=contact>=10,contact_mm=round(contact,3),short_contact_candidate=0<contact<10,near_edges=near)
 
+GAUGE_EDGE={};FORMED_OK={}
+
 def select(blank,bends,i,sides):
     if i in sides:o=g.choose_end(blank,bends,i,sides[i])
     else:
         # Prefer an unobstructed end; otherwise prefer direct gauging, then distance.
         o=g.choose_end(blank,bends,i,None)
         if o is None:o=min([g.choose_end(blank,bends,i,s) for s in [1,-1]],key=lambda v:(not gauge_check(v)['direct'],v['tip']))
-    bends[i]['T']=o['T'];return o
+    bends[i]['T']=o['T']
+    if i in GAUGE_EDGE:
+        # Explicitly selected parallel gauge edge nearer than the half-plane tip.
+        want=GAUGE_EDGE[i];found=None
+        for e in g.edges(o['loc']):
+            try:a0,a1=straight_endpoints(e)
+            except ValueError:continue
+            if abs(a0[1]-a1[1])<.001 and abs(a0[1]-want)<.05 and math.dist(a0,a1)>1e-3:found=float(max(a0[1],a1[1]))
+        if found is None:raise ValueError(f'B{i+1}: no straight edge parallel to the bend lies within 0.05 mm of {want} mm on the chosen side.')
+        o=dict(o,tip=found,gauge_edge_selected=True)
+        o['between']=[j for j in o['between'] if any(bends[i]['half']+.01<y<found for _,y,_ in g.pts(g.moved(bends[j-1]['face'],o['T'])))]
+    if i in FORMED_OK:
+        o=dict(o,waived=[j for j in o['between'] if j in FORMED_OK[i]]);o['between']=[j for j in o['between'] if j not in FORMED_OK[i]]
+    return o
 
 def gauge_order(ends):
     """Order only the requirements that intervening regions stay flat."""
@@ -191,7 +206,13 @@ def main():
     ap.add_argument('--common-line-tol',type=float,default=.001,help='Common-axis mismatch limit in mm; may tighten the .001 default, never widen it.')
     ap.add_argument('--package',action='store_true',help='Finalize: create the delivery ZIP of this run only.')
     ap.add_argument('--requirements',help='JSON inventory of all agreed changes; required for a completed package.')
+    ap.add_argument('--gauge-edge',action='append',default=[],help='N=Y: gauge bend N on the parallel edge Y mm from its bend line (user-selected edge).')
+    ap.add_argument('--formed-ok',action='append',default=[],help='N=A+B: user/engineer accepts bends A,B already formed when gauging N (half-plane dependency waived; reported).')
     a=ap.parse_args();sides={};at={}
+    for v in a.gauge_edge:
+        k,_,y=v.partition('=');GAUGE_EDGE[int(k)-1]=float(y)
+    for v in a.formed_ok:
+        k,_,y=v.partition('=');FORMED_OK[int(k)-1]=[int(n) for n in y.split('+')]
     if not math.isfinite(a.common_line_tol) or not 0<a.common_line_tol<=.001:raise ValueError('Common-line tolerance must be positive and at most 0.001 mm; correct the CAD instead of widening it.')
     requirements=json.loads(Path(a.requirements).read_text()) if a.requirements else {'reviewed':False,'changes':[]}
     if a.package and not a.requirements:raise ValueError('--package requires --requirements with the reviewed agreed-change inventory.')
@@ -241,6 +262,12 @@ def main():
             rows.append(p);continue
         o=select(blank,bends,i,sides);check=gauge_check(o)
         p=dict(bend=i+1,side='+' if o['s']>0 else '-',T=o['T'],loc=o['loc'],tip=o['tip'],program_gauge_mm=round(o['tip'],2),warnings=[],gauging=check)
+        if o.get('waived'):
+            T=o['T'];info=[]
+            for n in o['waived']:
+                P=[x for x,_,_ in g.pts(g.moved(bends[n-1]['face'],T))];info.append(f"B{n} {min(abs(x) for x in P):.0f}–{max(abs(x) for x in P):.0f} mm along the bend axis")
+            p['warnings'].append('Gauged with '+', '.join(f'B{n}' for n in o['waived'])+' already formed by explicit decision (half-plane dependency waived; '+'; '.join(info)+' from this bend). Check the formed flanges clear the tooling.')
+        if o.get('gauge_edge_selected'):p['warnings'].append(f"User-selected gauge edge {o['tip']:.2f} mm from the bend line; blank material elsewhere extends beyond this gauge line, so position the fingers clear of it.")
         dependencies=[n for n in o['between'] if master_of[n]!=number]
         if dependencies:p['warnings'].append('Gauge this bend before bend(s) '+', '.join(map(str,dependencies))+' are formed; the intervening region must remain flat.')
         if number in a.direct_trial:
@@ -327,7 +354,10 @@ def main():
             pc=g.moved(q['tab']['piece'],g.g_to(p['T'],q['T']))
             if g.bbox(pc)[4]>p['tip']+.001:
                 p['warnings'].append(f"The programming tab for B{q['bend']} projects beyond this bend's gauge line; select the intended B{p['bend']} gauge edge in CADMAN-B.")
-    if abs(g.volume(formed)-g.volume(part)-expected)>max(.1,.001*expected):raise ValueError('Added tab volume does not agree with tab area × thickness.')
+    # Measure added/removed material by Booleans: integrated volumes of imported spline-trimmed
+    # solids can be off by ~1 mm3, but the difference solids are exact prisms.
+    added=g.volume(g.BRepAlgoAPI_Cut(formed,part).Shape()) if prisms else 0.;removed=g.volume(g.BRepAlgoAPI_Cut(part,formed).Shape()) if prisms else 0.
+    if abs(added-expected)>max(.1,.001*expected) or removed>.1:raise ValueError('Added tab volume does not agree with tab area × thickness.')
     formed,merge=merge_step_faces(formed)
     step=f'{title}_with_tabs.step';verification=checked_step(formed,outdir/step,prisms);verification.update(merge)
     if not verification['strict_geometry_valid']:notes.append('Strict surface/edge analysis reports residual geometry warnings. Basic solid and tab-retention checks passed; SolidWorks/CADMAN-B compatibility is not confirmed by these checks.')
@@ -347,7 +377,10 @@ def main():
     def clean(d):return {k:clean(v) if isinstance(v,dict) else v for k,v in d.items() if k not in hide}
     report=dict(part=title,estimated_unfold=estimated,blank_thickness_mm=round(t,4),bends=len(bends),bend_map=mapping,sequence=order,operations=operations,common_group_checks=group_checks,trims=trims,step=step,preview=preview_name,notes=notes,verification=verification,plates=[clean(p) for p in rows])
     report['deliverables']=[step,preview_name]+sorted({p['dxf'] for p in rows if 'dxf' in p})
-    report['gauging_status']=[{'bends':group,'method':('DIRECT EDGE TRIAL' if rows[group[0]-1]['gauging'].get('trial_authorized') else 'DIRECT EDGE' if rows[group[0]-1]['gauging']['direct'] else 'BACKBAR OPTION' if rows[group[0]-1]['gauging'].get('short_contact_candidate') else 'BACKBAR')} for group in operations]
+    from sequence_preview import method_name
+    from physical_changes import compare_blanks
+    changed=compare_blanks(original_blank,blank)
+    report['gauging_status']=[{'bends':group,'method':method_name(blank,rows[group[0]-1],changed)} for group in operations]
     report['common_line_tolerance_mm']=a.common_line_tol
     report['physical_blank_changed']=bool(trims and any(c['max_trim_mm']>0 for c in trims))
     # Measure every generated physical removal and virtual addition in exported bytes.

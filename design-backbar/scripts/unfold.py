@@ -59,6 +59,122 @@ def interior_direction(face,edge):
         if len(inside)==1:return inside[0]*direction
     raise ValueError('Cannot identify material beside a bend tangent.')
 
+def cross2(a,b):return a[0]*b[1]-a[1]*b[0]
+
+def clean_wire(wire, tol=2e-4):
+    """Rebuild a planar wire from exact lines and circular arcs where the imported
+    spline edges are such (checked span by span); otherwise keep the original edge.
+    Imported degree-1/rational degree-2 B-splines break planar offsets and face fitting."""
+    from OCP.BRepTools import BRepTools_WireExplorer
+    from OCP.GC import GC_MakeArcOfCircle, GC_MakeSegment
+    from OCP.BRepAdaptor import BRepAdaptor_Curve
+    from OCP.GeomAbs import GeomAbs_BSplineCurve
+    P=lambda q:g.gp_Pnt(float(q[0]),float(q[1]),0.)
+    out=[];ex=BRepTools_WireExplorer(wire)
+    while ex.More():
+        e=ex.Current();c=BRepAdaptor_Curve(e);a,b=c.FirstParameter(),c.LastParameter()
+        cuts=[a,b]
+        if c.GetType()==GeomAbs_BSplineCurve:
+            bs=c.BSpline();cuts=sorted({a,b,*[bs.Knot(i) for i in range(1,bs.NbKnots()+1) if a<bs.Knot(i)<b]})
+        rev=e.Orientation()==1
+        segs=[]
+        for u0,u1 in zip(cuts,cuts[1:]):
+            us=np.linspace(u0,u1,7);Q=[V([c.Value(float(x)).X(),c.Value(float(x)).Y()]) for x in us]
+            d=Q[-1]-Q[0];L=np.linalg.norm(d)
+            if L<1e-7:segs=None;break
+            n=V([-d[1],d[0]])/L
+            if max(abs(np.dot(q-Q[0],n)) for q in Q)<tol:segs.append(('L',Q[0],Q[-1]));continue
+            # circle through first, middle, last
+            A,B,C=Q[0],Q[3],Q[-1];M=np.array([[2*(B-A)[0],2*(B-A)[1]],[2*(C-A)[0],2*(C-A)[1]]])
+            rhs=V([B@B-A@A,C@C-A@A])
+            try:ctr=np.linalg.solve(M,rhs)
+            except np.linalg.LinAlgError:segs=None;break
+            r=np.linalg.norm(A-ctr)
+            if max(abs(np.linalg.norm(q-ctr)-r) for q in Q)>tol:segs=None;break
+            segs.append(('A',Q[0],Q[3],Q[-1]))
+        if segs is None:out.append(('E',e));ex.Next();continue
+        if rev:segs=[(s0[0],*s0[1:][::-1]) for s0 in segs[::-1]]
+        out.extend(segs);ex.Next()
+    from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeWire,BRepBuilderAPI_MakeEdge
+    if any(item[0]=='E' for item in out):return wire
+    # Join collinear line pieces (flange/bend-strip junctions): the near-zero kinks
+    # make outward planar offsets fail. Only joints straight within 1e-6 mm are joined.
+    merged=[]
+    for item in out:
+        if merged and item[0]=='L' and merged[-1][0]=='L':
+            a0,a1=merged[-1][1],item[2];d=a1-a0;L=np.linalg.norm(d)
+            if L>1e-6 and abs(cross2(d/L,merged[-1][2]-a0))<1e-6:merged[-1]=('L',a0,a1);continue
+        merged.append(item)
+    if len(merged)>2 and merged[0][0]=='L' and merged[-1][0]=='L':
+        a0,a1=merged[-1][1],merged[0][2];d=a1-a0;L=np.linalg.norm(d)
+        if abs(cross2(d/L,merged[0][1]-a0))<1e-6:merged=[('L',a0,a1)]+merged[1:-1]
+    out=merged
+    mk=BRepBuilderAPI_MakeWire();last=None;first=out[0][1]
+    for k,item in enumerate(out):
+        start=item[1] if last is None else last
+        end=first if k==len(out)-1 else item[-1]
+        if item[0]=='L':edge=BRepBuilderAPI_MakeEdge(GC_MakeSegment(P(start),P(end)).Value()).Edge()
+        else:edge=BRepBuilderAPI_MakeEdge(GC_MakeArcOfCircle(P(start),P(item[2]),P(end)).Value()).Edge()
+        last=end;mk.Add(edge)
+    if not mk.IsDone():raise ValueError('Could not rebuild the blank outline from lines and arcs.')
+    return mk.Wire()
+
+def clean_blank(face):
+    from OCP.BRepTools import BRepTools
+    from OCP.TopAbs import TopAbs_WIRE
+    from OCP.ShapeFix import ShapeFix_Face
+    from OCP.gp import gp_Pln, gp_Dir
+    outer=BRepTools.OuterWire_s(face)
+    mk=g.BRepBuilderAPI_MakeFace(gp_Pln(g.gp_Pnt(0,0,0),gp_Dir(0,0,1)),clean_wire(outer),True)
+    for w in g.sub(face,TopAbs_WIRE,g.TopoDS.Wire_s):
+        if not w.IsSame(outer):
+            mk.Add(clean_wire(w))
+    f=mk.Face();fx=ShapeFix_Face(f);fx.FixOrientation();fx.Perform();f=fx.Face()
+    if g.area(f)<0:f=g.TopoDS.Face_s(f.Reversed())
+    if not g.BRepCheck_Analyzer(f).IsValid():raise ValueError('Rebuilt blank outline is invalid.')
+    # Every original boundary point must lie on the rebuilt boundary.
+    from OCP.BRepExtrema import BRepExtrema_DistShapeShape
+    from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeVertex
+    from OCP.BRepAdaptor import BRepAdaptor_Curve
+    newb=g.TopoDS.Wire_s(BRepTools.OuterWire_s(f));worst=0.
+    edges_new=[x for x in g.edges(f)]
+    from OCP.TopoDS import TopoDS_Compound
+    from OCP.BRep import BRep_Builder
+    comp=TopoDS_Compound();bb=BRep_Builder();bb.MakeCompound(comp)
+    for x in edges_new:bb.Add(comp,x)
+    for e in g.edges(face):
+        c=BRepAdaptor_Curve(e)
+        for u in np.linspace(c.FirstParameter(),c.LastParameter(),5):
+            d=BRepExtrema_DistShapeShape(BRepBuilderAPI_MakeVertex(c.Value(float(u))).Vertex(),comp);d.Perform();worst=max(worst,d.Value())
+    if worst>.002 or abs(boundary_area(f)-boundary_area(face))>.05:raise ValueError(f'Rebuilt blank outline deviates {worst:.4f} mm from the unfolded outline.')
+    clean_blank.deviation_mm=worst
+    return f
+
+def boundary_area(face):
+    from OCP.BRepTools import BRepTools
+    from OCP.TopAbs import TopAbs_WIRE
+    outer=BRepTools.OuterWire_s(face);t=0.
+    for w in g.sub(face,TopAbs_WIRE,g.TopoDS.Wire_s):
+        P=np.array(g.loop(w,0.0005));x,y=P[:,0],P[:,1]
+        a=0.5*abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)));t+=a if w.IsSame(outer) else -a
+    return t
+
+def rebuild_flat(face):
+    """Rebuild a flattened piece on the exact XY plane with fresh pcurves and +Z orientation.
+    Imported (e.g. Rhino) trims can carry pcurves that disagree slightly with their 3D edges,
+    which corrupts area integration and validity of the merged blank."""
+    from OCP.BRepTools import BRepTools
+    from OCP.ShapeFix import ShapeFix_Face
+    from OCP.gp import gp_Pln, gp_Pnt as P, gp_Dir as D
+    outer=BRepTools.OuterWire_s(face)
+    mk=g.BRepBuilderAPI_MakeFace(gp_Pln(P(0,0,0),D(0,0,1)),outer,True)
+    from OCP.TopAbs import TopAbs_WIRE
+    for w in g.sub(face,TopAbs_WIRE,g.TopoDS.Wire_s):
+        if not w.IsSame(outer): mk.Add(w)
+    f=mk.Face();fx=ShapeFix_Face(f);fx.Perform();f=fx.Face()
+    if g.area(f)<0: f=g.TopoDS.Face_s(f.Reversed())
+    return f
+
 def unfold(formed):
     fs=g.faces(formed)
     planar={i:f for i,f in enumerate(fs) if g.plane_of(f) is not None}
@@ -138,12 +254,17 @@ def unfold(formed):
             queue.append(child)
     if not bends:raise ValueError('No supported bend strips were found in the formed part.')
     if set(pairs)-set(maps)-{pairs[i] for i in maps}:raise ValueError('Not all paired flanges belong to one supported unfoldable skin.')
+    flatfaces={k:rebuild_flat(f) for k,f in flatfaces.items()}
     sew=g.BRepBuilderAPI_Sewing(.001)
     for f in flatfaces.values():sew.Add(f)
     sew.Perform();blank=g.one_face(sew.SewedShape())
     if blank is None or not g.BRepCheck_Analyzer(blank).IsValid():raise ValueError('Unfolded faces did not form a single valid non-overlapping blank.')
     # Connectivity alone does not exclude overlaps. Compare union area with all pieces.
-    if abs(g.area(blank)-sum(g.area(f) for f in flatfaces.values()))>.05:raise ValueError('Unfolded faces overlap or leave gaps.')
+    # Connectivity alone does not exclude overlaps. Compare union area with all pieces, using
+    # areas from the discretised 3D boundaries (what is actually cut); imported trims can make
+    # integrated surface areas disagree by tenths of mm2 on otherwise coincident geometry.
+    if abs(boundary_area(blank)-sum(boundary_area(f) for f in flatfaces.values()))>.05:raise ValueError('Unfolded faces overlap or leave gaps.')
+    blank=clean_blank(blank)
     carriers=[dict(flat=flatfaces[i],to_formed=transforms[i].Inverted(),original=fs[i]) for i in maps]
     bends.sort(key=lambda v:v['p'][1],reverse=True)
     return blank,bends,t,carriers

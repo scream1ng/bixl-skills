@@ -25,6 +25,7 @@ def compare_blanks(original,revised):
                     if not distance.IsDone():raise ValueError('Cannot measure physical change region.')
                     distances.append(distance.Value())
                 maximum=max(maximum,min(distances))
+            if maximum<.001:continue  # numerical sliver from Boolean tolerance, not a physical change
             changes.append(dict(id='C'+str(len(changes)+1),kind=kind,face=face,area_mm2=g.area(face),sampled_max_offset_mm=maximum))
     return changes
 

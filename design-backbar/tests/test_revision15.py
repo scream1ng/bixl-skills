@@ -38,7 +38,9 @@ class Revision15(unittest.TestCase):
             self.assertIn('B1 + B2',text);self.assertNotIn('id="step-2"',text)
             self.assertIn('Physical part changes',text);self.assertIn('C1',text);self.assertIn('C2',text)
             self.assertIn('Approx. maximum local offset',text)
-            self.assertLess(text.index('<section class="physical-changes">'),text.index('<div class="layout">'))
+            # v1.7: red banner first, change details below the bend sequence.
+            self.assertLess(text.index('class="banner warn"'),text.index('<div class="layout">'))
+            self.assertLess(text.index('<div class="layout">'),text.index('<section class="physical-changes">'))
     def test_short_contact_cli_and_manifest(self):
         script=Path(__file__).resolve().parents[1]/'scripts/backbar.py'
         with tempfile.TemporaryDirectory() as d:

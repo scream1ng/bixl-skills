@@ -44,34 +44,48 @@ CONTACT_MIN = 10.0                   # blank already touches the tip line over t
 COMMENT_UI = """
 <style>
 #cbar{position:sticky;top:0;z-index:9;background:#fff;border:1px solid #ccc;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:13px}
-#cbar button{margin-right:6px}#cmode.on{background:#c0392b;color:#fff;border-color:#c0392b}#cnotes{font:12px ui-monospace,monospace;white-space:pre-wrap;margin:6px 0 0}
+#cbar button{margin-right:6px}#cmode.on{background:#c0392b;color:#fff;border-color:#c0392b}#cbuf{display:block;width:100%;box-sizing:border-box;height:110px;font:12px ui-monospace,monospace;margin:6px 0;resize:vertical}#cbuf[hidden]{display:none}#cnotes{font:12px ui-monospace,monospace;white-space:pre-wrap;margin:6px 0 0}
 .fig{position:relative}body.commenting .fig svg{cursor:crosshair}
 .pin{position:absolute;z-index:7}.pin b{position:absolute;left:-11px;top:-26px;display:flex;width:22px;height:22px;border-radius:50% 50% 50% 3px;background:#c0392b;color:#fff;font:600 12px system-ui;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 7px #0006;transform:rotate(-45deg)}.pin b span{transform:rotate(45deg)}
-.pin .box{position:absolute;left:16px;bottom:8px;width:210px;background:#fff;border-radius:9px;box-shadow:0 3px 14px #1234;padding:7px}.pin textarea{width:100%;box-sizing:border-box;height:58px;font:13px system-ui}.pin.shut .box{display:none}
+.pin .feat{font-size:11px;color:#36506b;margin-bottom:5px}.pin .quick{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px}.pin .quick button{font-size:11px;padding:2px 6px;border-radius:6px;border:1px solid #b9c4d0;background:#f4f7fa;cursor:pointer}.pin .box{position:absolute;left:16px;bottom:8px;width:270px;background:#fff;border-radius:9px;box-shadow:0 3px 14px #1234;padding:7px}.pin textarea{width:100%;box-sizing:border-box;height:58px;font:13px system-ui}.pin.shut .box{display:none}
 </style>
 <script>
 (()=>{const NL=String.fromCharCode(10),r=v=>Math.round(v*100)/100,notes=[];let on=false;
 const bar=document.createElement('div');bar.id='cbar';
-bar.innerHTML='<button id="cmode">Comment mode</button><button id="ccopy">Copy all</button><span id="cmsg"></span><pre id="cnotes">none</pre>';
+bar.innerHTML='<button id="cmode">Comment mode</button><button id="ccopy">Copy all</button><span id="cmsg"></span><textarea id="cbuf" aria-label="Comments to copy" readonly hidden></textarea><pre id="cnotes">none</pre>';
 document.body.prepend(bar);
 const $=s=>document.querySelector(s),say=m=>{$('#cmsg').textContent=m;},idle='Turn on Comment mode, then click a drawing to pin a note.';say(idle);
-$('#cmode').onclick=()=>{on=!on;$('#cmode').classList.toggle('on',on);document.body.classList.toggle('commenting',on);say(on?'Click a drawing to pin a note. Click Comment mode again to stop.':idle);};
+$('#cmode').onclick=()=>{on=!on;$('#cmode').classList.toggle('on',on);document.body.classList.toggle('commenting',on);say(on?'Hover to highlight an edge, click to pin a note. The note records which edge, tab or plate you clicked. Click Comment mode again to stop.':idle);};
 const list=()=>{notes.forEach((n,i)=>{n.el.querySelector('span').textContent=i+1;});$('#cnotes').textContent=notes.length?notes.map((n,i)=>(i+1)+'. '+(n.text||'(empty)')+'  @ '+n.where).join(NL):'none';};
 const place=n=>{if(n.fig.offsetParent===null)return;const matrix=n.svg.getScreenCTM();if(!matrix)return;const p=new DOMPoint(n.x,n.y).matrixTransform(matrix),b=n.fig.getBoundingClientRect();n.el.style.left=(p.x-b.left)+'px';n.el.style.top=(p.y-b.top)+'px';};
 addEventListener('resize',()=>notes.forEach(place));
 for(const fig of document.querySelectorAll('.fig')){const svg=fig.querySelector('svg');svg.addEventListener('click',e=>{if(!on)return;
   const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(svg.getScreenCTM().inverse()),d=fig.dataset,x=p.x,y=-p.y;
   let where=d.name+': ('+r(x)+', '+r(y)+') mm';
+  const hit=e.target.closest('[data-edge],[data-label]');
+  if(hit&&hit.dataset.edge){const h=hit.dataset;let t=h.edge+' '+(h.status==='existing'?'existing ':h.status+' ')+h.kind+' '+h.len+' mm';
+    if(h.angle!==undefined){const a=+h.angle;t+=', '+(a<0.0005?'parallel to '+h.bend:a.toFixed(3)+'° off parallel to '+h.bend)+(h.dist!==undefined?', '+h.dist+' mm from the '+h.bend+' line':'');}
+    where=t+' — '+where;}
+  else if(hit&&hit.dataset.label)where=hit.dataset.label+' — '+where;
   if(d.xref){const lo=+d.xlo,hi=+d.xhi,along=x<lo?x-lo:x>hi?x-hi:0;where=d.name+': '+r(along)+' mm along the bend from the '+d.xref+', '+r(y)+' mm from the bend line';}
   const n={x:p.x,y:p.y,svg,fig,where,text:''},el=document.createElement('div');el.className='pin';n.el=el;
-  el.innerHTML='<b><span></span></b><div class="box"><textarea placeholder="What should change here?"></textarea><button>Delete</button></div>';
+  el.innerHTML='<b><span></span></b><div class="box"><div class="feat"></div><div class="quick"></div><textarea placeholder="What should change here?"></textarea><button class="del">Delete</button></div>';
+  const t=el.querySelector('textarea');
+  el.querySelector('.feat').textContent=where.split(' — ')[0];
+  const step=(d.name.match(/^(B\d+)/)||[])[1]||'this bend';
+  const intents=hit&&hit.dataset.edge?[['Gauge '+step+' on this edge','Gauge '+step+' directly on this existing edge (no trim).'],['Backbar on this side','Put the '+step+' backbar on this side.'],['Move tab here','Move the '+step+' programming tab here.'],['Request trim ⚠','TRIM this edge parallel to '+step+' (changes the real blank).']]:hit&&hit.dataset.label&&hit.dataset.label.startsWith('CAD-only')?[['Move tab','Move this tab to: '],['Remove tab','Remove this tab if the edge can gauge directly.']]:[];
+  for(const[label,txt]of intents){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>{t.value=(t.value?t.value+' ':'')+txt;n.text=t.value;list();t.focus();};el.querySelector('.quick').append(b);}
   el.querySelector('b').onclick=()=>el.classList.toggle('shut');
-  el.querySelector('button').onclick=()=>{notes.splice(notes.indexOf(n),1);el.remove();list();};
-  const t=el.querySelector('textarea');t.oninput=()=>{n.text=t.value;list();};
+  el.querySelector('.del').onclick=()=>{notes.splice(notes.indexOf(n),1);el.remove();list();};
+  t.oninput=()=>{n.text=t.value;list();};
   fig.append(el);notes.push(n);place(n);list();t.focus();});}
-$('#ccopy').onclick=()=>{const text='Comments on '+document.title+':'+NL+$('#cnotes').textContent;
-  const sel=()=>{const g=document.createRange();g.selectNodeContents($('#cnotes'));const s=getSelection();s.removeAllRanges();s.addRange(g);say('Clipboard blocked here: text selected, press Ctrl+C or Cmd+C.');};
-  if(!navigator.clipboard)return sel();navigator.clipboard.writeText(text).then(()=>say('Copied. Paste it into the chat.'),sel);};
+$('#ccopy').onclick=async()=>{const text='Comments on '+document.title+':'+NL+$('#cnotes').textContent;
+  // Plain-text buffer (as in design-fixture): a textarea copies as plain text, never formatted HTML.
+  const buf=$('#cbuf');buf.value=text;buf.hidden=false;buf.focus();buf.select();
+  say('Text selected: press Ctrl+C or Cmd+C, then paste into chat.');
+  let done=false;try{done=document.execCommand('copy');}catch(_){}
+  try{await navigator.clipboard.writeText(text);done=true;}catch(_){}
+  if(done){say('Copied as plain text. Paste it into the chat.');}};
 })();
 </script>"""
 
@@ -243,6 +257,13 @@ def choose_end(blank, bends, i, side):
     return opts[0]                                                   # the end the user chose
 
 
+def _plane_face(wire):
+    """Face on the XY plane (flat frames are at Z=0); avoids plane fitting through imported spline edges."""
+    from OCP.gp import gp_Pln, gp_Dir
+    f = BRepBuilderAPI_MakeFace(gp_Pln(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1)), wire, True).Face()
+    return f if area(f) > 0 else TopoDS.Face_s(f.Reversed())
+
+
 def build_plate(o, prot_max, die_clear, warn):
     """Backbar plate for the chosen end, in the bend frame. The pocket is the plain blank outline (no tab)."""
     tip, loc = o["tip"], o["loc"]
@@ -260,13 +281,13 @@ def build_plate(o, prot_max, die_clear, warn):
                                 f"with {MIN_WALL:.0f} mm of material each side")
     body = BRepAlgoAPI_Cut(rect(cx - PLATE_W / 2, front, cx + PLATE_W / 2, tip + TIP_TO_FINGER + NOTCH_D),
                            rect(cx - NOTCH_W / 2, tip + TIP_TO_FINGER, cx + NOTCH_W / 2, tip + TIP_TO_FINGER + NOTCH_D + 1)).Shape()
-    solid_blank = BRepBuilderAPI_MakeFace(BRepTools.OuterWire_s(loc)).Face()     # holes ignored
+    solid_blank = _plane_face(BRepTools.OuterWire_s(loc))     # holes ignored
     off = BRepOffsetAPI_MakeOffset(solid_blank, GeomAbs_Arc); off.Perform(CLEAR)
     if not off.IsDone():
         return dict(plate_error="could not offset the blank outline by the pocket clearance")
     if off.Shape().ShapeType() != TopAbs_WIRE:
         return dict(plate_error="pocket offset did not give one closed outline; check the flat pattern outline")
-    pocket = BRepBuilderAPI_MakeFace(TopoDS.Wire_s(off.Shape())).Face()
+    pocket = _plane_face(TopoDS.Wire_s(off.Shape()))
     if area(pocket) < area(solid_blank):
         return dict(plate_error="pocket offset went inward; check the flat pattern outline")
     pieces = sorted(faces(BRepAlgoAPI_Cut(body, pocket).Shape()), key=area, reverse=True)

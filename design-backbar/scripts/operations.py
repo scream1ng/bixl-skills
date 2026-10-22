@@ -13,7 +13,7 @@ def operation_sequence(value, ends):
         remaining={i+1:set(o['between']) for i,o in enumerate(ends)};groups=[]
         while remaining:
             ready=[n for n in remaining if not any(n in deps for deps in remaining.values())]
-            if not ready:raise ValueError('Conflicting gauge dependencies; choose different gauging ends.')
+            if not ready:raise ValueError('Conflicting gauge dependencies; choose different gauging ends. '+'; '.join(f'B{n} needs '+', '.join(f'B{m}' for m in sorted(remaining[n]))+' flat' for n in sorted(remaining) if remaining[n])+'. Use --side, or --formed-ok N=A+B when a flagged bend is clear of the gauging path.')
             n=min(ready);groups.append([n]);del remaining[n]
     positions={n:k for k,group in enumerate(groups) for n in group}
     if any(positions[i+1]>positions[j] for i,o in enumerate(ends) for j in o['between']):

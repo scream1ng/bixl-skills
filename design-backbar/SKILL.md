@@ -1,6 +1,6 @@
 ---
 name: design-backbar
-description: "v1.6 · Design LVD press-brake backbar jigs from one STEP file. Use a supplied flat pattern or estimate unfolding from the formed part; check direct gauging first, then deliver only required backbar DXFs and a formed STEP with programming gauge tabs, plus a simple, commentable bend-sequence preview. Trimming is only applied when explicitly requested in a user message or preview comment."
+description: "v1.7 · Design LVD press-brake backbar jigs from one STEP file. Use a supplied flat pattern or estimate unfolding from the formed part; check direct gauging first, then deliver only required backbar DXFs and a formed STEP with programming gauge tabs, plus a simple, commentable bend-sequence preview. Trimming is only applied when explicitly requested in a user message or preview comment."
 ---
 
 # Design Backbar
@@ -12,7 +12,7 @@ Accept **one STEP file**. Prefer its supplied flat pattern when present. Otherwi
 Deliver:
 - **DXF:** one per required backbar plate, mm at 1:1, for 6 mm material.
 - **STEP:** formed part with required gauge tabs merged into one valid solid, for CADMAN-B.
-- **HTML review:** all bend operations in sequence, visible programming tabs, and a gauging status for every operation: BACKBAR, BACKBAR OPTION, DIRECT EDGE or DIRECT EDGE TRIAL. Show the matching backbar and dashed gauge line when required; retain pinned comments.
+- **HTML review:** all bend operations in sequence, visible programming tabs, and a gauging status for every operation: BACKBAR, BACKBAR OPTION, DIRECT EDGE, DIRECT EDGE TRIAL, TRIM EDGE or TRIM EDGE TRIAL (TRIM when the contact edge borders a physical change). Show the matching backbar and dashed gauge line when required; retain pinned comments.
 
 Keep estimated flat patterns, intermediate geometry, logs and JSON internal unless requested. **Finalize delivers one ZIP, never loose files**: the user approves the design in the HTML preview, so “finalize”, “package it” or “complete” means rerun with `--requirements` and `--package` and send only that ZIP. Use `--package` or `scripts/package_delivery.py:package_run` with the completed run's explicit `deliverables` manifest. Include only current selected-route DXFs, programming STEP, latest HTML/optional PNG and a brief README with unresolved trial checks; exclude superseded plates, unapproved alternatives and internal files. Never collect files by scanning old revision folders.
 
@@ -87,6 +87,8 @@ Use a fresh output directory for each revision so old plates cannot leak into de
 | `--die-clear MM` | Assumed minimum bend-line-to-plate-front clearance; default 8. |
 | `--flat N` | Select supplied flat body N if ambiguous. |
 | `--trim-for N` | **Explicit user-requested trim only**, to make the gauged free edge parallel to bend N. |
+| `--gauge-edge N=Y` | User-selected parallel edge Y mm from bend N's line on the chosen side (e.g. an ear tip nearer than the half-plane tip). Snaps within 0.05 mm; fails if no such edge. Usually paired with `--direct-trial N` when contact < 10 mm. |
+| `--formed-ok N=A+B` | Waive a flat-region dependency for bend N when the user, or a measured check, shows bends A, B lie clear of N's gauging path (e.g. far along the bend axis). Reported in the step warnings with the axial distance; never applied silently. |
 
 For common groups, set `--side`, `--at` and `--direct-trial` on the first member; follower overrides are rejected. Do not infer an option value from a screenshot dimension when exact geometry or comment coordinates are available.
 
@@ -112,6 +114,7 @@ Keep these fixed unless the user changes the shop standard. A part that does not
 For a supplied flat, use its separate bend-strip faces. If they have been merged, ask for an unmerged export or a formed-only file; do not guess bend locations from an undifferentiated flat.
 
 For formed-only input, `scripts/unfold.py`:
+- Rebuilds each flattened piece on the exact XY plane and rebuilds the merged outline from exact lines and arcs (span by span), joining collinear flange/bend-strip pieces. Imported (e.g. Rhino) spline trims otherwise break area checks, face fitting and pocket offsets. The rebuilt outline must stay within 0.002 mm of the unfolded outline; overlap checks use boundary areas, and tab volume uses Boolean differences, because integrated areas/volumes of imported trims can be off by ~1 mm³.
 - Infers thickness from paired planar faces.
 - Finds connected planar flanges and paired curved bend strips, including supported imported spline surfaces.
 - Unfolds flange geometry by rigid transformations, preserving flange holes and contours.
@@ -150,11 +153,13 @@ For direct-gauge bends, record contact length and gauge distance with **no jig o
 
 Use `scripts/sequence_preview.py`, called by `backbar.py`, as the default review. Show the part large with one selectable row per operation, its bend IDs and gauging status. Label a short-contact fallback **BACKBAR OPTION**, and an authorized direct trial **DIRECT EDGE TRIAL**. Selecting an operation highlights the bend and its contact edge or programming tab. Show only the matching contour backbar for that operation; identify a shared plate consistently while keeping separate rows and gauge distances for separate operations. A common-bend group gets one row, one shared gauge reference and no follower step.
 
-Render the current physical blank with its holes and rounded corners and overlay CAD-only tabs in orange. Whenever physical geometry changes, show a prominent **Physical part changes** section before the sequence: dashed grey original contour, blue material added, red material removed, numbered locations, closeups and measured local offsets. Retain numbered markers in operation views. State that these changes affect the real blank and formed CAD. Never rely on a note alone or confuse CAD-only tabs with physical additions.
+Render the current physical blank with its holes and rounded corners and overlay CAD-only tabs in orange. Always show a top banner: green **Physical blank: UNCHANGED** or red **Physical blank: N CHANGE(S)**. Whenever physical geometry changes, show the **Physical part changes** section below the bend sequence: dashed grey original contour, blue material added, red material removed, numbered locations, closeups and measured local offsets. Retain numbered markers in operation views. State that these changes affect the real blank and formed CAD. Never rely on a note alone or confuse CAD-only tabs with physical additions.
 
 Use `preview(..., operations=groups, original_blank=original)` so `scripts/physical_changes.py` computes Boolean differences from the actual contours. Custom reshapes must pass the preserved original in the same coordinate frame and update the package report's `physical_blank_changed`. The CLI does this automatically for `--trim-for`; other contours require explicit geometry implementation. Label sampled offsets as approximate; do not imply exact maxima. Show a dashed red gauge-reference line through the blank/tab tip, parallel to the bend, exactly **50 mm from the rear finger-slot shoulder**. Transform this line with the backbar geometry; do not confuse it with the bend line or the finger contact at the slot shoulder. Direct-edge steps show no plate or jig-offset line.
 
 Keep tab dimensions, coordinates and full calculation tables out of the main view. Keep the folded-part reference and concise unresolved trial checks available below it. Clearly label the flat layout as a reference, not a progressive folded simulation. Retain comment pins; include the selected bend and display-coordinate frame in copied comments. Do not interpret display coordinates as the old tab-detail bend frame.
+
+Picture first: operators read the drawing, not text. Each step view shows bend badges with angle (red = this step, grey ✓ = already bent, white = still to come), a gauge-distance arrow labelled with the program distance, the contact edge (green = existing edge, thick red = trimmed edge), a hatched **keep fingers clear** zone for material beyond a direct gauge line, a TRIAL tag on authorized short contacts and a PLATE B#/B# label on shared plates. Direct steps carry an *Existing part edge · no trim* or *Trimmed edge · real blank changed* label; near-parallel edges that were not used are labelled with their measured angle and *not trimmed*. Do not draw backgauge fingers or step-list thumbnails.
 
 Inspect assisted, shared and direct-edge selections; verify no stale plate remains on direct steps, no clipped geometry, correct bend IDs, and visible tabs and dashed lines. A preview-only styling change does not require rewriting validated CAD/DXFs.
 
@@ -178,9 +183,11 @@ If a check fails, fix the cause or report the precise limitation. Do not present
 
 ## Review comments
 
-The user enables **Comment mode**, clicks a drawing, types notes, then uses **Copy all** to paste comments into chat. Coordinates refer to the named drawing.
+The user enables **Comment mode**; the edge under the cursor highlights. A click pins a note that records **what** was clicked — edge ID, existing/trimmed, line/arc, length, angle to the step's bend and distance from its bend line — or the backbar plate (DXF name) or CAD-only tab, plus display coordinates. Quick buttons prefill intent: *Gauge B# on this edge*, *Backbar on this side*, *Move tab here*, *Request trim ⚠* (edges) and *Move/Remove tab* (tabs). **Copy all** fills a plain-text box, selects it and tries the clipboard; if blocked, the user presses Ctrl+C/⌘C. Use the recorded edge facts first; transform display coordinates only when no feature was recorded. A *Request trim* note is an explicit trim request; any other note is not.
 
 - Change gauging end: rerun `--side N=` with the opposite sign.
+- Gauge on a picked parallel edge: `--gauge-edge N=Y` with the recorded distance (plus `--direct-trial N` below 10 mm contact, which the note itself authorizes for this job only when it says so).
+- A requested end that creates a dependency cycle: report each conflicting dependency with its measured axial distance; use `--formed-ok` only when the flagged bend is clear of the gauging contact/plate region, and say so.
 - Move tab: transform the pin from the named display frame to that bend’s local frame before deriving `--at N=X`. Only older tab-detail views already report coordinates along the bend from the blank tip. Preserve requested tab positions exactly.
 - Request a parallel-edge trim: only then use `--trim-for N` and report removal.
 - Other explicit geometry changes: implement in the reusable geometry workflow, validate and regenerate all affected outputs. Never patch only the displayed picture or a DXF independently of its STEP and contour source.
@@ -193,4 +200,4 @@ Confirm tooling for each new part; do not inherit another part's die, punch or t
 
 ## Maintenance
 
-Keep instructions concise and geometry in `scripts/`. Test ordinary and short parallel contacts, angled edges, supplied flats, formed-only inputs, common-group validation, explicit physical-change highlighting, package manifests, missing agreed changes, stale exports and refusal cases. Include a two-ear regression: a valid solid with a 0.091 mm bend offset must fail completion; aligned exported geometry must pass. Test the real job against this check as well when its files are available. Never hard-code sample face numbers or part-specific bend counts. Preserve the no-trim default in both code and instructions.
+Keep instructions concise and geometry in `scripts/`. Test trim-edge naming, sliver filtering, outline rebuild, edge-aware comments and user gauge edges (tests/test_revision17.py), ordinary and short parallel contacts, angled edges, supplied flats, formed-only inputs, common-group validation, explicit physical-change highlighting, package manifests, missing agreed changes, stale exports and refusal cases. Include a two-ear regression: a valid solid with a 0.091 mm bend offset must fail completion; aligned exported geometry must pass. Test the real job against this check as well when its files are available. Never hard-code sample face numbers or part-specific bend counts. Preserve the no-trim default in both code and instructions.
