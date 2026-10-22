@@ -190,6 +190,9 @@ class FixtureTests(unittest.TestCase):
         names=ZipFile(z).namelist();self.assertTrue(all(n.startswith('EXAMPLE-FLAT-PLATE-R1/') for n in names))
         for n in ('DELIVERY/JSON/verification.json','source/spec.json','source/project.json','source/workpiece.step'):self.assertIn('EXAMPLE-FLAT-PLATE-R1/'+n,names)
         self.assertEqual(len([n for n in names if '/DELIVERY/' in n]),len([p for p in self.delivery.rglob('*') if p.is_file()]))
+        order=json.loads((self.delivery/'JSON/verification.json').read_text())['measurements']['cutting_audit']['build_order']
+        text=ZipFile(z).read('EXAMPLE-FLAT-PLATE-R1/BUILD-ORDER.txt').decode()
+        for row in order:self.assertIn(f"{row['number']:>3}  {row['name']}",text)
         with self.assertRaises(ValueError):package_run(self.spec_file,record,self.root/'missing',out)
 
 if __name__=='__main__':unittest.main()

@@ -15,8 +15,8 @@ from pathlib import Path
 
 import ezdxf
 from shapely import affinity
-from shapely.geometry import MultiLineString, Polygon, box
-from shapely.ops import polylabel
+from shapely.geometry import LineString, MultiLineString, Polygon, box
+from shapely.ops import polylabel, unary_union
 
 from fixture_common import load_spec, poly, write_json
 
@@ -31,17 +31,23 @@ DEFAULTS = {
     "etch_edge_clearance_mm": 0.8,
     "seat_part_numbers": True,  # etch each standing plate's part number beside its footprint on the base
     "seat_etch_height_mm": 5.0,
+    # "build_order": every plate gets its fit-up number (braces first) in its middle and the seat repeats it beside each
+    # of that plate's tab slots; 6/9/16/19... are underlined. "part_numbers": legacy plate-name + part-number marks.
+    "etch_style": "build_order",
+    "build_order_height_mm": 8.0,
+    "build_order_seat_height_mm": 4.0,
+    "name_labels": None,  # None = only with etch_style "part_numbers"
 }
 
 # Compact 16-segment-style, single-line industrial alphabet. Each token names
 # one line segment; connected tokens are joined into the fewest open polylines.
 SEGMENTS = {
     "a": ((0.18, 1.00), (0.82, 1.00)),
-    "b": ((0.82, 1.00), (0.82, 0.52)),
-    "c": ((0.82, 0.48), (0.82, 0.00)),
+    "b": ((0.82, 1.00), (0.82, 0.50)),
+    "c": ((0.82, 0.50), (0.82, 0.00)),
     "d": ((0.18, 0.00), (0.82, 0.00)),
-    "e": ((0.18, 0.00), (0.18, 0.48)),
-    "f": ((0.18, 0.52), (0.18, 1.00)),
+    "e": ((0.18, 0.00), (0.18, 0.50)),
+    "f": ((0.18, 0.50), (0.18, 1.00)),
     "g1": ((0.18, 0.50), (0.50, 0.50)),
     "g2": ((0.50, 0.50), (0.82, 0.50)),
     "h": ((0.18, 1.00), (0.50, 0.50)),
@@ -278,6 +284,98 @@ def seat_marks(seat, plates, thickness, avoid, height):
     return marks
 
 
+def _number_mark(text, height, at, angle=0.0):
+    """Etch marks for one fit-up number; numbers containing 6 or 9 get an underline so they cannot be read upside down."""
+    marks = [{"text": text, "at": [round(float(at[0]), 4), round(float(at[1]), 4)], "angle": round(float(angle), 4), "height_mm": height}]
+    paths = stroke_text(text, height, at, angle)[0]
+    if "6" in text or "9" in text:
+        width = len(text) * 0.92 * height - 0.2 * height
+        y = -height / 2 - max(1.0, 0.25 * height)
+        c, s = math.cos(math.radians(angle)), math.sin(math.radians(angle))
+        line = [(at[0] + x * c - y * s, at[1] + x * s + y * c) for x in (-width / 2, width / 2)]
+        paths = paths + [line]
+        marks.append({"path": [[round(float(px), 4), round(float(py), 4)] for px, py in line]})
+    return marks, MultiLineString(paths)
+
+
+def build_order(spec, plates):
+    """Fit-up order of every plate except seats: spec.assembly_layers if given, else top-slotted braces, then the
+    other seated uprights, then everything else (caps, pads) in spec order."""
+    seats = {d.get("seat") for d in plates if d.get("seat")}
+    names = [d["name"] for d in plates if d["name"] not in seats]
+    listed = [n for layer in spec.get("assembly_layers", []) for n in layer if n in names]
+    if not listed:
+        braces = {j[side] for j in spec.get("joints", []) for side in ("a", "b") if j.get(f"{side}_slot") == "top"}
+        by = {d["name"]: d for d in plates}
+        listed = ([n for n in names if n in braces and by[n].get("seat")] + [n for n in names if n not in braces and by[n].get("seat")])
+    return listed + [n for n in names if n not in listed]
+
+
+def build_order_marks(spec, plates, parameters, edge_clearance):
+    """Number every plate in fit-up order and repeat the number on its seat beside each of its tab slots."""
+    import numpy as np
+    from shapely.geometry import box as _box
+    order = build_order(spec, plates)
+    by = {d["name"]: d for d in plates}
+    if any(by[n].get("etch_marks") is not None for n in order) or any(d.get("etch_marks") is not None for d in plates if d["name"] not in order):
+        return None  # explicit marks anywhere keep the job's own scheme
+    number = {n: str(i + 1) for i, n in enumerate(order)}
+    H, HS = float(parameters["build_order_height_mm"]), float(parameters["build_order_seat_height_mm"])
+    for n in order:
+        d = by[n]; profile = poly(d); safe = profile.buffer(-max(edge_clearance, 1.5))
+        x0, y0, x1, y1 = profile.bounds
+        body = profile.intersection(_box(x0 - 1, 0.0, x1 + 1, y1 + 1)) if d.get("seat") else profile  # without tabs
+        bx0, by0, bx1, by1 = body.bounds; cx, cy = (bx0 + bx1) / 2, (by0 + by1) / 2
+        spots = sorted(((cx + dx, cy + dy) for dx in np.arange(-60, 60.5, 0.5) for dy in np.arange(-60, 60.5, 0.5)),
+                       key=lambda q: math.hypot(q[0] - cx, q[1] - cy))
+        hit = None
+        for h in sorted({H, 6.0, 5.0, 4.0}, reverse=True):
+            if h > H: continue
+            for at in spots:
+                marks, geometry = _number_mark(number[n], h, at)
+                if safe.covers(geometry.buffer(0.6)):
+                    hit = marks; break
+            if hit: break
+        if not hit:
+            raise ValueError(f"No room on {n} to etch its build-order number {number[n]}")
+        d["etch_marks"], d["build_order"] = hit, int(number[n])
+    thickness = float(spec["thickness_mm"])
+    for seat in [d for d in plates if d["name"] in {p.get("seat") for p in plates}]:
+        o, su, sv, sw = (np.array(seat[k], float) for k in ("origin", "u", "v", "w"))
+        local = lambda p: np.array([(p - o) @ su, (p - o) @ sv])
+        room = poly(seat).buffer(-2.0); holes = [Polygon(h) for h in seat.get("holes", [])]
+        cut = unary_union(holes) if holes else Polygon()
+        taken, marks = [], []
+        for n in order:
+            d = by[n]
+            if d.get("seat") != seat["name"]: continue
+            po, pu, pv = (np.array(d[k], float) for k in ("origin", "u", "v"))
+            xs = [x for x, y in d["outer"] if y <= 1e-6]
+            a, b = local(po + pu * min(xs)), local(po + pu * max(xs))
+            along = (b - a) / np.linalg.norm(b - a); side = np.array([-along[1], along[0]])
+            angle = math.degrees(math.atan2(along[1], along[0]))
+            angle = angle - 180 if angle > 90 else angle + 180 if angle <= -90 else angle
+            line = LineString([a, b])
+            mine = [h for h in holes if line.distance(h.centroid) < 1.0]
+            anchors = [np.array(h.centroid.coords[0]) for h in mine] or [(a + b) / 2]  # welded-on plate: mark its centre
+            for c in anchors:
+                found = None
+                for h in (HS, 3.5):
+                    for e in (6.5, -6.5, 7.5, -7.5, 9.0, -9.0):
+                        for t in (0.0, 1.0, -1.0, 2.0, -2.0):
+                            ms, g = _number_mark(number[n], h, tuple(c + side * e + along * t), angle)
+                            g = g.buffer(0.4)
+                            if room.covers(g) and (cut.is_empty or g.distance(cut) > 0.8) and all(g.distance(q) > 0.8 for q in taken):
+                                found = (ms, g); break
+                        if found: break
+                    if found: break
+                if not found:
+                    raise ValueError(f"No room on {seat['name']} to etch build-order number {number[n]} beside {n}: pass explicit etch_marks")
+                taken.append(found[1]); marks += found[0]
+        seat["etch_marks"] = marks
+    return [{"number": int(number[n]), "name": n, "part_number": by[n].get("part_number"), "seat": by[n].get("seat")} for n in order]
+
+
 def _outline(modelspace, geometry, layer):
     polygons = [geometry] if isinstance(geometry, Polygon) else list(getattr(geometry, "geoms", []))
     for polygon in polygons:
@@ -328,7 +426,14 @@ def _legacy_nest(plates, parameters):
 def nest(spec, dxf_path):
     user_parameters = spec.get("nest", {})
     parameters = {**DEFAULTS, **user_parameters}
+    if parameters["etch_style"] not in ("build_order", "part_numbers"):
+        raise ValueError("nest.etch_style must be 'build_order' or 'part_numbers'")
+    if parameters["name_labels"] is None:
+        parameters["name_labels"] = parameters["etch_style"] == "part_numbers"
     plates = spec["plates"]
+    fit_up = None
+    if parameters["etch_style"] == "build_order":
+        fit_up = build_order_marks(spec, plates, parameters, float(parameters["etch_edge_clearance_mm"]))
     if "sheet_width_mm" in user_parameters and "sheet_height_mm" in user_parameters:
         nested, stock_size, usable_data, strip_width = _legacy_nest(plates, parameters)
         legacy = True
@@ -366,11 +471,15 @@ def nest(spec, dxf_path):
             coords = list(ring.coords)[:-1]
             modelspace.add_lwpolyline(coords, close=True, dxfattribs={"layer": "CUT"})
             expected.append(Polygon(coords))
-        paths, source_segments, label_height, label_angle = place_label(
-            data["name"], profile, float(parameters["etch_height_mm"]), float(parameters["etch_edge_clearance_mm"])
-        )
+        if parameters["name_labels"]:
+            paths, source_segments, label_height, label_angle = place_label(
+                data["name"], profile, float(parameters["etch_height_mm"]), float(parameters["etch_edge_clearance_mm"])
+            )
+        else:
+            paths, source_segments, label_height, label_angle = [], 0, None, None
         label_geometry = MultiLineString(paths)
-        labels_inside = labels_inside and profile.buffer(1e-7).covers(label_geometry)
+        if paths:
+            labels_inside = labels_inside and profile.buffer(1e-7).covers(label_geometry)
         for path in paths:
             modelspace.add_lwpolyline(path, close=False, dxfattribs={"layer": "ETCH"})
         data["etch_height_mm"] = label_height
@@ -381,14 +490,17 @@ def nest(spec, dxf_path):
         safe = profile.buffer(-float(parameters["etch_edge_clearance_mm"]))
         cosine, sine = math.cos(math.radians(angle)), math.sin(math.radians(angle))
         marks = data.get("etch_marks")
-        if marks is None and parameters["seat_part_numbers"] and any(d.get("seat") == data["name"] for d in plates):
+        if marks is None and parameters["etch_style"] == "part_numbers" and parameters["seat_part_numbers"] and any(d.get("seat") == data["name"] for d in plates):
             label_local = affinity.rotate(affinity.translate(label_geometry, -offset[0], -offset[1]), -angle, origin=(0, 0))
             marks = data["etch_marks"] = seat_marks(data, plates, float(spec["thickness_mm"]), label_local, float(parameters["seat_etch_height_mm"]))
         for mark in marks or []:
-            paths, source_segments = stroke_text(mark["text"], float(mark["height_mm"]), mark["at"], mark.get("angle", 0))
+            if "path" in mark:  # plain etched polyline (e.g. a leader from a number to its slot), plate-local mm
+                paths, source_segments = [[tuple(map(float, q)) for q in mark["path"]]], len(mark["path"]) - 1
+            else:
+                paths, source_segments = stroke_text(mark["text"], float(mark["height_mm"]), mark["at"], mark.get("angle", 0))
             paths = [[(x * cosine - y * sine + offset[0], x * sine + y * cosine + offset[1]) for x, y in path] for path in paths]
             if not safe.buffer(1e-7).covers(MultiLineString(paths)):
-                raise ValueError(f"Etch mark {mark['text']!r} on {data['name']} leaves the plate or crosses a cut")
+                raise ValueError(f"Etch mark {mark.get('text', 'path')!r} on {data['name']} leaves the plate or crosses a cut")
             for path in paths:
                 modelspace.add_lwpolyline(path, close=False, dxfattribs={"layer": "ETCH"})
             etch_source_segments += source_segments
@@ -429,7 +541,9 @@ def nest(spec, dxf_path):
         "margin_mm": float(parameters["margin_mm"]),
         "inside_margin": inside,
         "closed_cut_contours": len(cuts),
-        "etch_labels": len(plates),
+        "etch_labels": len(plates) if parameters["name_labels"] else 0,
+        "etch_style": parameters["etch_style"],
+        "build_order": fit_up,
         "etch_polylines": len(etch),
         "etch_source_segments": etch_source_segments,
         "etch_text_entities": len(text_entities),
