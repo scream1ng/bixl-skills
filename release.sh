@@ -7,13 +7,13 @@
 # This then, for that skill alone:
 #   1. zips the folder with SKILL.md at the zip ROOT (no wrapper folder), so the
 #      file can be uploaded straight to an assistant;
-#   2. repoints the README download link at the new tag, commits and pushes it;
+#   2. repoints the README table's download link at the new tag, commits and pushes it;
 #   3. tags <skill>-<version> and publishes a release with the zip attached.
 # Tags are per skill. GitHub's own "Source code" zip always holds every skill in
 # the repo; the attached zip is the one to hand out.
 #
-# A new skill: add its folder, a README section with a `**[Download ...]**` line
-# for sed to find, then release it the same way.
+# A new skill: add its folder, a README table row `| [skill-v0.0](x) | purpose |`
+# for sed to find, plus a section, then release it the same way.
 set -e
 skill=$1; version=$2; notes=$3
 [ -n "$notes" ] || { echo "usage: ./release.sh <skill> <version> <notes>" >&2; exit 1; }
@@ -26,7 +26,8 @@ card="$skill/agents/openai.yaml"
 [ -f "$card" ] && sed -i '' -E -e 's/^(  short_description: "?)v[0-9.]+ · /\1/' \
   -e "s/^(  short_description: \"?)/\\1$version · /" "$card"
 (cd "$skill" && zip -qr "$zip" . -x '*__pycache__*' '*.pyc' '*.DS_Store' '*.fixture-cache*')
-sed -i '' "s|^\*\*\[Download $skill-.*|**[Download $tag.zip](../../releases/download/$tag/$tag.zip)** — \`SKILL.md\` at the zip root; unzip into a folder named \`$skill\`.|" README.md
+sed -i '' -E "s#^\| \[$skill-v[0-9.]+\]\([^)]*\) \|#| [$tag](../../releases/download/$tag/$tag.zip) |#" README.md
+grep -q "releases/download/$tag/$tag.zip" README.md || { echo "README table row for $skill not updated" >&2; exit 1; }
 git commit -q -m "README: $tag download link" README.md "$skill/SKILL.md" $([ -f "$card" ] && echo "$card")
 git push -q origin HEAD
 git tag -a "$tag" -m "$skill $version"
