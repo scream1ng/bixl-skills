@@ -1,0 +1,1 @@
+- New skill: picture-first SOPs from shop-floor photos on the IXL Word template, with HTML review and pinned comments
