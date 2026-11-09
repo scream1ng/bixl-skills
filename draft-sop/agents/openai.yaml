@@ -1,0 +1,14 @@
+interface:
+  display_name: Draft SOP
+  short_description: v1.0 · Picture-first IXL SOPs with review before Word
+  default_prompt: Use $draft-sop to turn these photos into an IXL SOP with an
+    HTML preview before Word.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  allow_implicit_invocation: true
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas

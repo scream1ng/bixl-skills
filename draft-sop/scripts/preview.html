@@ -1,0 +1,49 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{TITLE}} — SOP review</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#F5F4F1;color:#1A1A1A;font:14px Arial,sans-serif}
+main{display:grid;grid-template-columns:minmax(600px,1fr) 320px;gap:20px;margin:22px}
+.sheet{position:relative;background:#fff;padding:18px;border:3px solid #1A1A1A}
+.top{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #1A1A1A;padding-bottom:10px;margin-bottom:10px}
+.top img{height:44px}.top h1{margin:0;font-size:20px;text-align:right}.top div{text-align:right;font-size:15px}
+.page{display:grid;border:1px solid #1A1A1A;margin-bottom:14px}
+.step{border:1px solid #1A1A1A;display:flex;flex-direction:column}
+.head{font-weight:bold;text-decoration:underline;font-size:12px;padding:4px 6px;border-bottom:1px solid #1A1A1A}
+.frame{text-align:center;padding:6px;flex:1}.photo{position:relative;display:inline-block;vertical-align:middle}
+.photo img{display:block;max-width:100%;max-height:300px}.photo svg{position:absolute;inset:0;width:100%;height:100%}
+.photo svg text{font-family:'Century Gothic',Arial,sans-serif;fill:#1A1A1A}
+.text{border-top:1px solid #1A1A1A;padding:6px;font:16px 'Century Gothic',Arial,sans-serif;min-height:40px}.text div{display:flex}.text span{flex:0 0 22px}.text .b1{padding-left:26px}
+.foot{display:flex;justify-content:space-between;align-items:end}.foot strong{font-size:20px}.foot span{font-size:12px;color:#6B6B6B}
+aside{background:#fff;border:1px solid #ddd;border-radius:14px;padding:20px;align-self:start;position:sticky;top:22px}
+aside strong{font-size:22px}aside .sub{display:block;color:#6B6B6B;margin:6px 0 16px;line-height:1.5}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-bottom:16px;border-bottom:1px solid #ddd}
+button{font:inherit;border:1px solid #aaa;border-radius:7px;background:#fff;padding:10px 8px;cursor:pointer;color:#1A1A1A!important;-webkit-text-fill-color:#1A1A1A!important}
+#mode{background:#CC0000;border-color:#CC0000;color:#fff!important;-webkit-text-fill-color:#fff!important;font-weight:600}
+#mode[aria-pressed=true]{background:#1A1A1A;border-color:#1A1A1A;box-shadow:0 0 0 2px #CC0000}
+.confirmation h2{font-size:15px;margin:16px 0 6px}.confirmation ul{margin:0;padding-left:20px;line-height:1.5}
+#notes{font:13px Arial,sans-serif;line-height:1.5;border-top:1px solid #ddd;padding-top:12px;margin:14px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+#status{color:#6B6B6B;font-size:12px}#exported{width:100%;min-height:120px}
+.commenting .photo,.commenting .text{cursor:crosshair}.commenting .text:hover{background:#fff3f3}
+#pins{position:absolute;inset:0;pointer-events:none;z-index:10}
+.pin{position:absolute;pointer-events:auto}.pin:focus-within{z-index:2}
+.pin .marker{position:absolute;left:-13px;top:-30px;width:28px;height:28px;border-radius:50% 50% 50% 3px;background:#CC0000;border:0;padding:0;font-weight:bold;box-shadow:0 2px 7px #0005;transform:rotate(-45deg)}
+.pin .marker,.pin .marker span{color:#fff!important;-webkit-text-fill-color:#fff!important}.marker span{display:block;transform:rotate(45deg)}
+.pin .box{position:absolute;left:16px;bottom:8px;width:220px;background:#fff;border-radius:9px;box-shadow:0 3px 14px #0004;padding:8px}
+.pin textarea{width:100%;height:65px;font:12px Arial,sans-serif;border:1px solid #bbb;border-radius:5px}
+.pin .target{display:block;font-size:11px;color:#555;padding-bottom:5px}.pin .del{padding:3px 6px;font-size:11px}
+.pin.shut .box{display:none}.pin.flip .box{left:auto;right:16px}.pin.below .box{bottom:auto;top:12px}
+[hidden]{display:none!important}
+@media(max-width:1000px){main{grid-template-columns:1fr;margin:10px}aside{position:static}}
+@media print{aside,#pins{display:none}main{display:block;margin:0}}
+</style>
+<main><section class="sheet"><div id="pins"></div>
+<div class="top"><img src="{{LOGO}}" alt="IXL Group"><div><h1>STANDARD OPERATING PROCEDURE</h1>{{TITLE}}</div></div>
+{{PAGES}}
+<div class="foot"><strong>{{DOC}}</strong><span>Preview only · Word file is the formatted result</span></div></section>
+<aside><strong>Draft SOP</strong><span class="sub">{{TITLE}}<br>{{FORMAT}} · Revision {{REVISION}}</span>
+<div class="actions"><button id="mode" type="button" aria-pressed="false">Comment mode</button><button id="copy" type="button">Copy comments</button></div>
+<section class="confirmation" {{CONFIRM_HIDDEN}}><h2>To confirm</h2><ul>{{CONFIRM_ITEMS}}</ul></section>
+<pre id="notes" hidden></pre><p id="status" role="status" hidden></p><textarea id="exported" aria-label="Comments to copy" hidden readonly></textarea></aside></main>
+<script>
+const meta={{META}};
+{{COMMENTS_SCRIPT}}
+</script></html>

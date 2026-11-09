@@ -11,6 +11,7 @@ Backwell IXL assistant skills. Each [release](../../releases) carries one skill 
 | [design-engineer-v1.7](../../releases/download/design-engineer-v1.7/design-engineer-v1.7.zip) | Ideas, photos or STEP into CAD or visual models |
 | [draft-icl-v1.2](../../releases/download/draft-icl-v1.2/draft-icl-v1.2.zip) | Inspection check list (ICL) on the company Excel form |
 | [draft-pfc-v1.2](../../releases/download/draft-pfc-v1.2/draft-pfc-v1.2.zip) | Process flow chart (PFC) from a D365 BOM |
+| [draft-sop-v1.0](../../releases/download/draft-sop-v1.0/draft-sop-v1.0.zip) | Picture-first SOP on the IXL Word template |
 
 ## design-fixture
 
@@ -71,3 +72,9 @@ A STEP file or dimensioned drawing in; a process-specific check list and a dimen
 ![Workflow](pfc-flow.svg)
 
 A D365 BOM or the draft calc parts table (spreadsheet or screenshot) in, plus optional STEP or drawing; a process flow chart out, first as an HTML preview with pinned comments, then, on explicit approval, drawn as editable native shapes on the company PFC Excel form. Component branches, materials, hardware and packing stay attached to the stage that consumes them; unknowns stay TBC. The bundled form is a masked copy (placeholder codes, no author, no macros). Approval generates the document; it is not a production release.
+
+## draft-sop
+
+[SKILL.md](draft-sop/SKILL.md) · needs `python-docx` and `Pillow`; `--render` uses LibreOffice
+
+Photos in, one dressed photo per step with red marks and numbered callouts, one line of text (≤10 words). `sop.py prep` dresses photos (turn, level, crop, light) and writes a 0.1 grid copy for placing marks. `preview` writes a self-contained HTML with comment pins. `export` only runs on recorded approval and fills the 12 IXL templates via the BIXL Studio engine, with annotations as native Word shapes you can edit.
