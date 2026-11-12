@@ -56,4 +56,26 @@ Run `python3 scripts/compare.py PREVIOUS_RESULT.json CURRENT_RESULT.json`. Repor
 }
 ```
 
-Laser timing and handling: follow `laser-timing.md`. Store program-only cycle in the process row; charge the user-approved 10 minutes per whole sheet handled in a separate shared_batch row, or use a reconciled combined batch rate without a separate handling charge. Partial-sheet program time is provisional if scaled from a full-sheet program; prefer actual CAM time.
+Laser timing and handling: follow `laser-timing.md`. Store the program-only cycle in the laser process row with setup 0; `quote.py` adds the shared program setup and the sheet load/unload seconds. Partial-sheet program time is provisional if scaled from a full-sheet program; prefer actual CAM time.
+
+## Quote file (`scripts/quote.py`)
+
+Run `python3 scripts/quote.py QUOTE.json --out QUOTE_RESULT.json`. It builds and runs one schema-2 input per quantity, prints per-unit cost and selling price for each, and also writes `QUOTE_RESULT_Q<n>.json` (the plain calculator result per quantity) for `compare.py`.
+
+```json
+{"quantities": [1, 10, 25, 50],
+ "base": {<schema-2 input without "quantity">},
+ "stock": [{"id": "sheet-3mm", "description": "3 mm HA3 P&O 2440 × 1220", "material_no": "705767",
+            "sheet_price": 106, "sheet_size_mm": [1220, 2440], "price_basis": "...", "yield_basis": "...",
+            "moq_sheets": 20, "handling_minutes": 10, "laser_resource": "laser", "setup_h_per_program": 0.25,
+            "parts": {"wrap": {"per_sheet": 13, "laser_row": "wrap-laser"}}}],
+ "scenarios": [{"label": "Weld high", "quantity": 10, "rows": {"ins-weld": {"pcs_per_h": 9.5, "cycle_seconds": {...}}}}]}
+```
+
+- `stock` (optional, one group per grade/thickness/sheet size): per quantity it adds one shared material row (sheet equivalents used, whole sheets bought), one shared laser-setup row (setup_h_per_program × programs; programs default to the number of laser parts, capped at sheets in the batch, shared equally) and the sheet load/unload seconds inside each listed `laser_row`. Listed laser rows must have setup 0. Do not also add per-part `material` rows or a handling row for these parts.
+- `scenarios` (optional): replace fields on named rows for one quantity; results appear on the Basis tab.
+- Name process rows by the operation as it should read on the sheet: "Laser", "Press brake × 6 bends", "MIG weld, 12 stitches × 10 mm", "Packaging, 2 pieces". The report prefixes Setup/Run and drops a leading "OPxx".
+
+## Report meta (`scripts/render_report.py`)
+
+Run `python3 scripts/render_report.py QUOTE_RESULT.json REPORT_META.json --out JOB-costing.html`. Meta fields (all optional except title): `title`, `customer`, `date`, `revision`, `material`, `currency`, `unit_label` ("set", "assembly"), `unit_plural`, `default_quantity` (one of the quoted quantities), `header` (extra [label, value] cells), `notes` (Basis bullets), `warning`, and `parts` keyed by component id with `desc`, `spec`, `image` (.jpg/.png from `iso_view.py`), `nest_svg` and `nest_json` (from `nest.py --svg`). The renderer fails if displayed rows do not add to the calculator unit cost, or if the page has duplicate element ids.

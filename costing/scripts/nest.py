@@ -12,7 +12,7 @@ Greedy bottom-left fill on a 1 mm raster. Rotation is 0 or 180 degrees only
 fitting the most parts is kept. No part may enter the clamp zone along one
 long edge. Every result is re-checked with exact geometry.
 """
-import argparse, json, sys
+import argparse, hashlib, json, sys
 from collections import Counter
 from itertools import count
 
@@ -116,7 +116,8 @@ def svg(placed, parts, a, fn=None):
     Each blank outline is defined once and placed with <use>, keeping the page small."""
     sw, sl = a.sheet
     names = list(parts)
-    uid = next(_SVG_IDS)  # unique ids when several drawings share one page
+    # ids must be unique across every drawing on a page, including drawings from separate runs
+    uid = 'n' + hashlib.sha1(repr((names, [(k, round(ang, 3), round(dx, 1), round(dy, 1)) for k, _, ang, dx, dy in placed], next(_SVG_IDS))).encode()).hexdigest()[:10]
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-40 -20 {sl + 100} {sw + 90}">',
            f'<rect x="0" y="0" width="{sl}" height="{sw}" fill="#dfe4e8" stroke="#7a8690" stroke-width="3"/>',
            f'<rect x="0" y="{sw - a.clamp}" width="{sl}" height="{a.clamp}" fill="#c3cad0"/>',
@@ -126,10 +127,10 @@ def svg(placed, parts, a, fn=None):
     for i, k in enumerate(names):
         g = parts[k].simplify(0.3)
         d = "".join("M" + " L".join(f"{x:.1f} {y:.1f}" for x, y in r.coords) + "Z" for r in [g.exterior, *g.interiors])
-        out.append(f'<path id="p{uid}_{i}" d="{d}" fill="{COLOURS[i % 4]}" fill-opacity=".85" fill-rule="evenodd"/>')
+        out.append(f'<path id="{uid}_{i}" d="{d}" fill="{COLOURS[i % 4]}" fill-opacity=".85" fill-rule="evenodd"/>')
     out.append(f'</defs><g transform="translate(0 {sw}) scale(1 -1)">')
     for k, _, ang, dx, dy in placed:
-        out.append(f'<use href="#p{uid}_{names.index(k)}" transform="translate({dx:.1f} {dy:.1f}) rotate({ang:.3f})"/>')
+        out.append(f'<use href="#{uid}_{names.index(k)}" transform="translate({dx:.1f} {dy:.1f}) rotate({ang:.3f})"/>')
     out.append("</g>")
     for x in range(0, int(sl) + 1, 200):
         out.append(f'<text x="{x}" y="{sw + 50}" text-anchor="middle" fill="#7a8690" '

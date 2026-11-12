@@ -1,4 +1,4 @@
-Illustrative report for `input.json` (fictional drawing EX-001 Rev A). Figures are the calculator output; regenerate this file if the input or rates change.
+Illustrative chat breakdown (breakdown mode) for `input.json`, the v1.3 single-quantity input (fictional drawing EX-001 Rev A). The v1.4 default deliverable for the same job is `report.html`, built from `quote.json` and `report_meta.json`; both give $13.43 per assembly at 100.
 
 EX-001 Rev A · batch 100 assemblies (provisional default) · AUD excluding GST
 

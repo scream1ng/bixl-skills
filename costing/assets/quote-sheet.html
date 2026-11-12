@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quote sheet</title>
+<style>
+:root{color-scheme:light;--ink:#16181b;--mut:#63686f;--line:#d3d6db;--soft:#f3f4f6;--red:#c8102e;--bg:#e9ebee}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:13.5px/1.4 Calibri,"Segoe UI",Arial,sans-serif}
+.bar{position:sticky;top:0;z-index:5;background:var(--ink);color:#fff;padding:8px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.bar b{font-size:15px}.bar .sp{flex:1}
+.tabs{display:flex;gap:2px;flex-wrap:wrap}
+.tabs button{background:#2a2d31;color:#ccc;border:0;border-radius:4px 4px 0 0;padding:7px 14px;font:inherit;cursor:pointer}
+.tabs button[aria-selected=true]{background:#fff;color:var(--ink);font-weight:700}
+.seg{display:flex;border:1px solid #555;border-radius:6px;overflow:hidden}
+.seg button{background:transparent;color:#ddd;border:0;border-left:1px solid #555;padding:7px 14px;font:inherit;cursor:pointer;min-width:48px}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed=true]{background:var(--red);color:#fff;font-weight:700}
+.tabs button:focus-visible,.seg button:focus-visible{outline:2px solid #fff;outline-offset:-3px}
+.wrap{max-width:1060px;margin:0 auto;padding:18px 16px 60px}
+.page{background:#fff;border:1px solid var(--line);border-top:5px solid var(--ink);margin-top:18px;padding:18px 20px}
+.page.cover{border-top-color:var(--red)}
+.page[hidden]{display:none}
+h1{font:700 22px/1.2 Cambria,Georgia,serif;margin:0}
+h2{font:700 20px/1.2 Cambria,Georgia,serif;margin:0}
+h3{font:700 15px/1.2 Cambria,Georgia,serif;margin:0}
+.tag{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.08em}
+.hd{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);margin:10px 0 12px}
+.hd div{padding:5px 10px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0}
+.hd span{display:block;font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+.hd b{font-weight:600;overflow-wrap:anywhere}
+.top{display:grid;grid-template-columns:260px minmax(0,1fr);gap:18px;align-items:center}
+.top>*,.blk>*{min-width:0}
+.pic{border:1px solid var(--line);background:#fafafa;padding:4px;text-align:center}
+.pic img{max-width:100%;height:auto;display:block;margin:0 auto}
+.big{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-end;margin-top:8px}
+.big span{display:block;font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+.big b{font:700 24px/1.1 Cambria,Georgia,serif}
+.big .s b{color:var(--red);font-size:32px}
+.blk{display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;padding:12px 0;border-top:1px solid var(--line);align-items:start}
+.blk.solo{grid-template-columns:minmax(0,1fr)}
+.blk .pic{padding:2px}
+.nest{margin-top:6px;border:1px solid var(--line);background:#fff;padding:3px}
+.nest svg{width:100%;height:auto;display:block}
+.nest small{display:block;font-size:10.5px;color:var(--mut);text-align:center;line-height:1.25;padding-top:2px}
+.meta{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.meta .each{font:700 17px Cambria,Georgia,serif}
+.sub{color:var(--mut);font-size:12px;margin:1px 0 0}
+.step{display:inline-block;background:var(--ink);color:#fff;font-size:10.5px;font-weight:700;letter-spacing:.06em;padding:1px 6px;margin-right:6px;vertical-align:2px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;margin-top:6px}
+th,td{padding:3.5px 7px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+.l{text-align:left}
+thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:600;border-bottom:1.5px solid var(--ink)}
+tr.g td{background:var(--soft);font-weight:700;font-size:11px;letter-spacing:.08em;color:var(--mut);padding:2px 7px}
+tr.su td:first-child{color:var(--mut)}
+tr.t td{font-weight:700;border-top:1.5px solid var(--ink);border-bottom:0}
+tr.sell td{font-weight:700;font-size:16px;color:var(--red);border-bottom:0}
+td.on{background:#fbe9ec}
+.up{color:var(--red);font-weight:700}
+.note{color:var(--mut);font-size:12px;margin:6px 0 0}
+ul{margin:6px 0 0;padding-left:18px}li{margin:2px 0}
+details{margin-top:10px}summary{cursor:pointer;font-weight:600}
+.warn{border-left:4px solid var(--red);background:#fbe9ec;padding:7px 12px;margin-top:10px;font-size:12.5px}
+@media (max-width:760px){.top,.blk{grid-template-columns:1fr}.blk>div:first-child,.top .pic{max-width:300px}.hd{grid-template-columns:repeat(2,minmax(0,1fr))}th,td{padding:3.5px 5px}}
+@media print{@page{size:A4;margin:9mm}body{background:#fff;font-size:10.5px}.bar{display:none}.wrap{padding:0;max-width:none}
+ .page,.page[hidden]{display:block;border:0;border-top:3px solid #000;margin:0;padding:6px 0 0;break-before:page}.page.cover{break-before:auto}
+ .page.sz{zoom:.74}.blk{grid-template-columns:120px minmax(0,1fr);padding:6px 0;gap:10px;break-inside:avoid}.top{grid-template-columns:200px minmax(0,1fr)}
+ th,td{padding:1.5px 5px}h2{font-size:17px}.big b{font-size:19px}.big .s b{font-size:24px}tr.sell td{font-size:13px}details{display:none}}
+</style>
+</head>
+<body>
+<div class="bar"><b id="bt"></b><nav class="tabs" role="tablist" aria-label="Report pages" id="tabs"></nav><span class="sp"></span><span id="ql">Batch</span><div class="seg" role="group" aria-labelledby="ql" id="seg"></div></div>
+<div class="wrap" id="root"></div>
+<script>
+const Q=/*QUOTE*/null;
+const $=s=>document.querySelector(s);
+const e=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const m=v=>v==null?'<span class="up">Unpriced</span>':'$'+v.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});
+const hrs=v=>Math.abs(v*100-Math.round(v*100))<1e-6?v.toFixed(2):v.toFixed(3);
+const M=Q.meta,U=M.unit_label||'assembly',UP=M.unit_plural||(/[^aeiou]y$/.test(U)?U.slice(0,-1)+'ies':U+'s');
+let TAB=null,QTY=Q.start;
+function table(b,isTop,V){
+  let h=`<div class="scroll"><table><thead><tr><th>Operation</th><th class="l">Work centre</th><th>Setup h / Parts per h</th><th>Labour rate</th><th>Overhead rate</th><th>$ each</th></tr></thead><tbody>`;
+  if(b.prod.length){h+='<tr class="g"><td colspan="6">PRODUCTION</td></tr>';
+    for(const o of b.prod)h+=`<tr class="${o.kind==='setup'?'su':''}"><td>${e(o.op)}</td><td class="l">${e(o.wc)}</td><td>${o.kind==='setup'?hrs(o.val):o.kind==='run'?o.val.toFixed(1):''}</td><td>${o.lab!=null?m(o.lab):''}</td><td>${o.oh!=null?m(o.oh):''}</td><td>${m(o.cost)}</td></tr>`;}
+  if(b.mat.length){h+='<tr class="g"><td colspan="6">MATERIAL</td></tr>';
+    for(const x of b.mat)h+=`<tr><td>${e(x.d)}</td><td class="l">${e(x.num)}</td><td>${e(x.q)}</td><td colspan="2">${e(x.u)}</td><td>${m(x.cost)}</td></tr>`;}
+  if(b.comps.length){h+='<tr class="g"><td colspan="6">COMPONENTS</td></tr>';
+    for(const c of b.comps)h+=`<tr><td>${e(c.d)}</td><td class="l">${c.ref?'Step '+c.ref:'bought'}</td><td>${c.q}</td><td colspan="2">${m(c.u)} each</td><td>${m(c.cost)}</td></tr>`;}
+  h+=`<tr class="t"><td colspan="5">${b.unpriced?'KNOWN-COST TOTAL':'TOTAL COST'} each</td><td>${m(b.total)}</td></tr>`;
+  if(isTop){h+=`<tr><td colspan="5">Profit, ${Math.round(V.margin*100)}% gross margin${b.unpriced?' (known costs only)':''}</td><td>${m(b.sell-b.total)}</td></tr><tr class="sell"><td colspan="5">${b.unpriced?'PROVISIONAL ':''}SELL PRICE each</td><td>${m(b.sell)}</td></tr>`;
+    if(b.per_root>1)h+=`<tr><td colspan="5">${b.per_root} per ${e(U)}: cost ${m(b.total*b.per_root)}, sell</td><td><b>${m(b.sell_root)}</b></td></tr>`;}
+  return h+'</tbody></table></div>';
+}
+function blk(b,isTop,V){
+  const P=Q.parts[b.id]||{},img=Q.img[b.id],N=Q.nest[b.id];
+  const left=(img||N)?`<div>${img?`<div class="pic"><img src="${img}" alt="Isometric view of ${e(b.name)}"></div>`:''}${N?`<div class="nest">${N.svg}<small>Nest: ${N.per_sheet} per sheet · ${Math.round(N.utilisation*100)}% used<br>1200 × 2400 usable</small></div>`:''}</div>`:'';
+  const refs=b.refs.length?` (${b.refs.join(' + ')})`:'';
+  const sub=[P.desc,P.spec].filter(Boolean).map(e).join(' · ');
+  const las=b.laser?`Laser run ${Math.round(b.laser.program)} s cutting + ${Math.round(b.laser.handling)} s share of sheet load/unload per part`:'';
+  return `<div class="blk${left?'':' solo'}">${left}<div><div class="meta"><h3><span class="step">${b.step}</span>${e(b.name)}${refs}</h3><span class="each">${m(b.total)} each</span></div><p class="sub">${[sub,las].filter(Boolean).join('<br>')}</p>${table(b,isTop,V)}</div></div>`;
+}
+function page(p,V){
+  const t=p.blocks[p.blocks.length-1],img=Q.img[p.id];
+  let h=`<section class="page sz" data-tab="${e(p.name)}"><div class="top"${img?'':' style="grid-template-columns:1fr"'}>${img?`<div class="pic"><img src="${img}" alt="Isometric view of ${e(p.name)}"></div>`:''}<div><div class="tag">${t.per_root} per ${e(U)} · batch of ${V.Q} = ${V.Q*t.per_root} off</div><h2>${e(p.name)}</h2><div class="big"><div class="s"><span>${t.unpriced?'Provisional sell':'Sell'} each</span><b>${m(t.sell)}</b></div><div><span>${t.unpriced?'Known cost':'Cost'} each</span><b>${m(t.total)}</b></div>${t.per_root>1?`<div><span>Sell, ${t.per_root} per ${e(U)}</span><b>${m(t.sell_root)}</b></div>`:''}</div></div></div>`;
+  p.blocks.forEach((b,i)=>{h+=blk(b,i===p.blocks.length-1,V)});
+  return h+'</section>';
+}
+function cover(V){
+  const hd=[['Customer',M.customer],['Revision',M.revision],['Date',M.date],['Currency',M.currency||'AUD ex GST'],...(M.header||[]),['Material',M.material],['Batch',V.Q+' '+(V.Q==1?U:UP)]].filter(x=>x[1]);
+  let h=`<section class="page cover" data-tab="Summary"><div class="tag">Budget quotation sheet · internal estimate, not a supplier quotation</div><h1>${e(M.title)}</h1><div class="hd">${hd.map(x=>`<div><span>${e(x[0])}</span><b>${e(x[1])}</b></div>`).join('')}</div>`;
+  const pv=V.status!=='estimated total';
+  h+=`<div class="big"><div class="s"><span>${pv?'Provisional sell':'Sell'} per ${e(U)}</span><b>${m(V.sell)}</b></div><div><span>${pv?'Known cost':'Cost'} per ${e(U)}</span><b>${m(V.cost)}</b></div><div><span>Batch sell</span><b>${m(V.bsell)}</b></div></div>`;
+  h+=`<div class="scroll"><table><thead><tr><th>Per ${e(U)}</th><th>Qty</th><th>Cost</th><th>Sell</th></tr></thead><tbody>${V.roll.map(r=>`<tr><td>${e(r.name)}</td><td>${r.n}</td><td>${m(r.cost)}</td><td>${m(r.sell)}</td></tr>`).join('')}<tr class="t"><td>${e(M.title)}</td><td></td><td>${m(V.cost)}</td><td>${m(V.sell)}</td></tr></tbody></table></div>`;
+  h+=`<div class="scroll"><table><thead><tr><th>Batch, ${e(UP)}</th><th>Cost / ${e(U)}</th><th>Sell / ${e(U)}</th><th>Batch cost</th><th>Batch sell</th><th>Sheets</th></tr></thead><tbody>${Object.values(Q.views).map(d=>{const o=d.Q==V.Q?' class="on"':'';return `<tr><td${o}>${d.Q}</td><td${o}>${m(d.cost)}</td><td${o}><b>${m(d.sell)}</b></td><td${o}>${m(d.bcost)}</td><td${o}>${m(d.bsell)}</td><td${o}>${d.sheets||''}</td></tr>`}).join('')}</tbody></table></div>`;
+  if(V.unpriced.length)h+=`<div class="warn">Unpriced, not included: ${V.unpriced.map(e).join(', ')}. Totals are known costs only.</div>`;
+  return h+'</section>';
+}
+function basis(V){
+  let h=`<section class="page" data-tab="Basis"><h2>Basis and exclusions</h2>`;
+  if(Q.scenarios.length)h+=`<div class="scroll"><table><thead><tr><th>Scenario</th><th>Batch</th><th>Cost / ${e(U)}</th><th>Sell / ${e(U)}</th></tr></thead><tbody>${Q.scenarios.map(s=>`<tr><td>${e(s.label)}</td><td>${s.quantity}</td><td>${m(s.per_assembly)}</td><td>${m(s.selling_per_assembly)}</td></tr>`).join('')}</tbody></table></div>`;
+  h+=`<ul>${(M.notes||[]).map(n=>`<li>${e(n)}</li>`).join('')}<li>Routine inspection ${m(V.absorbed)} per ${e(U)} is absorbed in the margin; effective margin ${(V.eff*100).toFixed(1)}%.</li></ul>`;
+  if(M.warning)h+=`<div class="warn">${e(M.warning)}</div>`;
+  h+=`<details><summary>Basis of every costed line</summary><div class="scroll"><table><thead><tr><th>Line</th><th class="l">Basis</th></tr></thead><tbody>${V.basis.map(b=>`<tr><td>${e(b.name)}</td><td class="l" style="white-space:normal">${e(b.basis)}</td></tr>`).join('')}</tbody></table></div></details>`;
+  return h+'</section>';
+}
+function tabs(){const ps=[...document.querySelectorAll('.page[data-tab]')];if(!ps.some(p=>p.dataset.tab===TAB))TAB=ps[0].dataset.tab;
+  $('#tabs').innerHTML=ps.map(p=>`<button role="tab" aria-selected="${p.dataset.tab===TAB}">${e(p.dataset.tab)}</button>`).join('');ps.forEach(p=>p.hidden=p.dataset.tab!==TAB);}
+function render(){const V=Q.views[QTY];
+  document.querySelectorAll('#seg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.q===QTY));
+  $('#root').innerHTML=cover(V)+V.pages.map(p=>page(p,V)).join('')+basis(V);tabs();}
+$('#bt').textContent=M.title;
+$('#ql').textContent=(UP.charAt(0).toUpperCase()+UP.slice(1))+' per batch';
+$('#seg').innerHTML=Object.keys(Q.views).map(q=>`<button data-q="${q}" aria-pressed="false">${q}</button>`).join('');
+$('#seg').addEventListener('click',ev=>{const q=ev.target.dataset.q;if(q){QTY=q;render()}});
+$('#tabs').addEventListener('click',ev=>{if(ev.target.tagName==='BUTTON'){TAB=ev.target.textContent;tabs();window.scrollTo(0,0)}});
+render();
+</script>
+</body>
+</html>

@@ -1,11 +1,11 @@
 ---
 name: costing
-description: v1.3 · Estimate sheet-metal fabrication cost from uploaded PDF drawings, drawing images or CAD, with per-component raw material, laser cutting, bending, setup hours, pieces per hour, welding, finishing and assembly totals. Use when a user drops a drawing for costing, requests a manufacturing estimate, wants process and material cost breakdowns, or asks to see the saved material list, laser cut technology list or hourly resource rates.
+description: v1.4 · Estimate sheet-metal fabrication cost from uploaded PDF drawings, drawing images or CAD and deliver an HTML quote sheet (one tab per assembly, isometric and nest pictures, setup/run/material per component, price breaks) with per-component raw material, laser cutting, bending, setup hours, pieces per hour, welding, finishing and assembly totals. Use when a user drops a drawing for costing, requests a manufacturing estimate, wants process and material cost breakdowns, or asks to see the saved material list, laser cut technology list or hourly resource rates.
 ---
 
 # Costing
 
-Route saved-list requests through "Saved lists" below before starting an estimate. For costing requests, return an immediately useful internal budget estimate in chat. Do not require STEP or a questionnaire before starting from a readable drawing. AUD excluding GST by default. Label provisional assumptions prominently; never describe a budget estimate as a supplier quotation.
+Route saved-list requests through "Saved lists" below before starting an estimate. For costing requests, deliver an internal budget estimate as an HTML quote sheet with a short chat summary. Do not require STEP or a questionnaire before starting from a readable drawing. AUD excluding GST by default. Label provisional assumptions prominently; never describe a budget estimate as a supplier quotation.
 
 Each rule lives in one reference file:
 
@@ -17,7 +17,8 @@ Each rule lives in one reference file:
 | `references/laser-technology.json` | Extracted S235 oxygen/nitrogen technologies and job-specific program references; no PDF |
 | `references/rates.json` | Saved resource rates, default resources, fallback throughputs, margin, e-coat reference |
 | `references/calculator-contract.md` | Calculator input schema and output fields |
-| `references/report-format.md` | Chat report layout, margin/selling presentation, inspection/packing absorption |
+| `references/report-format.md` | Quote-sheet layout and checks, chat breakdown layout, margin/selling presentation, inspection/packing absorption |
+| `assets/quote-sheet.html` | Quote-sheet template filled by `scripts/render_report.py`; do not edit per job |
 
 ## Saved lists
 
@@ -37,26 +38,27 @@ The user picks a mode in plain words ("summary", "breakdown", "nest"; `/costing 
 
 | Mode | Output |
 |---|---|
-| summary | Summary only, per `report-format.md` "Summary mode": roll-up table, batch line, unpriced items. |
-| breakdown (default when no mode is given) | Full authoritative report per `report-format.md`: roll-up, one table per Part and Assembly, notes. Also use this mode for follow-ups such as “give me a breakdown”, “pieces per hour”, or “setup time”; retain the prior estimate's inputs unless the user changes them. Never replace it with an abbreviated operation table. |
+| sheet (default when no mode is given) | HTML quote sheet per `report-format.md` "Quote sheet", sent as a file, plus a short chat summary. Follow-ups that change inputs re-run quote.py and re-send the sheet. |
+| summary | Chat summary only, per `report-format.md` "Summary mode": roll-up table, batch line, unpriced items. |
+| breakdown | Full report as Markdown tables in chat per `report-format.md` "Chat breakdown": roll-up, one table per Part and Assembly, notes. Use when the user asks for the breakdown in chat, or for “pieces per hour” / “setup time” questions; retain the prior estimate's inputs unless the user changes them. Never replace it with an abbreviated operation table. |
 | nest | Laser nest page: run `scripts/nest.py … --html <part>-nest.html --title "<part> Nest" --sheet-price <$/sheet>` (shop 1200 × 2400 usable sheet per `estimating.md`, even when priced on IXL 1220 × 2440). Write it to the user's connected/output folder so it is attached; do not publish it as an artifact unless asked, and do not claim it rendered without seeing it. Give the file path and per-sheet counts, utilisation and $/part in chat. The page is self-contained (no CDN); each blank is drawn once and placed by reference, so keep it under 250,000 bytes (the script reports the size). Needs STEP outlines (see `estimating.md`). |
 
 ## Workflow
 
 Read each reference file at the step that first needs it, once.
 
-1. Read `estimating.md`, then the drawing (text and every sheet visually) and reconcile the BOM. For a STEP-only input, run `scripts/step_geometry.py` first.
-2. Read `rates.json`. For laser work, read `laser-timing.md` and matching `laser-technology.json` entries before building the laser cycle. State the batch quantity (default 100, provisional) and build a route per component, then assembly operations once.
-3. Read `material-pricing.md` and `ixl-material-baseline.json`. Price material; estimate yield per `estimating.md` (true-shape `scripts/nest.py` when STEP outlines exist, else dimensioned flat envelopes).
-4. Read `calculator-contract.md`. Write schema-2 input and run `python3 scripts/calculate.py INPUT.json --out RESULT.json` (prints headline totals only; open RESULT.json for the per-row tables of the base case). It must succeed before every costing report and follow-up costing revision (saved-list lookups are exempt); verify row sums, batch/unit totals and margin from its output. Run low/base/high and batch-size scenarios where `estimating.md` requires them.
-5. Read `report-format.md`. Report in chat exactly per it: cost roll-up first, then one table per Part and Assembly.
-6. For revisions, run `python3 scripts/compare.py PREVIOUS_RESULT.json CURRENT_RESULT.json` and explain every changed cost.
+1. Read `estimating.md`, then the drawing (text and every sheet visually) and reconcile the BOM. For a STEP-only input, run `scripts/step_geometry.py` first. With STEP, also render one picture per make component and per assembly: `scripts/iso_view.py PART.step --out PART.jpg` (pass `--colours` so parts of an assembly differ).
+2. Read `rates.json`. For laser work, read `laser-timing.md` and matching `laser-technology.json` entries before building the laser cycle. State the quantities (the customer's, else 50/100/500 with 100 provisional) and build a route per component, then assembly operations once, structured as the shop builds it (`estimating.md` "Assemblies").
+3. Read `material-pricing.md` and `ixl-material-baseline.json`. Price material; estimate yield per `estimating.md` (true-shape `scripts/nest.py … --svg nest/<part>` when STEP outlines exist, else dimensioned flat envelopes).
+4. Read `calculator-contract.md`. Write the quote file (schema-2 `base` without quantity, `stock` groups for sheet parts, `scenarios`) and run `python3 scripts/quote.py QUOTE.json --out QUOTE_RESULT.json`; it runs `calculate.py` at every quantity. It must succeed before every costing report and follow-up costing revision (saved-list lookups are exempt); verify totals and margin from its output. Put low/high scenarios required by `estimating.md` in `scenarios`.
+5. Read `report-format.md`. Write the report meta and run `python3 scripts/render_report.py QUOTE_RESULT.json REPORT_META.json --out <job>-costing.html`; check the page as `report-format.md` says, send it with SendUserFile, and give the short chat summary. In breakdown mode, report in chat per "Chat breakdown" instead.
+6. For revisions, run `python3 scripts/compare.py PREVIOUS_Q<n>.json CURRENT_Q<n>.json` on the per-quantity results quote.py writes beside its output, and explain every changed cost.
 7. End with the few inputs most likely to change the result (usually batch size, factory rates, nest yield or coating quote). Deliver the estimate before asking optional questions. Create spreadsheets/documents only when requested.
 
 ## Setup and messages
 
-`calculate.py` and `compare.py` are standard library. STEP geometry and nesting need `scripts/requirements.txt` (the CAD engine): before installing, tell the user it takes about a minute. If it cannot install (no network), say so plainly and continue from the drawing with dimensioned flat envelopes.
+`calculate.py`, `compare.py`, `quote.py` and `render_report.py` are standard library. STEP geometry, nesting and `iso_view.py` need `scripts/requirements.txt` (the CAD engine): before installing, tell the user it takes about a minute. If it cannot install (no network), say so plainly and continue from the drawing with dimensioned flat envelopes.
 
 Report a script error or warning as one plain sentence plus the next action, never raw output or internal field names.
 
-A worked example is in `examples/bracket/`.
+A worked example is in `examples/bracket/`: `quote.json`, `report_meta.json` and the resulting `report.html` (the older chat breakdown is `report.md`).

@@ -1,0 +1,14 @@
+{
+ "title": "EX-001 Mounting bracket assembly",
+ "customer": "Illustrative example",
+ "date": "\u2014",
+ "revision": "A",
+ "material": "HA250 2.0 mm",
+ "unit_label": "assembly",
+ "default_quantity": 100,
+ "notes": [
+  "Illustrative example from a fictional drawing.",
+  "Laser run is a provisional program-only fallback of 18 s per part plus sheet load/unload."
+ ],
+ "warning": "E-coat is unpriced: selling price is provisional."
+}
