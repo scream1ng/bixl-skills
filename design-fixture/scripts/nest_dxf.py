@@ -32,7 +32,7 @@ DEFAULTS = {
     "seat_part_numbers": True,  # etch each standing plate's part number beside its footprint on the base
     "seat_etch_height_mm": 5.0,
     # "build_order": every plate gets its fit-up number (braces first) in its middle and the seat repeats it beside each
-    # of that plate's tab slots; 6/9/16/19... are underlined. "part_numbers": legacy plate-name + part-number marks.
+    # of that plate's tab slots; each cap/pad cheek repeats the cap's number below its cap tab; 6/9/16/19... are underlined. "part_numbers": legacy plate-name + part-number marks.
     "etch_style": "build_order",
     "build_order_height_mm": 8.0,
     "build_order_seat_height_mm": 4.0,
@@ -340,6 +340,33 @@ def build_order_marks(spec, plates, parameters, edge_clearance):
             raise ValueError(f"No room on {n} to etch its build-order number {number[n]}")
         d["etch_marks"], d["build_order"] = hit, int(number[n])
     thickness = float(spec["thickness_mm"])
+    # Caps/pads sit on cheeks, not the seat: each cheek repeats its cap's number just below the cap tab.
+    for j in spec.get("joints", []):
+        if j.get("a_slot") != "tab" or j.get("a") not in number or j.get("b") not in number:
+            continue
+        cheek, cap = by[j["a"]], by[j["b"]]
+        co, cu, cv = (np.array(cheek[k], float) for k in ("origin", "u", "v"))
+        cap_bottom = (np.array(cap["origin"], float) - co) @ cv - thickness / 2   # cap underside in cheek-local y
+        profile = poly(cheek); safe = profile.buffer(-max(edge_clearance, 1.5))
+        tab = profile.intersection(_box(profile.bounds[0] - 1, cap_bottom - 1e-6, profile.bounds[2] + 1, profile.bounds[3] + 1))
+        if tab.is_empty:
+            continue
+        tx = (tab.bounds[0] + tab.bounds[2]) / 2
+        own = unary_union([_number_mark(m["text"], m["height_mm"], m["at"], m.get("angle", 0))[1].buffer(0.8)
+                           for m in cheek["etch_marks"] if "text" in m])
+        found = None
+        for h in (HS, 3.5):
+            for dy in (1.5, 2.5, 3.5, 5.0, 7.0):
+                for dx in (0.0, 2.0, -2.0, 4.0, -4.0, 8.0, -8.0, 12.0, -12.0):
+                    ms, g = _number_mark(number[cap["name"]], h, (tx + dx, cap_bottom - dy - h / 2))
+                    g = g.buffer(0.4)
+                    if safe.covers(g) and g.distance(own) > 0.0:
+                        found = ms; break
+                if found: break
+            if found: break
+        if not found:
+            raise ValueError(f"No room on {cheek['name']} to etch cap number {number[cap['name']]} below its tab")
+        cheek["etch_marks"] = cheek["etch_marks"] + found
     for seat in [d for d in plates if d["name"] in {p.get("seat") for p in plates}]:
         o, su, sv, sw = (np.array(seat[k], float) for k in ("origin", "u", "v", "w"))
         local = lambda p: np.array([(p - o) @ su, (p - o) @ sv])

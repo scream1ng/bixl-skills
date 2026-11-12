@@ -28,7 +28,7 @@ Every file read stays in context for the rest of the job. This table is the only
 | Weld, laser ribs | weld-workflow, construction-operation, laser-cut-construction, spec-format |
 | Weld, blocks | weld-workflow, construction-operation, block-construction |
 | Check, laser ribs | checking-workflow, inspection, practical-review, checking-build, laser-ribs |
-| Check, printed | checking-workflow, inspection, practical-review, checking-build, printed-solid, printed-body-spec; start from `examples/checking-printed/gauge-reference/README.md` (adapt by its list; do not read the scripts whole) |
+| Check, printed | checking-workflow, inspection, practical-review, checking-build, printed-solid, printed-body-spec; then build the body by **Shop standards → Printed body** below. `examples/checking-printed/gauge-reference/` is superseded (posts/pads layout, heat-set inserts, slow mesh offset): do not use it |
 | Feature in job | assembly-locating (more than one part), hole-slot-locating (locating from holes/slots), locating-hardware (pins, bushes, checking seating) |
 | Phase | preview at concept (step 5), finalization only at step 6 |
 
@@ -61,6 +61,29 @@ Open `hardware/gh-201-b.json` only for a value you need (the scripts read it). D
    **Finalize delivers one zip, never loose files.** The design was approved in the HTML preview, so a passing `workflow.py finalize` packages it itself (`scripts/package_delivery.py`): the whole `DELIVERY` folder (DXF, assembly STEP, both PNGs, `JSON/`) plus `source/` with `spec.json`, `project.json` and the original source files, and a `BUILD-ORDER.txt` listing each etched fit-up number with its plate, part number, role and seat (from `measurements.cutting_audit.build_order`), as `OUT/<project_id>-<revision>.zip` with one top folder of the same name. Send only that zip (one file card); do not send the files individually or zip by hand. A run that needs review is not packaged; fix and rerun. Do not change any file after the build: the JSON records hash the exports, so a hand-edited STEP or DXF breaks validation — fix the spec or script and rebuild instead.
 
 Persist `spec.json` plus `project.json` for a fresh chat/model; resume with `workflow.py resume spec.json project.json`, mapping relocated source paths. Validate source hashes, units, frame and version before reuse; changed source requires a fresh survey and invalidates evidence/approval. A byte-only change (re-export, identical solids by `source_geometry` fingerprint) is rebased automatically before authorization, as is a change confined to the `REF_` fixture solids in a surveyed STEP (a pin lengthened to press through its pad): where a pin locates the part is its `contacts` rows, so the datum ack survives it. Never relabel measurements. A handoff carries both records, the original sources and evidence, not only HTML.
+
+## Shop standards (override any conflicting reference or example)
+
+**Fasteners in printed bodies.** No brass/heat-set inserts anywhere. Every M5 into plastic (GH-201-B clamp base and body-to-base bolts) is a Ø4.2 × 12 deep hole, tapped M5 × 0.8 in the print. Clamp holes go at the measured CAD slot centres (`hardware/gh-201-b.json` → `mounting.hole_centres_canonical_mm`) through the clamp's `mount_transform`; pedestal = standard 50 × 60 footprint, top level with the clamped face. Ignore `printed-solid.md` / `make_gauge.py` insert text (Ø6.4).
+
+**"Exclude studs/nuts/bolts" (or "ignore hardware").** Drop those bodies entirely: no `REF_` copies in the placed STEP, no clearance cuts, not checked. Assume the part is checked before hardware is fitted and say so once. Locating pins are sized to the **sheet hole** (e.g. Ø8 hole → Ø7.95 ground dowel, full sheet-thickness engagement, 0.5 mm lead chamfer), never to a nut/insert bore.
+
+**Datums (checking).** Propose the largest flat face as A when the part's mass sits over it. Put the clamp force line on the centroid of the A pads (horseshoe pad around a hole if the centroid falls in one). Anti-rotation = one fixed edge stop at the point the user marks plus a 0.2 mm guard post at the far end; never two zero-clearance stops on one edge with a pin.
+
+**Printed body (support-free continuous offset).** Build in exact OCP, not mesh Minkowski:
+1. Flat base 10 mm; nest block under the datum face; Ø8 pads to Z0 at A points.
+2. For every part face whose normals all point down (n_z < −0.02, flats **and bends**): planar → rebuild from its outer wire only (holes filled); offset 3 mm along its normal (`BRepOffsetAPI_MakeOffsetShape.PerformBySimple`); prism −Z to the base; fuse all with one fuzzy fuse.
+3. Cut a 3 mm vertical relief band at each sheet-thickness side face (planar, |n_z| < 0.5, area < 250 mm²): xy convex hull of the face + its 3 mm offset, prism full height. Do not apply to the web or other large faces.
+4. Add stop/guard posts (roles `Tertiary` and `Guard`), clamp pedestal with tapped holes, pin press bore (ream after print).
+5. Keep the largest solid; heal (`ShapeFix_Wireframe` small edges + `ShapeFix_FixSmallFace` at 0.05 mm, `ShapeFix_Shape`); write STEP, reread, write again (settles tolerances so `step_roundtrip` < 0.001 mm³ and the STL closes).
+6. Verify before concept: one valid solid; 9-ray gap = 3.000 mm at every station; nothing but datums within 3.0 mm of the part; no face with n_z < −0.05 above the base bottom (support-free).
+
+**Pipeline gotchas.**
+- After the rigid placement transform, re-sew the workpiece (`BRepBuilderAPI_Sewing` 1e-4 → solid → `ShapeFix_Shape`): placement can leave a BSpline bend face "unorientable" after STEP write (`solid_integrity` fail). Volume must not change.
+- `pin_bearings` is a **top-level** list (`{"pin","point","axis"}`), not inside `pin_locators`.
+- Station `direction`, `patch.u/v` and `point_mm` at full precision from the exact face (no rounding): the checker needs orthogonality ≤ 1e-7 and points ≤ 1e-4 mm on the face.
+- A guard is not a contact: keep it out of `contacts`/`locating_groups` (store under `guards`), or `contacts` fails on its 0.2 mm gap.
+- Put notes in `decisions`, never as extra fields on `clamps`/`contacts`: those fields are part of the datum digest and stale the datum review.
 
 ## Invariants and boundaries
 
