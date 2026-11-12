@@ -4,7 +4,7 @@ Backwell IXL assistant skills. Each [release](../../releases) carries one skill 
 
 | Skill | Purpose |
 |---|---|
-| [design-fixture-v1.8](../../releases/download/design-fixture-v1.8/design-fixture-v1.8.zip) | Weld and checking fixtures from STEP or drawing |
+| [design-fixture-v1.9](../../releases/download/design-fixture-v1.9/design-fixture-v1.9.zip) | Weld and checking fixtures from STEP or drawing |
 | [draft-drawing-v1.3](../../releases/download/draft-drawing-v1.3/draft-drawing-v1.3.zip) | A3 shop drawing from a STEP file |
 | [costing-v1.4](../../releases/download/costing-v1.4/costing-v1.4.zip) | Fabrication cost estimate from drawing or STEP |
 | [design-backbar-v1.7](../../releases/download/design-backbar-v1.7/design-backbar-v1.7.zip) | Backgauge jig plates for non-parallel bend edges |
